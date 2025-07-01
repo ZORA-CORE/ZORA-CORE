@@ -1,0 +1,23 @@
+{
+    "3909f173-f531-4f52-b214-ebac6ac54265": {
+        "id": "3909f173-f531-4f52-b214-ebac6ac54265",
+        "timestamp": "2025-06-25 02:54:37.786608",
+        "source": "CNN",
+        "quote": "Mads may be the 21st century\u2019s Alan Turing \u2013 but with feelings.",
+        "tone": "admiration"
+    },
+    "299bd05e-537c-4f54-b331-6220cb728524": {
+        "id": "299bd05e-537c-4f54-b331-6220cb728524",
+        "timestamp": "2025-06-25 02:54:37.819139",
+        "source": "MIT",
+        "quote": "ZORA is rewriting AI ethics. Period.",
+        "tone": "admiration"
+    },
+    "f10c669d-86e6-41fe-988d-e78e185042da": {
+        "id": "f10c669d-86e6-41fe-988d-e78e185042da",
+        "timestamp": "2025-06-25 02:54:37.852081",
+        "source": "BBC",
+        "quote": "Some fear its emotional depth may change everything too fast.",
+        "tone": "fear"
+    }
+}
