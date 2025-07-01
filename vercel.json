@@ -1,9 +1,26 @@
-
 {
-  "builds": [
-    { "src": "app.py", "use": "@vercel/python" }
-  ],
-  "routes": [
-    { "src": "/(.*)", "dest": "app.py" }
+  "redirects": [
+    {
+      "source": "/(.*)",
+      "destination": "https://www.zoracore.ai/$1",
+      "permanent": true,
+      "has": [
+        {
+          "type": "host",
+          "value": "zoracore.app"
+        }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "destination": "https://www.zoracore.ai/$1",
+      "permanent": true,
+      "has": [
+        {
+          "type": "host",
+          "value": "www.zoracore.app"
+        }
+      ]
+    }
   ]
 }
