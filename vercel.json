@@ -1,9 +1,15 @@
 {
   "version": 2,
   "builds": [
-    { "src": "api/zora.py", "use": "@vercel/python" }
+    {
+      "src": "api/zora_runtime.py",
+      "use": "@vercel/python"
+    }
   ],
   "routes": [
-    { "src": "/(.*)", "dest": "api/zora.py" }
+    {
+      "src": "/api/zora_runtime",
+      "dest": "api/zora_runtime.py"
+    }
   ]
 }
