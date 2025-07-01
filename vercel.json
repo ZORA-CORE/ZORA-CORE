@@ -1,26 +1,9 @@
 {
-  "redirects": [
-    {
-      "source": "/(.*)",
-      "destination": "https://www.zoracore.ai/$1",
-      "permanent": true,
-      "has": [
-        {
-          "type": "host",
-          "value": "zoracore.app"
-        }
-      ]
-    },
-    {
-      "source": "/(.*)",
-      "destination": "https://www.zoracore.ai/$1",
-      "permanent": true,
-      "has": [
-        {
-          "type": "host",
-          "value": "www.zoracore.app"
-        }
-      ]
-    }
+  "version": 2,
+  "builds": [
+    { "src": "api/zora.py", "use": "@vercel/python" }
+  ],
+  "routes": [
+    { "src": "/(.*)", "dest": "api/zora.py" }
   ]
 }
