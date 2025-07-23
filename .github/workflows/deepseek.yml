@@ -1,0 +1,23 @@
+name: DeepSeek Integration
+
+on:
+  push:
+    paths:
+      - 'deepseek_agent.py'
+      - 'zora_unifier.py'
+
+jobs:
+  test-deepseek:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+    - name: Run DeepSeek test
+      run: |
+        python zora_unifier.py
