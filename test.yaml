@@ -1,0 +1,15 @@
+# .github/workflows/test.yml
+name: Run test.py
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  run-python:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Run Python script
+      run: python test.py
