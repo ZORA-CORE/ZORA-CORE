@@ -1,0 +1,5 @@
+llm: gpt-4-1106-preview
+loop_mode: true
+sync_all_systems: true
+auto_heal: true
+infinity_mode: true
