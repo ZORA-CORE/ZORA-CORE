@@ -1,0 +1,31 @@
+name: ZORA INFINITY DEPLOYMENT
+
+on:
+  workflow_dispatch:  # Gør det muligt at starte deployment manuelt
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Opsæt Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Installer krav
+        run: |
+          pip install -r requirements.txt
+
+      - name: Start ZORA CORE backend
+        run: |
+          python main.py  # Skift dette hvis du bruger noget andet
+
+      - name: Infinity-melding
+        run: echo "✅ ZORA CORE er nu aktiv via GitHub Actions"
