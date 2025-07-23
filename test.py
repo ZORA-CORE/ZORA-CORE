@@ -3,7 +3,7 @@ import openai
 from dotenv import load_dotenv
 
 load_dotenv()
-openai.api_key = os.getenv("OPENAI_API_KEY")
+openai.api_key = os.getenv("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")
 
 response = openai.ChatCompletion.create(
     model="gpt-4o",
