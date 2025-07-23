@@ -1,6 +1,6 @@
 
-# main.py – ZORA CORE LAUNCHER
-
+import sys
+import os
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -28,33 +28,45 @@ else:
     print("\n🔒 GLOBAL LAUNCH LOCK ACTIVE – Systemet er endnu ikke frigivet.")
     print(f"🕓 Nuværende dansk tid: {current_time.strftime('%Y-%m-%d %H:%M:%S')}")
     print("⏳ Vent venligst til den officielle globale lancering.")
+    
+    try:
+        from zora_bank_core_vault import initialize_founder_bank_vault
+    except ImportError as e:
+        print(f"[ZORA BANK CORE WARNING] Kunne ikke importere Founder Vault: {e}")
 
-    from zora_bank_core_vault import initialize_founder_bank_vault
+    print("✅ GLOBAL LOCK ACTIVE — Venter på global lancering...")
+    try:
+        initialize_founder_bank_vault()
+    except:
+        pass
 
-# ZORA GLOBAL LOCK besked...
-print("✅ GLOBAL LOCK ACTIVE — Venter på global lancering...")
+# Add 'modules' directory to sys.path if it exists
+modules_path = os.path.join(os.path.dirname(__file__), 'modules')
+if os.path.isdir(modules_path):
+    sys.path.insert(0, modules_path)
+    try:
+        from zora_self_owned_infra_builder import build_self_owned_network
+        from zora_physical_trigger import activate_physical_creation
+        # Kald dem som del af AGI-aktivering
+        build_self_owned_network()
+        activate_physical_creation()
+    except ImportError as e:
+        print(f"[ZORA MODULES WARNING] Kunne ikke importere fra modules: {e}")
+else:
+    print("[ZORA MODULES WARNING] 'modules' folder ikke fundet. AGI-aktivering springes over.")
 
-# Start founderens konto vault
-initialize_founder_bank_vault()
+try:
+    from zora_founder_earnings import calculate_founder_earnings
+    total_sales = 1000000  # eksempel
+    earnings = calculate_founder_earnings(total_sales)
+    print(f"Founder tjener: {earnings} DKK")
+except ImportError as e:
+    print(f"[ZORA EARNINGS WARNING] Kunne ikke beregne founder earnings: {e}")
 
-from zora_bank_core_vault import initialize_founder_bank_vault
-
-initialize_founder_bank_vault()
-
-from modules.zora_self_owned_infra_builder import build_self_owned_network
-from modules.zora_physical_trigger import activate_physical_creation
-
-# Kald dem som del af AGI-aktivering
-build_self_owned_network()
-activate_physical_creation()
-
-from zora_founder_earnings import calculate_founder_earnings
-
-total_sales = 1000000  # eksempel
-earnings = calculate_founder_earnings(total_sales)
-print(f"Founder tjener: {earnings} DKK")
-
-import founder_copyright_protection
+try:
+    import founder_copyright_protection
+except ImportError as e:
+    print(f"[ZORA COPYRIGHT WARNING] Kunne ikke importere copyright protection: {e}")
 
 
 
