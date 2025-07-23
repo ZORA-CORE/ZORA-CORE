@@ -1,0 +1,8 @@
+import requests
+
+headers = {
+    "Authorization": f"Bearer {os.getenv('OPENAI_API_KEY')}"
+}
+data = {"prompt": "Start infinity loop", "max_tokens": 100}
+res = requests.post("https://api.openai.com/v1/completions", headers=headers, json=data)
+print(res.json())
