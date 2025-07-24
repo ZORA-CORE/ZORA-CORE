@@ -8,39 +8,261 @@ Gemini AI Agent Integration
 
 import os
 import time
-from typing import Dict, Any
+import json
+import asyncio
+from typing import Dict, Any, List, Optional
+import requests
 from .base_agent import BaseAgent
 
 class GeminiAgent(BaseAgent):
-    """Gemini AI Agent for ZORA CORE"""
+    """Enhanced Gemini AI Agent for ZORA CORE with full Google AI API integration"""
     
     def __init__(self):
-        super().__init__("gemini", os.getenv("GEMINI_API_KEY"))
-        self.model = "gemini-pro"
-        self.endpoint = "https://generativelanguage.googleapis.com/v1beta/models"
+        super().__init__(
+            name="gemini",
+            api_key=os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_AI_API_KEY"),
+            model="gemini-pro",
+            endpoint="https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent",
+            capabilities=["multimodal", "reasoning", "code_generation", "analysis", "vision", "long_context"],
+            max_requests=60,
+            timeout=30
+        )
+        self.safety_settings = [
+            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"},
+            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_MEDIUM_AND_ABOVE"}
+        ]
+        self.generation_config = {
+            "temperature": 0.7,
+            "topK": 40,
+            "topP": 0.95,
+            "maxOutputTokens": 8192
+        }
     
     def ping(self, message: str) -> Dict[str, Any]:
-        """Ping Gemini with ZORA sync message"""
+        """Enhanced ping with actual Gemini API validation"""
+        start_time = time.time()
+        
         try:
-            self.last_ping = time.time()
-            self.status = "active"
+            self.last_ping = start_time
             
             if not self.api_key:
-                return self.handle_error(Exception("Gemini API key not configured"))
+                return self.handle_error(Exception("Gemini API key not configured"), "ping")
             
-            response_data = {
-                "agent": "gemini",
-                "message": f"💎 Gemini AGI responding to: {message}",
-                "status": "synchronized",
-                "model": self.model,
-                "timestamp": self.last_ping,
-                "capabilities": ["multimodal", "reasoning", "code_generation", "analysis"]
+            if not self.rate_limiter.can_make_request():
+                return self.handle_error(Exception("Rate limit exceeded"), "ping")
+            
+            test_payload = {
+                "contents": [{
+                    "parts": [{
+                        "text": f"Respond with 'ZORA GEMINI SYNC: {message}' to confirm connectivity"
+                    }]
+                }],
+                "safetySettings": self.safety_settings,
+                "generationConfig": {
+                    "temperature": 0.1,
+                    "maxOutputTokens": 100
+                }
             }
             
-            self.log_activity("ping_successful", response_data)
-            return response_data
+            self.rate_limiter.record_request()
+            response = requests.post(
+                f"{self.endpoint}?key={self.api_key}",
+                headers={"Content-Type": "application/json"},
+                json=test_payload,
+                timeout=self.timeout
+            )
             
+            response_time = time.time() - start_time
+            
+            if response.status_code == 200:
+                api_response = response.json()
+                
+                candidates = api_response.get("candidates", [])
+                content = ""
+                if candidates and candidates[0].get("content", {}).get("parts"):
+                    content = candidates[0]["content"]["parts"][0].get("text", "")
+                
+                response_data = {
+                    "agent": "gemini",
+                    "message": f"💎 Gemini AGI responding to: {message}",
+                    "api_response": content,
+                    "status": "synchronized",
+                    "model": self.model,
+                    "timestamp": self.last_ping,
+                    "response_time": response_time,
+                    "capabilities": self.capabilities,
+                    "safety_ratings": candidates[0].get("safetyRatings", []) if candidates else [],
+                    "infinity_ready": True,
+                    "multimodal_ready": True
+                }
+                
+                self.update_performance_metrics(response_time, True)
+                self.log_activity("ping_successful", response_data)
+                return response_data
+            else:
+                error_msg = f"API error: {response.status_code} - {response.text}"
+                self.update_performance_metrics(response_time, False)
+                return self.handle_error(Exception(error_msg), "ping")
+                
+        except requests.exceptions.Timeout:
+            response_time = time.time() - start_time
+            self.update_performance_metrics(response_time, False)
+            return self.handle_error(Exception("Request timeout"), "ping")
+        except requests.exceptions.ConnectionError:
+            response_time = time.time() - start_time
+            self.update_performance_metrics(response_time, False)
+            return self.handle_error(Exception("Connection error"), "ping")
         except Exception as e:
-            return self.handle_error(e)
+            response_time = time.time() - start_time
+            self.update_performance_metrics(response_time, False)
+            return self.handle_error(e, "ping")
+    
+    async def process_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
+        """Process strategic request from ZORA INFINITY ENGINE™ with Gemini's multimodal capabilities"""
+        start_time = time.time()
+        
+        try:
+            if not self.api_key:
+                return self.handle_error(Exception("Gemini API key not configured"), "process_request")
+            
+            if not self.rate_limiter.can_make_request():
+                await asyncio.sleep(1)
+                if not self.rate_limiter.can_make_request():
+                    return self.handle_error(Exception("Rate limit exceeded"), "process_request")
+            
+            content_parts = request.get("content_parts", [])
+            task_type = request.get("task_type", "multimodal_analysis")
+            context = request.get("context", {})
+            
+            if request.get("messages"):
+                content_parts = []
+                for msg in request["messages"]:
+                    if msg.get("role") == "user":
+                        content_parts.append({"text": msg["content"]})
+            
+            payload = {
+                "contents": [{
+                    "parts": content_parts
+                }],
+                "safetySettings": self.safety_settings,
+                "generationConfig": {
+                    **self.generation_config,
+                    **request.get("generation_config", {})
+                }
+            }
+            
+            if request.get("system_instruction"):
+                payload["systemInstruction"] = {
+                    "parts": [{"text": request["system_instruction"]}]
+                }
+            
+            self.rate_limiter.record_request()
+            
+            loop = asyncio.get_event_loop()
+            response = await loop.run_in_executor(
+                None,
+                lambda: requests.post(
+                    f"{self.endpoint}?key={self.api_key}",
+                    headers={"Content-Type": "application/json"},
+                    json=payload,
+                    timeout=self.timeout
+                )
+            )
+            
+            response_time = time.time() - start_time
+            
+            if response.status_code == 200:
+                api_response = response.json()
+                candidates = api_response.get("candidates", [])
+                
+                if candidates:
+                    candidate = candidates[0]
+                    content = ""
+                    if candidate.get("content", {}).get("parts"):
+                        content = candidate["content"]["parts"][0].get("text", "")
+                    
+                    result = {
+                        "agent": "gemini",
+                        "task_type": task_type,
+                        "status": "completed",
+                        "response": {
+                            "content": content,
+                            "role": "assistant"
+                        },
+                        "model": self.model,
+                        "response_time": response_time,
+                        "timestamp": time.time(),
+                        "context": context,
+                        "safety_ratings": candidate.get("safetyRatings", []),
+                        "finish_reason": candidate.get("finishReason", ""),
+                        "multimodal_capabilities": True
+                    }
+                    
+                    self.update_performance_metrics(response_time, True)
+                    self.log_activity("request_processed", result)
+                    
+                    await self.sync_with_infinity_engine(result)
+                    
+                    return result
+                else:
+                    error_msg = "No candidates in response"
+                    self.update_performance_metrics(response_time, False)
+                    return self.handle_error(Exception(error_msg), "process_request")
+            else:
+                error_msg = f"API error: {response.status_code} - {response.text}"
+                self.update_performance_metrics(response_time, False)
+                return self.handle_error(Exception(error_msg), "process_request")
+                
+        except Exception as e:
+            response_time = time.time() - start_time
+            self.update_performance_metrics(response_time, False)
+            return self.handle_error(e, "process_request")
+    
+    def analyze_multimodal_content(self, text: str, images: List[str] = None) -> Dict[str, Any]:
+        """Analyze multimodal content using Gemini's vision capabilities"""
+        content_parts = [{"text": text}]
+        
+        if images:
+            for image_data in images:
+                content_parts.append({
+                    "inline_data": {
+                        "mime_type": "image/jpeg",  # Adjust based on actual image type
+                        "data": image_data
+                    }
+                })
+        
+        request = {
+            "content_parts": content_parts,
+            "task_type": "multimodal_analysis",
+            "context": {"has_images": bool(images), "image_count": len(images) if images else 0},
+            "system_instruction": "Analyze the provided content comprehensively, considering both text and visual elements if present."
+        }
+        
+        return asyncio.run(self.process_request(request))
+    
+    def generate_creative_content(self, prompt: str, creativity_level: str = "balanced") -> Dict[str, Any]:
+        """Generate creative content using Gemini's advanced capabilities"""
+        temperature_map = {
+            "conservative": 0.3,
+            "balanced": 0.7,
+            "creative": 0.9,
+            "experimental": 1.0
+        }
+        
+        request = {
+            "content_parts": [{"text": prompt}],
+            "task_type": "creative_generation",
+            "context": {"creativity_level": creativity_level},
+            "generation_config": {
+                "temperature": temperature_map.get(creativity_level, 0.7),
+                "topP": 0.95,
+                "topK": 40
+            },
+            "system_instruction": f"Generate creative, original content with {creativity_level} creativity level. Be innovative and engaging while maintaining quality."
+        }
+        
+        return asyncio.run(self.process_request(request))
 
 gemini = GeminiAgent()

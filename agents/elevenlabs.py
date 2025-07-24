@@ -8,36 +8,264 @@ ElevenLabs Agent Integration
 
 import os
 import time
-from typing import Dict, Any
+import json
+import asyncio
+from typing import Dict, Any, List, Optional
+import requests
 from .base_agent import BaseAgent
 
 class ElevenLabsAgent(BaseAgent):
-    """ElevenLabs Agent for ZORA CORE"""
+    """Enhanced ElevenLabs Agent for ZORA CORE with full voice synthesis API integration"""
     
     def __init__(self):
-        super().__init__("elevenlabs", os.getenv("ELEVENLABS_API_KEY"))
-        self.model = "eleven_multilingual_v2"
-        self.endpoint = "https://api.elevenlabs.io/v1/text-to-speech"
+        super().__init__(
+            name="elevenlabs",
+            api_key=os.getenv("ELEVENLABS_API_KEY"),
+            model="eleven_multilingual_v2",
+            endpoint="https://api.elevenlabs.io/v1",
+            capabilities=["text_to_speech", "voice_cloning", "audio_generation", "multilingual", "voice_design"],
+            max_requests=50,  # ElevenLabs has character-based limits
+            timeout=60  # Audio generation can take longer
+        )
+        self.default_voice_id = os.getenv("ELEVENLABS_VOICE_ID", "21m00Tcm4TlvDq8ikWAM")  # Default voice
+        self.voice_settings = {
+            "stability": 0.5,
+            "similarity_boost": 0.5,
+            "style": 0.0,
+            "use_speaker_boost": True
+        }
     
     def ping(self, message: str) -> Dict[str, Any]:
-        """Ping ElevenLabs with ZORA sync message"""
+        """Enhanced ping with actual ElevenLabs API validation"""
+        start_time = time.time()
+        
         try:
-            self.last_ping = time.time()
-            self.status = "active"
+            self.last_ping = start_time
             
-            response_data = {
-                "agent": "elevenlabs",
-                "message": f"🎙️ ElevenLabs responding to: {message}",
-                "status": "synchronized",
-                "model": self.model,
-                "timestamp": self.last_ping,
-                "capabilities": ["text_to_speech", "voice_cloning", "audio_generation", "multilingual"]
+            if not self.api_key:
+                return self.handle_error(Exception("ElevenLabs API key not configured"), "ping")
+            
+            if not self.rate_limiter.can_make_request():
+                return self.handle_error(Exception("Rate limit exceeded"), "ping")
+            
+            headers = {
+                "xi-api-key": self.api_key,
+                "Content-Type": "application/json"
             }
             
-            self.log_activity("ping_successful", response_data)
-            return response_data
+            self.rate_limiter.record_request()
+            response = requests.get(
+                f"{self.endpoint}/user",
+                headers=headers,
+                timeout=self.timeout
+            )
             
+            response_time = time.time() - start_time
+            
+            if response.status_code == 200:
+                user_info = response.json()
+                
+                response_data = {
+                    "agent": "elevenlabs",
+                    "message": f"🎙️ ElevenLabs responding to: {message}",
+                    "api_response": f"Connected to ElevenLabs - User: {user_info.get('subscription', {}).get('tier', 'free')} tier",
+                    "status": "synchronized",
+                    "model": self.model,
+                    "timestamp": self.last_ping,
+                    "response_time": response_time,
+                    "capabilities": self.capabilities,
+                    "user_info": {
+                        "tier": user_info.get("subscription", {}).get("tier", "free"),
+                        "character_count": user_info.get("subscription", {}).get("character_count", 0),
+                        "character_limit": user_info.get("subscription", {}).get("character_limit", 10000)
+                    },
+                    "infinity_ready": True,
+                    "voice_synthesis_ready": True
+                }
+                
+                self.update_performance_metrics(response_time, True)
+                self.log_activity("ping_successful", response_data)
+                return response_data
+            else:
+                error_msg = f"API error: {response.status_code} - {response.text}"
+                self.update_performance_metrics(response_time, False)
+                return self.handle_error(Exception(error_msg), "ping")
+                
+        except requests.exceptions.Timeout:
+            response_time = time.time() - start_time
+            self.update_performance_metrics(response_time, False)
+            return self.handle_error(Exception("Request timeout"), "ping")
+        except requests.exceptions.ConnectionError:
+            response_time = time.time() - start_time
+            self.update_performance_metrics(response_time, False)
+            return self.handle_error(Exception("Connection error"), "ping")
         except Exception as e:
-            return self.handle_error(e)
+            response_time = time.time() - start_time
+            self.update_performance_metrics(response_time, False)
+            return self.handle_error(e, "ping")
+    
+    async def process_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
+        """Process strategic request from ZORA INFINITY ENGINE™ with voice synthesis capabilities"""
+        start_time = time.time()
+        
+        try:
+            if not self.api_key:
+                return self.handle_error(Exception("ElevenLabs API key not configured"), "process_request")
+            
+            if not self.rate_limiter.can_make_request():
+                await asyncio.sleep(2)  # Longer wait for ElevenLabs
+                if not self.rate_limiter.can_make_request():
+                    return self.handle_error(Exception("Rate limit exceeded"), "process_request")
+            
+            text = request.get("text", "")
+            voice_id = request.get("voice_id", self.default_voice_id)
+            task_type = request.get("task_type", "text_to_speech")
+            context = request.get("context", {})
+            
+            if not text:
+                return self.handle_error(Exception("No text provided for synthesis"), "process_request")
+            
+            headers = {
+                "xi-api-key": self.api_key,
+                "Content-Type": "application/json"
+            }
+            
+            voice_settings = {
+                **self.voice_settings,
+                **request.get("voice_settings", {})
+            }
+            
+            payload = {
+                "text": text,
+                "model_id": request.get("model_id", self.model),
+                "voice_settings": voice_settings
+            }
+            
+            self.rate_limiter.record_request()
+            
+            loop = asyncio.get_event_loop()
+            response = await loop.run_in_executor(
+                None,
+                lambda: requests.post(
+                    f"{self.endpoint}/text-to-speech/{voice_id}",
+                    headers=headers,
+                    json=payload,
+                    timeout=self.timeout
+                )
+            )
+            
+            response_time = time.time() - start_time
+            
+            if response.status_code == 200:
+                # ElevenLabs returns audio data directly
+                audio_data = response.content
+                
+                result = {
+                    "agent": "elevenlabs",
+                    "task_type": task_type,
+                    "status": "completed",
+                    "response": {
+                        "audio_length": len(audio_data),
+                        "content_type": response.headers.get("content-type", "audio/mpeg"),
+                        "text_synthesized": text,
+                        "voice_id": voice_id
+                    },
+                    "model": self.model,
+                    "response_time": response_time,
+                    "timestamp": time.time(),
+                    "context": context,
+                    "voice_settings": voice_settings,
+                    "audio_generated": True
+                }
+                
+                if request.get("save_audio"):
+                    audio_filename = f"zora_audio_{int(time.time())}.mp3"
+                    with open(audio_filename, "wb") as f:
+                        f.write(audio_data)
+                    result["response"]["audio_file"] = audio_filename
+                
+                self.update_performance_metrics(response_time, True)
+                self.log_activity("request_processed", result)
+                
+                if task_type == "trinity_voice":
+                    await self.coordinate_with_trinity("Voice synthesis completed", result)
+                
+                await self.sync_with_infinity_engine(result)
+                
+                return result
+            else:
+                error_msg = f"API error: {response.status_code} - {response.text}"
+                self.update_performance_metrics(response_time, False)
+                return self.handle_error(Exception(error_msg), "process_request")
+                
+        except Exception as e:
+            response_time = time.time() - start_time
+            self.update_performance_metrics(response_time, False)
+            return self.handle_error(e, "process_request")
+    
+    def synthesize_speech(self, text: str, voice_id: str = None, voice_settings: Dict[str, Any] = None) -> Dict[str, Any]:
+        """Synthesize speech from text using ElevenLabs"""
+        request = {
+            "text": text,
+            "voice_id": voice_id or self.default_voice_id,
+            "task_type": "text_to_speech",
+            "context": {"text_length": len(text)},
+            "voice_settings": voice_settings or {},
+            "save_audio": True  # Save the generated audio file
+        }
+        
+        return asyncio.run(self.process_request(request))
+    
+    async def get_available_voices(self) -> Dict[str, Any]:
+        """Get list of available voices from ElevenLabs"""
+        try:
+            if not self.api_key:
+                return self.handle_error(Exception("ElevenLabs API key not configured"), "get_voices")
+            
+            headers = {"xi-api-key": self.api_key}
+            
+            response = requests.get(
+                f"{self.endpoint}/voices",
+                headers=headers,
+                timeout=self.timeout
+            )
+            
+            if response.status_code == 200:
+                voices_data = response.json()
+                
+                result = {
+                    "agent": "elevenlabs",
+                    "status": "success",
+                    "voices": voices_data.get("voices", []),
+                    "voice_count": len(voices_data.get("voices", [])),
+                    "timestamp": time.time()
+                }
+                
+                self.log_activity("voices_retrieved", result)
+                return result
+            else:
+                error_msg = f"API error: {response.status_code} - {response.text}"
+                return self.handle_error(Exception(error_msg), "get_voices")
+                
+        except Exception as e:
+            return self.handle_error(e, "get_voices")
+    
+    def create_zora_voice_announcement(self, message: str) -> Dict[str, Any]:
+        """Create a ZORA system voice announcement"""
+        zora_text = f"ZORA CORE System Announcement: {message}. Infinity Engine operational. All systems synchronized."
+        
+        request = {
+            "text": zora_text,
+            "task_type": "system_announcement",
+            "context": {"announcement_type": "zora_system"},
+            "voice_settings": {
+                "stability": 0.7,  # More stable for announcements
+                "similarity_boost": 0.8,
+                "style": 0.2  # Slight style for authority
+            },
+            "save_audio": True
+        }
+        
+        return asyncio.run(self.process_request(request))
 
 elevenlabs = ElevenLabsAgent()

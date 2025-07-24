@@ -8,44 +8,197 @@ Base Agent Class for ZORA AI Integration
 
 import time
 import logging
+import asyncio
+import json
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List, Union
+from datetime import datetime, timedelta
+import os
+
+class RateLimiter:
+    """Rate limiting for API calls"""
+    def __init__(self, max_requests: int = 60, time_window: int = 60):
+        self.max_requests = max_requests
+        self.time_window = time_window
+        self.requests = []
+    
+    def can_make_request(self) -> bool:
+        """Check if we can make a request within rate limits"""
+        now = datetime.now()
+        cutoff = now - timedelta(seconds=self.time_window)
+        self.requests = [req_time for req_time in self.requests if req_time > cutoff]
+        return len(self.requests) < self.max_requests
+    
+    def record_request(self):
+        """Record a new request"""
+        self.requests.append(datetime.now())
 
 class BaseAgent(ABC):
-    """Base class for all ZORA AI agents"""
+    """Enhanced base class for all ZORA AI agents with advanced capabilities"""
     
-    def __init__(self, name: str, api_key: Optional[str] = None):
+    def __init__(self, name: str, api_key: Optional[str] = None, **kwargs):
         self.name = name
-        self.api_key = api_key
+        self.api_key = api_key or os.getenv(f"{name.upper()}_API_KEY")
         self.last_ping = None
         self.status = "initialized"
         self.logger = logging.getLogger(f"zora.agents.{name}")
+        
+        self.rate_limiter = RateLimiter(
+            max_requests=kwargs.get('max_requests', 60),
+            time_window=kwargs.get('time_window', 60)
+        )
+        self.retry_attempts = kwargs.get('retry_attempts', 3)
+        self.timeout = kwargs.get('timeout', 30)
+        self.capabilities = kwargs.get('capabilities', [])
+        self.model = kwargs.get('model', 'default')
+        self.endpoint = kwargs.get('endpoint', '')
+        
+        self.total_requests = 0
+        self.successful_requests = 0
+        self.failed_requests = 0
+        self.average_response_time = 0.0
+        self.last_error = None
+        
+        self.coordination_enabled = True
+        self.infinity_sync = True
+        self.trinity_member = name.lower() in ['connor', 'lumina', 'oracle']
     
     @abstractmethod
     def ping(self, message: str) -> Dict[str, Any]:
         """Ping the agent with a message and return response"""
         pass
     
+    @abstractmethod
+    async def process_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
+        """Process a strategic request from ZORA INFINITY ENGINE™"""
+        pass
+    
     def get_status(self) -> Dict[str, Any]:
-        """Get current agent status"""
+        """Get comprehensive agent status"""
         return {
             "name": self.name,
             "status": self.status,
             "last_ping": self.last_ping,
-            "timestamp": time.time()
+            "timestamp": time.time(),
+            "api_configured": bool(self.api_key),
+            "model": self.model,
+            "capabilities": self.capabilities,
+            "performance": {
+                "total_requests": self.total_requests,
+                "successful_requests": self.successful_requests,
+                "failed_requests": self.failed_requests,
+                "success_rate": self.successful_requests / max(self.total_requests, 1) * 100,
+                "average_response_time": self.average_response_time
+            },
+            "rate_limit_status": {
+                "can_make_request": self.rate_limiter.can_make_request(),
+                "requests_in_window": len(self.rate_limiter.requests)
+            },
+            "coordination": {
+                "infinity_sync": self.infinity_sync,
+                "trinity_member": self.trinity_member,
+                "coordination_enabled": self.coordination_enabled
+            },
+            "last_error": self.last_error
         }
     
     def log_activity(self, activity: str, data: Any = None):
-        """Log agent activity"""
-        self.logger.info(f"{self.name}: {activity}", extra={"data": data})
+        """Enhanced activity logging with structured data"""
+        log_data = {
+            "agent": self.name,
+            "activity": activity,
+            "timestamp": datetime.now().isoformat(),
+            "data": data
+        }
+        self.logger.info(f"{self.name}: {activity}", extra=log_data)
     
-    def handle_error(self, error: Exception) -> Dict[str, Any]:
-        """Handle and log errors"""
+    def handle_error(self, error: Exception, context: str = "") -> Dict[str, Any]:
+        """Enhanced error handling with context and recovery"""
         self.status = "error"
-        self.logger.error(f"{self.name} error: {str(error)}")
+        self.failed_requests += 1
+        self.last_error = {
+            "error": str(error),
+            "context": context,
+            "timestamp": datetime.now().isoformat(),
+            "type": type(error).__name__
+        }
+        
+        self.logger.error(f"{self.name} error in {context}: {str(error)}", 
+                         extra={"error_type": type(error).__name__, "context": context})
+        
         return {
             "name": self.name,
             "status": "error",
             "error": str(error),
-            "timestamp": time.time()
+            "context": context,
+            "timestamp": time.time(),
+            "recovery_suggestions": self._get_recovery_suggestions(error)
         }
+    
+    def _get_recovery_suggestions(self, error: Exception) -> List[str]:
+        """Get recovery suggestions based on error type"""
+        suggestions = []
+        error_str = str(error).lower()
+        
+        if "api key" in error_str or "authentication" in error_str:
+            suggestions.append("Check API key configuration")
+            suggestions.append("Verify API key permissions")
+        elif "rate limit" in error_str or "quota" in error_str:
+            suggestions.append("Wait before retrying")
+            suggestions.append("Implement exponential backoff")
+        elif "timeout" in error_str or "connection" in error_str:
+            suggestions.append("Check network connectivity")
+            suggestions.append("Increase timeout duration")
+        else:
+            suggestions.append("Review request parameters")
+            suggestions.append("Check service status")
+        
+        return suggestions
+    
+    async def coordinate_with_trinity(self, message: str, context: Dict[str, Any] = None) -> Dict[str, Any]:
+        """Coordinate with AGI Trinity (CONNOR, LUMINA, ORACLE)"""
+        if not self.coordination_enabled:
+            return {"status": "coordination_disabled"}
+        
+        coordination_data = {
+            "source_agent": self.name,
+            "message": message,
+            "context": context or {},
+            "timestamp": datetime.now().isoformat(),
+            "coordination_type": "trinity_sync"
+        }
+        
+        self.log_activity("trinity_coordination", coordination_data)
+        return {"status": "coordinated", "data": coordination_data}
+    
+    def sync_with_infinity_engine(self, task_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Synchronize with ZORA INFINITY ENGINE™"""
+        if not self.infinity_sync:
+            return {"status": "infinity_sync_disabled"}
+        
+        sync_data = {
+            "agent": self.name,
+            "task_data": task_data,
+            "timestamp": datetime.now().isoformat(),
+            "sync_type": "infinity_engine"
+        }
+        
+        self.log_activity("infinity_sync", sync_data)
+        return {"status": "synchronized", "data": sync_data}
+    
+    def update_performance_metrics(self, response_time: float, success: bool):
+        """Update performance metrics"""
+        self.total_requests += 1
+        if success:
+            self.successful_requests += 1
+            self.status = "active"
+        else:
+            self.failed_requests += 1
+        
+        if self.total_requests == 1:
+            self.average_response_time = response_time
+        else:
+            self.average_response_time = (
+                (self.average_response_time * (self.total_requests - 1) + response_time) 
+                / self.total_requests
+            )

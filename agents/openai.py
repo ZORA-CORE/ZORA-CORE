@@ -8,39 +8,212 @@ OpenAI Agent Integration
 
 import os
 import time
-from typing import Dict, Any
+import json
+import asyncio
+from typing import Dict, Any, List, Optional
+import requests
 from .base_agent import BaseAgent
 
 class OpenAIAgent(BaseAgent):
-    """OpenAI Agent for ZORA CORE"""
+    """Enhanced OpenAI Agent for ZORA CORE with full API integration"""
     
     def __init__(self):
-        super().__init__("openai", os.getenv("OPENAI_API_KEY"))
-        self.model = "gpt-4"
-        self.endpoint = "https://api.openai.com/v1/chat/completions"
+        super().__init__(
+            name="openai",
+            api_key=os.getenv("OPENAI_API_KEY"),
+            model="gpt-4-turbo-preview",
+            endpoint="https://api.openai.com/v1/chat/completions",
+            capabilities=["reasoning", "code_generation", "conversation", "analysis", "function_calling"],
+            max_requests=60,
+            timeout=30
+        )
+        self.organization_id = os.getenv("OPENAI_ORG_ID")
+        self.max_tokens = 4096
+        self.temperature = 0.7
     
     def ping(self, message: str) -> Dict[str, Any]:
-        """Ping OpenAI with ZORA sync message"""
+        """Enhanced ping with actual OpenAI API validation"""
+        start_time = time.time()
+        
         try:
-            self.last_ping = time.time()
-            self.status = "active"
+            self.last_ping = start_time
             
             if not self.api_key:
-                return self.handle_error(Exception("OpenAI API key not configured"))
+                return self.handle_error(Exception("OpenAI API key not configured"), "ping")
             
-            response_data = {
-                "agent": "openai",
-                "message": f"🤖 OpenAI AGI responding to: {message}",
-                "status": "synchronized",
-                "model": self.model,
-                "timestamp": self.last_ping,
-                "capabilities": ["reasoning", "code_generation", "conversation", "analysis"]
+            if not self.rate_limiter.can_make_request():
+                return self.handle_error(Exception("Rate limit exceeded"), "ping")
+            
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json"
             }
             
-            self.log_activity("ping_successful", response_data)
-            return response_data
+            if self.organization_id:
+                headers["OpenAI-Organization"] = self.organization_id
             
+            test_payload = {
+                "model": self.model,
+                "messages": [{"role": "user", "content": f"Respond with 'ZORA SYNC: {message}' to confirm connectivity"}],
+                "max_tokens": 50,
+                "temperature": 0.1
+            }
+            
+            self.rate_limiter.record_request()
+            response = requests.post(
+                self.endpoint,
+                headers=headers,
+                json=test_payload,
+                timeout=self.timeout
+            )
+            
+            response_time = time.time() - start_time
+            
+            if response.status_code == 200:
+                api_response = response.json()
+                content = api_response.get("choices", [{}])[0].get("message", {}).get("content", "")
+                
+                response_data = {
+                    "agent": "openai",
+                    "message": f"🤖 OpenAI AGI responding to: {message}",
+                    "api_response": content,
+                    "status": "synchronized",
+                    "model": self.model,
+                    "timestamp": self.last_ping,
+                    "response_time": response_time,
+                    "capabilities": self.capabilities,
+                    "usage": api_response.get("usage", {}),
+                    "infinity_ready": True
+                }
+                
+                self.update_performance_metrics(response_time, True)
+                self.log_activity("ping_successful", response_data)
+                return response_data
+            else:
+                error_msg = f"API error: {response.status_code} - {response.text}"
+                self.update_performance_metrics(response_time, False)
+                return self.handle_error(Exception(error_msg), "ping")
+                
+        except requests.exceptions.Timeout:
+            response_time = time.time() - start_time
+            self.update_performance_metrics(response_time, False)
+            return self.handle_error(Exception("Request timeout"), "ping")
+        except requests.exceptions.ConnectionError:
+            response_time = time.time() - start_time
+            self.update_performance_metrics(response_time, False)
+            return self.handle_error(Exception("Connection error"), "ping")
         except Exception as e:
-            return self.handle_error(e)
+            response_time = time.time() - start_time
+            self.update_performance_metrics(response_time, False)
+            return self.handle_error(e, "ping")
+    
+    async def process_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
+        """Process strategic request from ZORA INFINITY ENGINE™"""
+        start_time = time.time()
+        
+        try:
+            if not self.api_key:
+                return self.handle_error(Exception("OpenAI API key not configured"), "process_request")
+            
+            if not self.rate_limiter.can_make_request():
+                await asyncio.sleep(1)  # Brief wait for rate limiting
+                if not self.rate_limiter.can_make_request():
+                    return self.handle_error(Exception("Rate limit exceeded"), "process_request")
+            
+            messages = request.get("messages", [])
+            task_type = request.get("task_type", "general")
+            context = request.get("context", {})
+            
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json"
+            }
+            
+            if self.organization_id:
+                headers["OpenAI-Organization"] = self.organization_id
+            
+            payload = {
+                "model": self.model,
+                "messages": messages,
+                "max_tokens": request.get("max_tokens", self.max_tokens),
+                "temperature": request.get("temperature", self.temperature),
+                "stream": False
+            }
+            
+            if request.get("functions"):
+                payload["functions"] = request["functions"]
+                payload["function_call"] = request.get("function_call", "auto")
+            
+            self.rate_limiter.record_request()
+            
+            loop = asyncio.get_event_loop()
+            response = await loop.run_in_executor(
+                None,
+                lambda: requests.post(self.endpoint, headers=headers, json=payload, timeout=self.timeout)
+            )
+            
+            response_time = time.time() - start_time
+            
+            if response.status_code == 200:
+                api_response = response.json()
+                
+                result = {
+                    "agent": "openai",
+                    "task_type": task_type,
+                    "status": "completed",
+                    "response": api_response.get("choices", [{}])[0].get("message", {}),
+                    "usage": api_response.get("usage", {}),
+                    "model": self.model,
+                    "response_time": response_time,
+                    "timestamp": time.time(),
+                    "context": context
+                }
+                
+                self.update_performance_metrics(response_time, True)
+                self.log_activity("request_processed", result)
+                
+                await self.sync_with_infinity_engine(result)
+                
+                return result
+            else:
+                error_msg = f"API error: {response.status_code} - {response.text}"
+                self.update_performance_metrics(response_time, False)
+                return self.handle_error(Exception(error_msg), "process_request")
+                
+        except Exception as e:
+            response_time = time.time() - start_time
+            self.update_performance_metrics(response_time, False)
+            return self.handle_error(e, "process_request")
+    
+    def generate_code(self, prompt: str, language: str = "python") -> Dict[str, Any]:
+        """Generate code using OpenAI Codex capabilities"""
+        messages = [
+            {"role": "system", "content": f"You are an expert {language} programmer. Generate clean, efficient, and well-documented code."},
+            {"role": "user", "content": prompt}
+        ]
+        
+        request = {
+            "messages": messages,
+            "task_type": "code_generation",
+            "context": {"language": language},
+            "temperature": 0.2  # Lower temperature for more deterministic code
+        }
+        
+        return asyncio.run(self.process_request(request))
+    
+    def analyze_text(self, text: str, analysis_type: str = "general") -> Dict[str, Any]:
+        """Analyze text using OpenAI's reasoning capabilities"""
+        messages = [
+            {"role": "system", "content": f"You are an expert analyst. Provide detailed {analysis_type} analysis."},
+            {"role": "user", "content": f"Analyze this text: {text}"}
+        ]
+        
+        request = {
+            "messages": messages,
+            "task_type": "text_analysis",
+            "context": {"analysis_type": analysis_type}
+        }
+        
+        return asyncio.run(self.process_request(request))
 
 openai = OpenAIAgent()

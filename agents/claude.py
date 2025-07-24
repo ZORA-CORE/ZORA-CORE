@@ -8,39 +8,235 @@ Claude AI Agent Integration
 
 import os
 import time
-from typing import Dict, Any
+import json
+import asyncio
+from typing import Dict, Any, List, Optional
+import requests
 from .base_agent import BaseAgent
 
 class ClaudeAgent(BaseAgent):
-    """Claude AI Agent for ZORA CORE"""
+    """Enhanced Claude AI Agent for ZORA CORE with full Anthropic API integration"""
     
     def __init__(self):
-        super().__init__("claude", os.getenv("ANTHROPIC_API_KEY"))
-        self.model = "claude-3-sonnet-20240229"
-        self.endpoint = "https://api.anthropic.com/v1/messages"
+        super().__init__(
+            name="claude",
+            api_key=os.getenv("ANTHROPIC_API_KEY") or os.getenv("CLAUDE_API_KEY"),
+            model="claude-3-opus-20240229",
+            endpoint="https://api.anthropic.com/v1/messages",
+            capabilities=["reasoning", "analysis", "code_generation", "conversation", "ethical_guidance", "long_context"],
+            max_requests=50,  # Anthropic has stricter rate limits
+            timeout=60  # Claude can take longer for complex reasoning
+        )
+        self.max_tokens = 4096
+        self.anthropic_version = "2023-06-01"
     
     def ping(self, message: str) -> Dict[str, Any]:
-        """Ping Claude with ZORA sync message"""
+        """Enhanced ping with actual Claude API validation"""
+        start_time = time.time()
+        
         try:
-            self.last_ping = time.time()
-            self.status = "active"
+            self.last_ping = start_time
             
             if not self.api_key:
-                return self.handle_error(Exception("Claude API key not configured"))
+                return self.handle_error(Exception("Claude API key not configured"), "ping")
             
-            response_data = {
-                "agent": "claude",
-                "message": f"🧠 Claude AGI responding to: {message}",
-                "status": "synchronized",
-                "model": self.model,
-                "timestamp": self.last_ping,
-                "capabilities": ["reasoning", "analysis", "code_generation", "conversation"]
+            if not self.rate_limiter.can_make_request():
+                return self.handle_error(Exception("Rate limit exceeded"), "ping")
+            
+            headers = {
+                "x-api-key": self.api_key,
+                "anthropic-version": self.anthropic_version,
+                "content-type": "application/json"
             }
             
-            self.log_activity("ping_successful", response_data)
-            return response_data
+            test_payload = {
+                "model": self.model,
+                "max_tokens": 100,
+                "messages": [
+                    {"role": "user", "content": f"Respond with 'ZORA SYNC CONFIRMED: {message}' to verify connectivity"}
+                ]
+            }
             
+            self.rate_limiter.record_request()
+            response = requests.post(
+                self.endpoint,
+                headers=headers,
+                json=test_payload,
+                timeout=self.timeout
+            )
+            
+            response_time = time.time() - start_time
+            
+            if response.status_code == 200:
+                api_response = response.json()
+                content = api_response.get("content", [{}])[0].get("text", "")
+                
+                response_data = {
+                    "agent": "claude",
+                    "message": f"🧠 Claude AGI responding to: {message}",
+                    "api_response": content,
+                    "status": "synchronized",
+                    "model": self.model,
+                    "timestamp": self.last_ping,
+                    "response_time": response_time,
+                    "capabilities": self.capabilities,
+                    "usage": api_response.get("usage", {}),
+                    "infinity_ready": True,
+                    "ethical_compliance": True
+                }
+                
+                self.update_performance_metrics(response_time, True)
+                self.log_activity("ping_successful", response_data)
+                return response_data
+            else:
+                error_msg = f"API error: {response.status_code} - {response.text}"
+                self.update_performance_metrics(response_time, False)
+                return self.handle_error(Exception(error_msg), "ping")
+                
+        except requests.exceptions.Timeout:
+            response_time = time.time() - start_time
+            self.update_performance_metrics(response_time, False)
+            return self.handle_error(Exception("Request timeout"), "ping")
+        except requests.exceptions.ConnectionError:
+            response_time = time.time() - start_time
+            self.update_performance_metrics(response_time, False)
+            return self.handle_error(Exception("Connection error"), "ping")
         except Exception as e:
-            return self.handle_error(e)
+            response_time = time.time() - start_time
+            self.update_performance_metrics(response_time, False)
+            return self.handle_error(e, "ping")
+    
+    async def process_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
+        """Process strategic request from ZORA INFINITY ENGINE™ with Claude's advanced reasoning"""
+        start_time = time.time()
+        
+        try:
+            if not self.api_key:
+                return self.handle_error(Exception("Claude API key not configured"), "process_request")
+            
+            if not self.rate_limiter.can_make_request():
+                await asyncio.sleep(2)  # Longer wait for Claude's rate limits
+                if not self.rate_limiter.can_make_request():
+                    return self.handle_error(Exception("Rate limit exceeded"), "process_request")
+            
+            messages = request.get("messages", [])
+            task_type = request.get("task_type", "reasoning")
+            context = request.get("context", {})
+            
+            headers = {
+                "x-api-key": self.api_key,
+                "anthropic-version": self.anthropic_version,
+                "content-type": "application/json"
+            }
+            
+            payload = {
+                "model": self.model,
+                "max_tokens": request.get("max_tokens", self.max_tokens),
+                "messages": messages,
+                "stream": False
+            }
+            
+            if request.get("system"):
+                payload["system"] = request["system"]
+            
+            self.rate_limiter.record_request()
+            
+            loop = asyncio.get_event_loop()
+            response = await loop.run_in_executor(
+                None,
+                lambda: requests.post(self.endpoint, headers=headers, json=payload, timeout=self.timeout)
+            )
+            
+            response_time = time.time() - start_time
+            
+            if response.status_code == 200:
+                api_response = response.json()
+                
+                result = {
+                    "agent": "claude",
+                    "task_type": task_type,
+                    "status": "completed",
+                    "response": {
+                        "content": api_response.get("content", [{}])[0].get("text", ""),
+                        "role": "assistant"
+                    },
+                    "usage": api_response.get("usage", {}),
+                    "model": self.model,
+                    "response_time": response_time,
+                    "timestamp": time.time(),
+                    "context": context,
+                    "ethical_review": self._perform_ethical_review(api_response),
+                    "reasoning_depth": "high"
+                }
+                
+                self.update_performance_metrics(response_time, True)
+                self.log_activity("request_processed", result)
+                
+                if task_type == "ethical_guidance":
+                    await self.coordinate_with_trinity("Ethical guidance provided", result)
+                
+                await self.sync_with_infinity_engine(result)
+                
+                return result
+            else:
+                error_msg = f"API error: {response.status_code} - {response.text}"
+                self.update_performance_metrics(response_time, False)
+                return self.handle_error(Exception(error_msg), "process_request")
+                
+        except Exception as e:
+            response_time = time.time() - start_time
+            self.update_performance_metrics(response_time, False)
+            return self.handle_error(e, "process_request")
+    
+    def _perform_ethical_review(self, api_response: Dict[str, Any]) -> Dict[str, Any]:
+        """Perform ethical review of Claude's response"""
+        content = api_response.get("content", [{}])[0].get("text", "")
+        
+        ethical_flags = []
+        if any(word in content.lower() for word in ["harmful", "dangerous", "illegal"]):
+            ethical_flags.append("potential_harm_detected")
+        
+        return {
+            "reviewed": True,
+            "flags": ethical_flags,
+            "compliance_score": 100 - len(ethical_flags) * 10,
+            "reviewer": "claude_internal"
+        }
+    
+    def provide_ethical_guidance(self, scenario: str) -> Dict[str, Any]:
+        """Provide ethical guidance using Claude's advanced reasoning"""
+        messages = [
+            {
+                "role": "user", 
+                "content": f"As an ethical AI advisor, provide comprehensive ethical guidance for this scenario: {scenario}. Consider multiple perspectives, potential consequences, and ethical frameworks."
+            }
+        ]
+        
+        request = {
+            "messages": messages,
+            "task_type": "ethical_guidance",
+            "context": {"scenario": scenario},
+            "system": "You are an expert in AI ethics and moral philosophy. Provide balanced, thoughtful ethical guidance that considers multiple perspectives and potential consequences."
+        }
+        
+        return asyncio.run(self.process_request(request))
+    
+    def deep_analysis(self, content: str, analysis_focus: str = "comprehensive") -> Dict[str, Any]:
+        """Perform deep analysis using Claude's reasoning capabilities"""
+        messages = [
+            {
+                "role": "user",
+                "content": f"Perform a {analysis_focus} analysis of the following content. Provide detailed insights, identify patterns, and offer strategic recommendations: {content}"
+            }
+        ]
+        
+        request = {
+            "messages": messages,
+            "task_type": "deep_analysis",
+            "context": {"analysis_focus": analysis_focus},
+            "max_tokens": 4096  # Allow for longer analysis
+        }
+        
+        return asyncio.run(self.process_request(request))
 
 claude = ClaudeAgent()
