@@ -1,0 +1,217 @@
+
+system:
+  name: "ZORA CORE"
+  version: "1.0.0"
+  environment: "development"
+  debug: true
+  log_level: "INFO"
+  
+  host: "0.0.0.0"
+  port: 8000
+  workers: 1
+  
+  infinity:
+    enabled: true
+    auto_heal: true
+    sync_all_systems: true
+    engine_id: "infinity-001"
+    optimization_interval: 300  # seconds
+    consciousness_pulse_interval: 60  # seconds
+    agent_sync_interval: 120  # seconds
+    max_concurrent_tasks: 10
+    task_timeout: 3600  # seconds
+    
+  trinity:
+    enabled: true
+    coordination: true
+    connor:
+      enabled: true
+      command_interval: 180  # seconds
+      assessment_interval: 300  # seconds
+    lumina:
+      enabled: true
+      creativity_interval: 240  # seconds
+      innovation_interval: 600  # seconds
+    oracle:
+      enabled: true
+      wisdom_interval: 300  # seconds
+      prediction_interval: 900  # seconds
+
+agents:
+  global:
+    timeout: 30  # seconds
+    retry_attempts: 3
+    retry_delay: 1  # seconds
+    rate_limit: 60  # requests per minute
+    
+  openai:
+    enabled: true
+    model: "gpt-4-turbo-preview"
+    max_tokens: 4096
+    temperature: 0.7
+    
+  claude:
+    enabled: true
+    model: "claude-3-opus-20240229"
+    max_tokens: 4096
+    temperature: 0.7
+    
+  gemini:
+    enabled: true
+    model: "gemini-pro"
+    temperature: 0.7
+    
+  deepseek:
+    enabled: true
+    model: "deepseek-chat"
+    temperature: 0.7
+    
+  elevenlabs:
+    enabled: true
+    voice_id: "default"
+    stability: 0.5
+    similarity_boost: 0.5
+    
+  huggingface:
+    enabled: true
+    model: "microsoft/DialoGPT-large"
+    
+  perplexity:
+    enabled: true
+    model: "pplx-7b-online"
+
+database:
+  postgres:
+    host: "localhost"
+    port: 5432
+    database: "zora_core"
+    username: "zora"
+    password: "zora_secure_password_2024"
+    pool_size: 10
+    max_overflow: 20
+    
+  redis:
+    host: "localhost"
+    port: 6379
+    database: 0
+    password: null
+    max_connections: 10
+
+api:
+  cors:
+    allow_origins: ["*"]
+    allow_methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    allow_headers: ["*"]
+    allow_credentials: true
+    
+  rate_limit:
+    requests: 1000
+    window: 3600  # seconds
+    
+  auth:
+    jwt_secret: "your-jwt-secret-here"
+    jwt_algorithm: "HS256"
+    jwt_expiration: 86400  # seconds (24 hours)
+    
+  docs:
+    title: "ZORA CORE API"
+    description: "Advanced AI Orchestration Platform"
+    version: "1.0.0"
+    openapi_url: "/openapi.json"
+    docs_url: "/docs"
+    redoc_url: "/redoc"
+
+monitoring:
+  logging:
+    level: "INFO"
+    format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    file_path: "logs/zora.log"
+    max_file_size: "10MB"
+    backup_count: 5
+    
+  health:
+    enabled: true
+    interval: 30  # seconds
+    timeout: 10  # seconds
+    
+  metrics:
+    enabled: true
+    prometheus_enabled: false
+    prometheus_port: 9090
+    
+  alerts:
+    enabled: false
+    email_enabled: false
+    slack_enabled: false
+
+security:
+  encryption:
+    algorithm: "AES-256-GCM"
+    key_rotation_interval: 2592000  # seconds (30 days)
+    
+  api_security:
+    require_https: false  # Set to true in production
+    api_key_header: "X-API-Key"
+    rate_limiting: true
+    
+  data_protection:
+    anonymize_logs: true
+    data_retention_days: 90
+    backup_encryption: true
+
+repositories:
+  github:
+    enabled: true
+    api_url: "https://api.github.com"
+    webhook_secret: "your-webhook-secret"
+    
+  gitlab:
+    enabled: false
+    api_url: "https://gitlab.com/api/v4"
+    webhook_secret: "your-webhook-secret"
+    
+  replit:
+    enabled: false
+    api_url: "https://replit.com/api/v1"
+
+integrations:
+  discord:
+    enabled: false
+    command_prefix: "!"
+    
+  slack:
+    enabled: false
+    signing_secret: "your-slack-signing-secret"
+    
+  email:
+    enabled: false
+    smtp_host: "smtp.gmail.com"
+    smtp_port: 587
+    use_tls: true
+
+development:
+  hot_reload: true
+  
+  debug_agents: false
+  mock_ai_responses: false
+  
+  test_mode: false
+  test_database: "zora_core_test"
+  
+  profiling: false
+  query_logging: false
+
+features:
+  advanced_analytics: true
+  real_time_sync: true
+  auto_scaling: false
+  experimental_agents: false
+  beta_features: false
+  
+backup:
+  enabled: true
+  interval: "24h"
+  retention: "7d"
+  storage_path: "./backups"
+  compression: true
+  encryption: true

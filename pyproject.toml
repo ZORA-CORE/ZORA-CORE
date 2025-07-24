@@ -1,0 +1,183 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "zora-core"
+version = "1.0.0"
+description = "Advanced AI Orchestration Platform with Infinity Engine™"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "Mads Pallisgaard Petersen", email = "founder@zora-core.ai"}
+]
+maintainers = [
+    {name = "ZORA CORE Team", email = "team@zora-core.ai"}
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+requires-python = ">=3.8"
+dependencies = [
+    "fastapi>=0.104.1",
+    "uvicorn>=0.24.0",
+    "requests>=2.31.0",
+    "websockets>=12.0",
+    "aiofiles>=23.2.1",
+    "python-multipart>=0.0.6",
+    "jinja2>=3.1.2",
+    "flask>=3.0.0",
+    "json5>=0.9.14",
+    "pydantic>=2.5.0",
+    "typing-extensions>=4.8.0",
+    "pyttsx3>=2.90",
+    "pygame>=2.5.2",
+    "numpy>=1.24.3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.0.0",
+    "black>=23.0.0",
+    "flake8>=6.0.0",
+    "mypy>=1.0.0",
+    "pre-commit>=3.0.0",
+    "isort>=5.12.0",
+]
+docs = [
+    "sphinx>=6.0.0",
+    "sphinx-rtd-theme>=1.2.0",
+    "myst-parser>=1.0.0",
+    "sphinx-autodoc-typehints>=1.23.0",
+]
+deployment = [
+    "gunicorn>=21.0.0",
+    "docker>=6.0.0",
+    "kubernetes>=27.0.0",
+]
+testing = [
+    "httpx>=0.25.0",
+    "pytest-mock>=3.11.0",
+    "factory-boy>=3.3.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/THEZORACORE/ZORA-CORE"
+Documentation = "https://zora-core.readthedocs.io/"
+Repository = "https://github.com/THEZORACORE/ZORA-CORE"
+"Bug Tracker" = "https://github.com/THEZORACORE/ZORA-CORE/issues"
+Changelog = "https://github.com/THEZORACORE/ZORA-CORE/blob/main/CHANGELOG.md"
+
+[project.scripts]
+zora-core = "zora:main"
+zora-infinity = "infinity:main"
+zora-boot = "zora_boot:main"
+zora-trinity = "connor:trinity_main"
+
+[tool.setuptools]
+package-dir = {"" = "."}
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["zora_core*", "agents*", "api*"]
+exclude = ["tests*", "docs*", "build*"]
+
+[tool.black]
+line-length = 88
+target-version = ['py38', 'py39', 'py310', 'py311']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+line_length = 88
+known_first_party = ["zora_core", "agents", "api"]
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q --strict-markers --strict-config"
+testpaths = [
+    "tests",
+    "test_*.py",
+]
+python_files = [
+    "test_*.py",
+    "*_test.py",
+]
+python_classes = [
+    "Test*",
+]
+python_functions = [
+    "test_*",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+    "api: marks tests as API tests",
+    "agents: marks tests as agent tests",
+]
+
+[tool.coverage.run]
+source = ["."]
+omit = [
+    "*/tests/*",
+    "*/test_*",
+    "setup.py",
+    "*/venv/*",
+    "*/.venv/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]
