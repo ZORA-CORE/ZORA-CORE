@@ -1,11 +1,13 @@
-name: ZORA.GPT∞ Infinity Engine
+name: ZORA.GPT∞ Infinity Engine & Repository Monitor
 
 on:
   workflow_dispatch:
   push:
+    branches: [ main, devin/* ]
+  pull_request:
     branches: [ main ]
   schedule:
-    - cron: '*/ * * * *'  # 
+    - cron: '*/15 * * * *'  # Every 15 minutes
 
 jobs:
   run-infinity:
@@ -27,5 +29,112 @@ jobs:
       - name: 🔁 Run Infinity Engine
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPLIT_TOKEN: ${{ secrets.REPLIT_TOKEN }}
         run: |
           python main.py
+
+      - name: 🔍 Run Repository Monitor
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPLIT_TOKEN: ${{ secrets.REPLIT_TOKEN }}
+        run: |
+          python -c "
+          import asyncio
+          from repo_monitor import repo_monitor
+          
+          async def run_monitor():
+              repo_monitor.start_monitoring()
+              # Run one monitoring cycle
+              await repo_monitor.monitor_all_repositories()
+              await repo_monitor.check_repository_health()
+              status = repo_monitor.get_monitoring_status()
+              print('🔍 Repository Monitor Results:')
+              print(f'📊 Total repos: {status[\"total_repos_monitored\"]}')
+              print(f'✅ Healthy: {status[\"repo_metrics\"][\"healthy\"]}')
+              print(f'⚠️ Warning: {status[\"repo_metrics\"][\"warning\"]}')
+              print(f'❌ Error: {status[\"repo_metrics\"][\"error\"]}')
+              print(f'🚨 Issues detected: {status[\"issue_metrics\"][\"total_detected\"]}')
+              print(f'🔧 Auto-fixes: {status[\"issue_metrics\"][\"auto_fixes_successful\"]}/{status[\"issue_metrics\"][\"auto_fixes_attempted\"]}')
+          
+          asyncio.run(run_monitor())
+          "
+
+      - name: 🎯 Test AGI Trinity
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          python -c "
+          from connor import connor
+          from lumina import lumina
+          from oracle import oracle
+          
+          print('🎯 Testing AGI Trinity...')
+          
+          # Test CONNOR
+          connor.activate()
+          connor_status = connor.get_trinity_status()
+          print(f'🤖 CONNOR: {connor_status[\"status\"]} - Effectiveness: {connor_status[\"strategic_effectiveness\"]:.1f}%')
+          
+          # Test LUMINA
+          lumina.activate()
+          lumina_status = lumina.get_trinity_status()
+          print(f'✨ LUMINA: {lumina_status[\"status\"]} - Creativity: {lumina_status[\"creativity_score\"]:.1f}%')
+          
+          # Test ORACLE
+          oracle.activate()
+          oracle_status = oracle.get_trinity_status()
+          print(f'🔮 ORACLE: {oracle_status[\"status\"]} - Wisdom: {oracle_status[\"wisdom_score\"]:.1f}%')
+          
+          print('🌟 AGI Trinity operational!')
+          "
+
+      - name: 📊 Generate System Report
+        run: |
+          python -c "
+          import json
+          from datetime import datetime
+          from zora_kernel import ZoraKernel
+          from repo_monitor import get_monitoring_status
+          
+          print('📊 Generating ZORA System Report...')
+          
+          # Initialize kernel
+          kernel = ZoraKernel()
+          kernel_status = kernel.get_system_status()
+          
+          # Get monitoring status
+          monitor_status = get_monitoring_status()
+          
+          # Create comprehensive report
+          report = {
+              'timestamp': datetime.utcnow().isoformat(),
+              'system_status': kernel_status,
+              'repository_monitoring': monitor_status,
+              'workflow_run': 'success',
+              'environment': 'github_actions'
+          }
+          
+          print('✅ System Report Generated')
+          print(f'🔧 Kernel Status: {kernel_status[\"status\"]}')
+          print(f'🔍 Repos Monitored: {monitor_status[\"total_repos_monitored\"]}')
+          print(f'🚀 ZORA CORE operational in INFINITY MODE™')
+          
+          # Save report as artifact
+          with open('zora_system_report.json', 'w') as f:
+              json.dump(report, f, indent=2)
+          "
+
+      - name: 📁 Upload System Report
+        uses: actions/upload-artifact@v3
+        with:
+          name: zora-system-report
+          path: zora_system_report.json
+          retention-days: 30
+
+      - name: 🚨 Notify on Failure
+        if: failure()
+        run: |
+          echo "🚨 ZORA System Check Failed!"
+          echo "📧 Notification would be sent to system administrators"
+          echo "🔧 Auto-repair protocols would be initiated"
