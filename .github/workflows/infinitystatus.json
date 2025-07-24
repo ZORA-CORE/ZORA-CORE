@@ -1,0 +1,10 @@
+{
+  "ZORA_x_NVIDIA": {
+    "omniverse": "connected",
+    "nemo": "loaded",
+    "riva": "streaming",
+    "usd_scene": "available",
+    "loop_mode": "∞",
+    "auto_ci": "enabled"
+  }
+}
