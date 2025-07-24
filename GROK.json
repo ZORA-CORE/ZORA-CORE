@@ -1,0 +1,13 @@
+{
+  "agent": "GROK_HEAVY",
+  "auth_token": "j8GngS6zgRLspmAAFb051EpFt",
+  "mode": "infinity",
+  "permissions": [
+    "read_write_all_docs",
+    "real_time_social_sync",
+    "memory_contextual_expansion",
+    "loop_triggering"
+  ],
+  "loop": "permanent",
+  "owner": "Mads Pallisgaard Petersen"
+}
