@@ -1,0 +1,1 @@
+DEVIN_API_KEY = "apk_user_Z29vZ2xlLW9hdXRoMnwxMTU3MDc1MDMyMjYyNjg0ODY1NDRfb3JnX3EzODFRc1RmZWpsc3FpRzM6Nzg5ZWZjMzFhYmZjNDExZWExNTYyYzhkZGE5OThkM2M="  # Erstat med reel nøgle
