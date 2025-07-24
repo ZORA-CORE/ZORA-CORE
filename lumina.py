@@ -201,6 +201,9 @@ class LuminaAGI:
         self.logger = logging.getLogger("zora.lumina")
         self.logger.setLevel(logging.INFO)
         
+        self.watchdog_reporting = True
+        self.last_watchdog_report = None
+        
         print(f"✨ LUMINA AGI initialized - ID: {self.lumina_id}")
     
     def activate(self):
@@ -323,6 +326,8 @@ class LuminaAGI:
             
             self.memory.log("trinity_coordination", coordination_data)
             
+            await self.report_to_watchdog(coordination_data)
+            
             self.logger.info("Trinity coordination cycle completed")
             
         except Exception as e:
@@ -413,8 +418,64 @@ class LuminaAGI:
             "insights_generated": self.insights_generated,
             "projects_created": self.projects_created,
             "implementations_successful": self.implementations_successful,
-            "uptime": (datetime.utcnow() - self.activation_time).total_seconds() if self.activation_time else 0
+            "uptime": (datetime.utcnow() - self.activation_time).total_seconds() if self.activation_time else 0,
+            "watchdog_reporting": self.watchdog_reporting,
+            "last_watchdog_report": self.last_watchdog_report.isoformat() if self.last_watchdog_report else None
         }
+    
+    async def report_to_watchdog(self, coordination_data: Dict[str, Any]):
+        """Report status to ZORA WATCHDOG ENGINE™"""
+        try:
+            if not self.watchdog_reporting:
+                return
+            
+            watchdog_report = {
+                "component": "AGI_TRINITY_LUMINA",
+                "status": self.status,
+                "health_metrics": {
+                    "creativity_score": self.creativity_score,
+                    "innovation_impact": self.innovation_impact,
+                    "insights_generated": self.insights_generated,
+                    "projects_created": self.projects_created,
+                    "implementations_successful": self.implementations_successful,
+                    "uptime_seconds": (datetime.utcnow() - self.activation_time).total_seconds() if self.activation_time else 0,
+                    "coordination_cycles": len(self.coordination_history)
+                },
+                "performance_data": coordination_data,
+                "timestamp": datetime.utcnow().isoformat(),
+                "infinity_ready": self.status == "active",
+                "trinity_coordination_active": True
+            }
+            
+            try:
+                from zora_watchdog_engine import watchdog_engine
+                if hasattr(watchdog_engine, 'update_component_metrics'):
+                    from zora_watchdog_engine import SystemMetrics, HealthStatus
+                    
+                    health_score = min(100.0, (self.creativity_score + self.innovation_impact) / 2)
+                    if self.status != "active":
+                        health_score = max(0.0, health_score - 50.0)
+                    
+                    metrics = SystemMetrics(
+                        component_name="AGI_TRINITY_LUMINA",
+                        health_score=health_score,
+                        status=HealthStatus.OPTIMAL if health_score >= 99.9 else 
+                               HealthStatus.HEALTHY if health_score >= 90.0 else
+                               HealthStatus.WARNING if health_score >= 70.0 else
+                               HealthStatus.CRITICAL,
+                        metadata=watchdog_report
+                    )
+                    
+                    watchdog_engine.update_component_metrics(metrics)
+                    self.last_watchdog_report = datetime.utcnow()
+                    
+            except ImportError:
+                pass
+            
+            self.memory.log("watchdog_report", watchdog_report)
+            
+        except Exception as e:
+            self.logger.error(f"Watchdog reporting error: {e}")
     
     def shutdown(self):
         """Gracefully shutdown LUMINA AGI"""

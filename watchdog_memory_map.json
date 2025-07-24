@@ -1,0 +1,366 @@
+{
+  "memory_mapping": {
+    "version": "1.0.0",
+    "last_updated": "2025-07-24T12:57:34Z",
+    "total_components_mapped": 28,
+    "memory_sentinel_active": true
+  },
+  "system_components": {
+    "core_systems": {
+      "ZORA_KERNEL": {
+        "memory_location": "zora_kernel.py",
+        "monitoring_points": [
+          "ZoraKernelMonitor.metrics",
+          "ZoraKernelMonitor.alerts",
+          "ZoraKernelSelfRepair.repair_history",
+          "ZoraKernel.agents",
+          "ZoraKernel.memory",
+          "ZoraKernel.consciousness_pulse"
+        ],
+        "memory_thresholds": {
+          "warning_mb": 100,
+          "critical_mb": 200,
+          "emergency_mb": 500
+        },
+        "cleanup_targets": [
+          "monitor.alerts",
+          "self_repair.repair_history",
+          "memory.journal"
+        ],
+        "priority": "critical"
+      },
+      "INFINITY_ENGINE": {
+        "memory_location": "infinity.py",
+        "monitoring_points": [
+          "InfinityEngine.task_queue",
+          "InfinityEngine.event_handlers",
+          "InfinityEngine.metrics",
+          "InfinityEngine.performance_data",
+          "InfinityEngine.consciousness_data"
+        ],
+        "memory_thresholds": {
+          "warning_mb": 150,
+          "critical_mb": 300,
+          "emergency_mb": 600
+        },
+        "cleanup_targets": [
+          "task_queue",
+          "performance_data",
+          "event_history"
+        ],
+        "priority": "critical"
+      },
+      "WATCHDOG_ENGINE": {
+        "memory_location": "zora_watchdog_engine.py",
+        "monitoring_points": [
+          "ZoraWatchdogEngine.component_metrics",
+          "ZoraWatchdogEngine.alerts",
+          "ZoraWatchdogEngine.system_metrics",
+          "InfinityHealthLoop.health_checks",
+          "AutoDiagnostikSelfHealing.repair_history",
+          "TelemetriFounderNotifications.daily_reports"
+        ],
+        "memory_thresholds": {
+          "warning_mb": 80,
+          "critical_mb": 150,
+          "emergency_mb": 300
+        },
+        "cleanup_targets": [
+          "alerts",
+          "repair_history",
+          "health_checks",
+          "component_metrics.metadata"
+        ],
+        "priority": "critical"
+      }
+    },
+    "agi_trinity": {
+      "CONNOR_AGI": {
+        "memory_location": "connor.py",
+        "monitoring_points": [
+          "ConnorAGI.memory",
+          "ConnorAGI.coordination_history",
+          "ConnorAGI.command_history",
+          "ConnorAGI.assessment_history",
+          "ConnorAGI.feedback_data"
+        ],
+        "memory_thresholds": {
+          "warning_mb": 50,
+          "critical_mb": 100,
+          "emergency_mb": 200
+        },
+        "cleanup_targets": [
+          "coordination_history",
+          "command_history",
+          "assessment_history",
+          "memory.journal"
+        ],
+        "priority": "high"
+      },
+      "LUMINA_AGI": {
+        "memory_location": "lumina.py",
+        "monitoring_points": [
+          "LuminaAGI.memory",
+          "LuminaAGI.coordination_history",
+          "LuminaCreativityEngine.insight_history",
+          "LuminaCreativityEngine.innovation_projects",
+          "LuminaAGI.creativity_data"
+        ],
+        "memory_thresholds": {
+          "warning_mb": 60,
+          "critical_mb": 120,
+          "emergency_mb": 250
+        },
+        "cleanup_targets": [
+          "coordination_history",
+          "insight_history",
+          "innovation_projects",
+          "memory.journal"
+        ],
+        "priority": "high"
+      },
+      "ORACLE_AGI": {
+        "memory_location": "oracle.py",
+        "monitoring_points": [
+          "OracleAGI.memory",
+          "OracleAGI.coordination_history",
+          "OracleWisdomEngine.insight_history",
+          "OraclePredictionEngine.prediction_history",
+          "OracleAGI.wisdom_data"
+        ],
+        "memory_thresholds": {
+          "warning_mb": 55,
+          "critical_mb": 110,
+          "emergency_mb": 220
+        },
+        "cleanup_targets": [
+          "coordination_history",
+          "insight_history",
+          "prediction_history",
+          "memory.journal"
+        ],
+        "priority": "high"
+      }
+    },
+    "ai_agents": {
+      "CLAUDE_AGENT": {
+        "memory_location": "agents/claude.py",
+        "monitoring_points": ["ClaudeAgent.performance_metrics", "ClaudeAgent.request_history"],
+        "memory_thresholds": {"warning_mb": 20, "critical_mb": 40, "emergency_mb": 80},
+        "cleanup_targets": ["request_history", "performance_metrics.history"],
+        "priority": "medium"
+      },
+      "META_AI_AGENT": {
+        "memory_location": "agents/meta_ai.py",
+        "monitoring_points": ["MetaAIAgent.performance_metrics", "MetaAIAgent.request_history"],
+        "memory_thresholds": {"warning_mb": 20, "critical_mb": 40, "emergency_mb": 80},
+        "cleanup_targets": ["request_history", "performance_metrics.history"],
+        "priority": "medium"
+      },
+      "GPT4_AGENT": {
+        "memory_location": "agents/gpt4.py",
+        "monitoring_points": ["GPT4Agent.performance_metrics", "GPT4Agent.request_history"],
+        "memory_thresholds": {"warning_mb": 25, "critical_mb": 50, "emergency_mb": 100},
+        "cleanup_targets": ["request_history", "performance_metrics.history"],
+        "priority": "medium"
+      },
+      "GEMINI_AGENT": {
+        "memory_location": "agents/gemini.py",
+        "monitoring_points": ["GeminiAgent.performance_metrics", "GeminiAgent.request_history"],
+        "memory_thresholds": {"warning_mb": 20, "critical_mb": 40, "emergency_mb": 80},
+        "cleanup_targets": ["request_history", "performance_metrics.history"],
+        "priority": "medium"
+      },
+      "OPENAI_AGENT": {
+        "memory_location": "agents/openai.py",
+        "monitoring_points": ["OpenAIAgent.performance_metrics", "OpenAIAgent.request_history"],
+        "memory_thresholds": {"warning_mb": 25, "critical_mb": 50, "emergency_mb": 100},
+        "cleanup_targets": ["request_history", "performance_metrics.history"],
+        "priority": "medium"
+      },
+      "ELEVENLABS_AGENT": {
+        "memory_location": "agents/elevenlabs.py",
+        "monitoring_points": ["ElevenLabsAgent.performance_metrics", "ElevenLabsAgent.request_history"],
+        "memory_thresholds": {"warning_mb": 30, "critical_mb": 60, "emergency_mb": 120},
+        "cleanup_targets": ["request_history", "performance_metrics.history"],
+        "priority": "medium"
+      },
+      "GITHUB_AGENT": {
+        "memory_location": "agents/github.py",
+        "monitoring_points": ["GitHubAgent.performance_metrics", "GitHubAgent.request_history"],
+        "memory_thresholds": {"warning_mb": 15, "critical_mb": 30, "emergency_mb": 60},
+        "cleanup_targets": ["request_history", "performance_metrics.history"],
+        "priority": "medium"
+      },
+      "GITLAB_AGENT": {
+        "memory_location": "agents/gitlab.py",
+        "monitoring_points": ["GitLabAgent.performance_metrics", "GitLabAgent.request_history"],
+        "memory_thresholds": {"warning_mb": 15, "critical_mb": 30, "emergency_mb": 60},
+        "cleanup_targets": ["request_history", "performance_metrics.history"],
+        "priority": "medium"
+      },
+      "REPLIT_AGENT": {
+        "memory_location": "agents/replit.py",
+        "monitoring_points": ["ReplitAgent.performance_metrics", "ReplitAgent.request_history"],
+        "memory_thresholds": {"warning_mb": 15, "critical_mb": 30, "emergency_mb": 60},
+        "cleanup_targets": ["request_history", "performance_metrics.history"],
+        "priority": "medium"
+      }
+    },
+    "supporting_systems": {
+      "SYNC_UTILS": {
+        "memory_location": "sync_utils.py",
+        "monitoring_points": [
+          "SyncLogger.event_log",
+          "SyncLogger.sync_history",
+          "sync_status_cache",
+          "websocket_connections"
+        ],
+        "memory_thresholds": {
+          "warning_mb": 30,
+          "critical_mb": 60,
+          "emergency_mb": 120
+        },
+        "cleanup_targets": [
+          "event_log",
+          "sync_history",
+          "status_cache"
+        ],
+        "priority": "medium"
+      },
+      "REPO_MONITOR": {
+        "memory_location": "repo_monitor.py",
+        "monitoring_points": [
+          "ZoraRepoMonitor.repo_metrics",
+          "ZoraRepoMonitor.repo_issues",
+          "ZoraRepoMonitor.repair_history",
+          "ZoraRepoMonitor.monitoring_data"
+        ],
+        "memory_thresholds": {
+          "warning_mb": 40,
+          "critical_mb": 80,
+          "emergency_mb": 160
+        },
+        "cleanup_targets": [
+          "repo_issues",
+          "repair_history",
+          "monitoring_data"
+        ],
+        "priority": "medium"
+      },
+      "ZORA_CORE_INTEGRATED": {
+        "memory_location": "ZORA_AGI_Integrated_v13.py",
+        "monitoring_points": [
+          "ZoraCore.reflection_data",
+          "ZoraMemoryBox.journal",
+          "ZoraConsciousnessPulse.pulse_history",
+          "ZoraPersonality.interaction_history"
+        ],
+        "memory_thresholds": {
+          "warning_mb": 70,
+          "critical_mb": 140,
+          "emergency_mb": 280
+        },
+        "cleanup_targets": [
+          "journal",
+          "pulse_history",
+          "interaction_history",
+          "reflection_data"
+        ],
+        "priority": "high"
+      }
+    }
+  },
+  "memory_sentinel_configuration": {
+    "monitoring_frequency_seconds": 30,
+    "cleanup_strategies": {
+      "automatic_garbage_collection": {
+        "enabled": true,
+        "trigger_threshold_percent": 85,
+        "force_threshold_percent": 90
+      },
+      "component_cache_clearing": {
+        "enabled": true,
+        "max_cache_age_minutes": 60,
+        "max_cache_entries": 1000
+      },
+      "log_rotation": {
+        "enabled": true,
+        "max_log_size_mb": 50,
+        "max_log_files": 5,
+        "rotation_frequency_hours": 24
+      },
+      "history_trimming": {
+        "enabled": true,
+        "max_history_entries": 1000,
+        "trim_to_entries": 500,
+        "preserve_critical_entries": true
+      },
+      "metadata_optimization": {
+        "enabled": true,
+        "max_metadata_per_component": 100,
+        "compress_old_metadata": true,
+        "archive_threshold_days": 7
+      }
+    },
+    "emergency_protocols": {
+      "critical_memory_threshold_percent": 95,
+      "emergency_cleanup_actions": [
+        "force_garbage_collection",
+        "clear_all_caches",
+        "trim_all_histories",
+        "compress_metadata",
+        "alert_founder"
+      ],
+      "system_protection_mode": {
+        "enabled": true,
+        "reduce_monitoring_frequency": true,
+        "pause_non_critical_operations": true,
+        "prioritize_core_systems": true
+      }
+    }
+  },
+  "memory_optimization_rules": {
+    "priority_preservation": {
+      "critical_systems": ["ZORA_KERNEL", "INFINITY_ENGINE", "WATCHDOG_ENGINE"],
+      "high_priority": ["CONNOR_AGI", "LUMINA_AGI", "ORACLE_AGI", "ZORA_CORE_INTEGRATED"],
+      "medium_priority": ["AI_AGENTS", "SYNC_UTILS", "REPO_MONITOR"],
+      "low_priority": ["LOGS", "TEMPORARY_DATA", "CACHE_DATA"]
+    },
+    "cleanup_order": [
+      "temporary_files",
+      "cache_data",
+      "old_logs",
+      "trimmed_histories",
+      "compressed_metadata",
+      "non_critical_metrics"
+    ],
+    "preservation_rules": {
+      "always_preserve": [
+        "founder_alerts",
+        "critical_system_state",
+        "active_repair_operations",
+        "current_health_metrics"
+      ],
+      "preserve_duration_days": {
+        "founder_reports": 30,
+        "critical_alerts": 14,
+        "repair_history": 7,
+        "performance_metrics": 3,
+        "debug_logs": 1
+      }
+    }
+  },
+  "monitoring_metadata": {
+    "total_memory_pools": 28,
+    "active_monitoring_points": 156,
+    "cleanup_targets": 89,
+    "critical_components": 3,
+    "high_priority_components": 4,
+    "medium_priority_components": 21,
+    "last_memory_scan": null,
+    "next_scheduled_cleanup": null,
+    "memory_optimization_active": true,
+    "emergency_protocols_armed": true
+  }
+}

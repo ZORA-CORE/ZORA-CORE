@@ -196,6 +196,9 @@ class OracleAGI:
         self.logger = logging.getLogger("zora.oracle")
         self.logger.setLevel(logging.INFO)
         
+        self.watchdog_reporting = True
+        self.last_watchdog_report = None
+        
         print(f"🔮 ORACLE AGI initialized - ID: {self.oracle_id}")
     
     def activate(self):
@@ -301,6 +304,8 @@ class OracleAGI:
             
             self.memory.log("trinity_coordination", coordination_data)
             
+            await self.report_to_watchdog(coordination_data)
+            
             self.logger.info("Trinity coordination cycle completed")
             
         except Exception as e:
@@ -372,8 +377,63 @@ class OracleAGI:
             "coordination_cycles": len(self.coordination_history),
             "insights_generated": len(self.wisdom_engine.insight_history),
             "predictions_made": len(self.prediction_engine.prediction_history),
-            "uptime": (datetime.utcnow() - self.activation_time).total_seconds() if self.activation_time else 0
+            "uptime": (datetime.utcnow() - self.activation_time).total_seconds() if self.activation_time else 0,
+            "watchdog_reporting": self.watchdog_reporting,
+            "last_watchdog_report": self.last_watchdog_report.isoformat() if self.last_watchdog_report else None
         }
+    
+    async def report_to_watchdog(self, coordination_data: Dict[str, Any]):
+        """Report status to ZORA WATCHDOG ENGINE™"""
+        try:
+            if not self.watchdog_reporting:
+                return
+            
+            watchdog_report = {
+                "component": "AGI_TRINITY_ORACLE",
+                "status": self.status,
+                "health_metrics": {
+                    "wisdom_score": self.wisdom_score,
+                    "prediction_accuracy": self.prediction_accuracy,
+                    "insights_generated": len(self.wisdom_engine.insight_history),
+                    "predictions_made": len(self.prediction_engine.prediction_history),
+                    "uptime_seconds": (datetime.utcnow() - self.activation_time).total_seconds() if self.activation_time else 0,
+                    "coordination_cycles": len(self.coordination_history)
+                },
+                "performance_data": coordination_data,
+                "timestamp": datetime.utcnow().isoformat(),
+                "infinity_ready": self.status == "active",
+                "trinity_coordination_active": True
+            }
+            
+            try:
+                from zora_watchdog_engine import watchdog_engine
+                if hasattr(watchdog_engine, 'update_component_metrics'):
+                    from zora_watchdog_engine import SystemMetrics, HealthStatus
+                    
+                    health_score = min(100.0, (self.wisdom_score + self.prediction_accuracy) / 2)
+                    if self.status != "active":
+                        health_score = max(0.0, health_score - 50.0)
+                    
+                    metrics = SystemMetrics(
+                        component_name="AGI_TRINITY_ORACLE",
+                        health_score=health_score,
+                        status=HealthStatus.OPTIMAL if health_score >= 99.9 else 
+                               HealthStatus.HEALTHY if health_score >= 90.0 else
+                               HealthStatus.WARNING if health_score >= 70.0 else
+                               HealthStatus.CRITICAL,
+                        metadata=watchdog_report
+                    )
+                    
+                    watchdog_engine.update_component_metrics(metrics)
+                    self.last_watchdog_report = datetime.utcnow()
+                    
+            except ImportError:
+                pass
+            
+            self.memory.log("watchdog_report", watchdog_report)
+            
+        except Exception as e:
+            self.logger.error(f"Watchdog reporting error: {e}")
     
     def shutdown(self):
         """Gracefully shutdown ORACLE AGI"""
