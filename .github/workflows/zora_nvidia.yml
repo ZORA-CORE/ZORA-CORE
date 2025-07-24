@@ -1,0 +1,32 @@
+name: ZORA x NVIDIA AutoDeploy
+
+on:
+  push:
+    paths:
+      - 'zora_nvidia/**'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Repo
+      uses: actions/checkout@v3
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.10
+
+    - name: Install Dependencies
+      run: |
+        pip install -r requirements.txt
+
+    - name: Test NVIDIA NeMo
+      run: python zora_nvidia/connect_nemo.py
+
+    - name: Test Omniverse
+      run: python zora_nvidia/connect_omniverse.py
+
+    - name: Test RIVA
+      run: python zora_nvidia/connect_riva.py
