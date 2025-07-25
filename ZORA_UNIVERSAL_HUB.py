@@ -25,6 +25,15 @@ from infinity import infinity_engine, TaskPriority, add_infinity_task
 from zora_kernel import zora_kernel
 
 try:
+    from zora_universal_infinity_pricing import ZoraUniversalInfinityPricing
+    from zora_market_monitor import ZoraMarketMonitor
+    from zora_direct_distribution import ZoraDirectDistribution
+    from zora_collectibles_engine import ZoraCollectiblesEngine
+    PRICING_SYSTEM_AVAILABLE = True
+except ImportError:
+    PRICING_SYSTEM_AVAILABLE = False
+
+try:
     import subprocess
     import json as json_lib
     MCP_AVAILABLE = True
@@ -178,6 +187,12 @@ class ZoraUniversalHub:
             "performance_update": []
         }
         
+        # ZORA Universal Infinity Pricing System Integration
+        self.pricing_engines = []
+        self.market_monitors = []
+        self.distribution_systems = []
+        self.collectibles_engines = []
+        
         print(f"🌐 {self.hub_name} initialized")
         print(f"🆔 Hub ID: {self.hub_id}")
         print(f"👑 Founder: {self.founder}")
@@ -185,6 +200,7 @@ class ZoraUniversalHub:
         
         self._initialize_ai_agents()
         self._initialize_mcp_servers()
+        self._initialize_pricing_systems()
     
     def _initialize_ai_agents(self):
         """Initialize all 23 AI agents"""
@@ -782,6 +798,117 @@ class ZoraUniversalHub:
                 "total_tools": sum(len(tools) for tools in self.mcp_tools.values()),
                 "servers_count": len(self.mcp_tools)
             }
+
+    def _initialize_pricing_systems(self):
+        """Initialize ZORA Universal Infinity Pricing Systems"""
+        if PRICING_SYSTEM_AVAILABLE:
+            try:
+                pricing_engine = ZoraUniversalInfinityPricing()
+                self.pricing_engines.append({
+                    'name': 'ZORA_UNIVERSAL_INFINITY_PRICING',
+                    'engine': pricing_engine,
+                    'status': 'ACTIVE',
+                    'registered_at': datetime.utcnow().isoformat(),
+                    'registered_by': self.founder
+                })
+                
+                market_monitor = ZoraMarketMonitor()
+                self.market_monitors.append({
+                    'name': 'ZORA_MARKET_MONITOR',
+                    'monitor': market_monitor,
+                    'status': 'ACTIVE',
+                    'registered_at': datetime.utcnow().isoformat(),
+                    'registered_by': self.founder
+                })
+                
+                distribution_system = ZoraDirectDistribution()
+                self.distribution_systems.append({
+                    'name': 'ZORA_DIRECT_DISTRIBUTION',
+                    'system': distribution_system,
+                    'status': 'ACTIVE',
+                    'registered_at': datetime.utcnow().isoformat(),
+                    'registered_by': self.founder
+                })
+                
+                collectibles_engine = ZoraCollectiblesEngine()
+                self.collectibles_engines.append({
+                    'name': 'ZORA_COLLECTIBLES_ENGINE',
+                    'engine': collectibles_engine,
+                    'status': 'ACTIVE',
+                    'registered_at': datetime.utcnow().isoformat(),
+                    'registered_by': self.founder
+                })
+                
+                print("🚀 ZORA Universal Infinity Pricing Systems initialized")
+                print(f"   ✅ Pricing Engines: {len(self.pricing_engines)}")
+                print(f"   ✅ Market Monitors: {len(self.market_monitors)}")
+                print(f"   ✅ Distribution Systems: {len(self.distribution_systems)}")
+                print(f"   ✅ Collectibles Engines: {len(self.collectibles_engines)}")
+                
+            except Exception as e:
+                print(f"⚠️ Error initializing pricing systems: {e}")
+        else:
+            print("⚠️ ZORA Pricing System components not available")
+
+    def register_pricing_engine(self, engine_name, engine_instance=None):
+        """Register a new pricing engine with the Universal Hub"""
+        pricing_engine = {
+            'name': engine_name.upper(),
+            'engine': engine_instance,
+            'status': 'ACTIVE',
+            'registered_at': datetime.utcnow().isoformat(),
+            'registered_by': self.founder
+        }
+        self.pricing_engines.append(pricing_engine)
+        print(f'✅ Pricing Engine registered: {engine_name.upper()}')
+        return True
+
+    def get_pricing_status(self):
+        """Get comprehensive pricing system status"""
+        return {
+            "pricing_engines": len(self.pricing_engines),
+            "market_monitors": len(self.market_monitors),
+            "distribution_systems": len(self.distribution_systems),
+            "collectibles_engines": len(self.collectibles_engines),
+            "total_pricing_systems": len(self.pricing_engines) + len(self.market_monitors) + len(self.distribution_systems) + len(self.collectibles_engines),
+            "pricing_systems_active": all(
+                system['status'] == 'ACTIVE' 
+                for systems in [self.pricing_engines, self.market_monitors, self.distribution_systems, self.collectibles_engines]
+                for system in systems
+            ),
+            "infinity_pricing_enabled": PRICING_SYSTEM_AVAILABLE
+        }
+
+    def execute_market_monitoring_task(self, product_name, target_market="global"):
+        """Execute market monitoring task through registered market monitors"""
+        if not self.market_monitors:
+            return {"error": "No market monitors registered"}
+        
+        results = []
+        for monitor_info in self.market_monitors:
+            try:
+                monitor = monitor_info['monitor']
+                if hasattr(monitor, 'monitor_product_pricing'):
+                    result = monitor.monitor_product_pricing(product_name, target_market)
+                    results.append({
+                        "monitor": monitor_info['name'],
+                        "result": result,
+                        "status": "success"
+                    })
+            except Exception as e:
+                results.append({
+                    "monitor": monitor_info['name'],
+                    "error": str(e),
+                    "status": "error"
+                })
+        
+        return {
+            "task": "market_monitoring",
+            "product": product_name,
+            "target_market": target_market,
+            "results": results,
+            "timestamp": datetime.utcnow().isoformat()
+        }
 
 universal_hub = ZoraUniversalHub()
 

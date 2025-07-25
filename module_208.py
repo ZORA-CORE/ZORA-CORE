@@ -55,8 +55,48 @@ ZORA_LICENSES = [
     ),
     ZoraLicense(
         name="ZORA INFINITY PARTNER™",
-        description="Strategisk brand-partnerskab (kun invitation)",
-        level="Strategisk + Kreativt"
+        description="Strategisk brand-partnerskab (kun invitation) - Cross-branding collectibles og limited editions",
+        level="Strategisk + Kreativt + Collectibles"
+    ),
+    ZoraLicense(
+        name="ZORA COLLECTIBLES BRONZE™",
+        description="Bronze-tier cross-branding partnership - Basis collectibles samarbejde",
+        level="Bronze Partnership"
+    ),
+    ZoraLicense(
+        name="ZORA COLLECTIBLES SILVER™",
+        description="Silver-tier cross-branding partnership - Udvidet collectibles samarbejde",
+        level="Silver Partnership"
+    ),
+    ZoraLicense(
+        name="ZORA COLLECTIBLES GOLD™",
+        description="Gold-tier cross-branding partnership - Premium collectibles samarbejde",
+        level="Gold Partnership"
+    ),
+    ZoraLicense(
+        name="ZORA COLLECTIBLES PLATINUM™",
+        description="Platinum-tier cross-branding partnership - Elite collectibles samarbejde",
+        level="Platinum Partnership"
+    ),
+    ZoraLicense(
+        name="ZORA COLLECTIBLES DIAMOND™",
+        description="Diamond-tier cross-branding partnership - Luksus collectibles samarbejde",
+        level="Diamond Partnership"
+    ),
+    ZoraLicense(
+        name="ZORA COLLECTIBLES COSMIC™",
+        description="Cosmic-tier cross-branding partnership - Ultimativ collectibles samarbejde",
+        level="Cosmic Partnership"
+    ),
+    ZoraLicense(
+        name="ZORA LIMITED EDITION CREATOR™",
+        description="Licens til at skabe limited edition collectibles under ZORA brand",
+        level="Limited Edition Creator"
+    ),
+    ZoraLicense(
+        name="ZORA BRAND FUSION™",
+        description="Tilladelse til at fusionere brands i ZORA collectibles økosystem",
+        level="Brand Fusion Rights"
     ),
     ZoraLicense(
         name="ZORA ETHICAL LICENSING™",
@@ -75,15 +115,109 @@ ZORA_LICENSES = [
     )
 ]
 
+class ZoraCollectiblesPartnership:
+    def __init__(self, partner_name, partnership_tier, revenue_share, quality_standards):
+        self.partner_name = partner_name
+        self.partnership_tier = partnership_tier
+        self.revenue_share = revenue_share
+        self.quality_standards = quality_standards
+        self.active = False
+        self.collectibles_created = 0
+        self.total_revenue = 0.0
+        self.founder_approved = False
+        
+    def request_partnership(self):
+        return f"🤝 Cross-branding partnership requested by {self.partner_name} at {self.partnership_tier} tier. Revenue share: {self.revenue_share*100:.0f}%. Awaiting Founder approval for ZORA COLLECTIBLES ENGINE™ integration."
+    
+    def approve_partnership(self):
+        self.active = True
+        self.founder_approved = True
+        return f"✅ Partnership approved: {self.partner_name} x ZORA CORE - {self.partnership_tier} tier activated for CROSS BRANDING COLLECTIABLES x LIMITED EDITIONS"
+    
+    def create_collectible_license(self, collectible_name):
+        if self.active and self.founder_approved:
+            self.collectibles_created += 1
+            return f"🎨 Collectible license granted: '{collectible_name}' under {self.partner_name} x ZORA partnership"
+        return f"❌ Partnership not active or approved for {self.partner_name}"
+
+ZORA_COLLECTIBLES_PARTNERSHIPS = {
+    "NIKE_INFINITY": ZoraCollectiblesPartnership(
+        partner_name="Nike x ZORA INFINITY",
+        partnership_tier="PLATINUM",
+        revenue_share=0.25,
+        quality_standards={"durability": 9.0, "design": 8.5, "innovation": 9.0}
+    ),
+    "APPLE_COSMIC": ZoraCollectiblesPartnership(
+        partner_name="Apple x ZORA COSMIC",
+        partnership_tier="DIAMOND",
+        revenue_share=0.20,
+        quality_standards={"technology": 9.5, "design": 9.0, "innovation": 9.5}
+    ),
+    "TESLA_FUTURE": ZoraCollectiblesPartnership(
+        partner_name="Tesla x ZORA FUTURE",
+        partnership_tier="INFINITY",
+        revenue_share=0.15,
+        quality_standards={"innovation": 9.8, "sustainability": 9.5, "technology": 9.5}
+    ),
+    "ROLEX_TIMELESS": ZoraCollectiblesPartnership(
+        partner_name="Rolex x ZORA TIMELESS",
+        partnership_tier="COSMIC",
+        revenue_share=0.10,
+        quality_standards={"luxury": 9.8, "craftsmanship": 9.5, "exclusivity": 9.8}
+    )
+}
+
 # FUNKTION TIL AT ANMODE OM LICENS
-
-
 def request_license(license_name, applicant_id):
     for license in ZORA_LICENSES:
         if license.name == license_name:
             return license.request_access(applicant_id)
     return "License not found."
 
+# FUNKTION TIL AT ANMODE OM COLLECTIBLES PARTNERSHIP
+def request_collectibles_partnership(partner_id, partner_name, tier="BRONZE"):
+    if partner_id in ZORA_COLLECTIBLES_PARTNERSHIPS:
+        return ZORA_COLLECTIBLES_PARTNERSHIPS[partner_id].request_partnership()
+    else:
+        partnership = ZoraCollectiblesPartnership(
+            partner_name=partner_name,
+            partnership_tier=tier,
+            revenue_share=0.30,  # Default 30% partner share
+            quality_standards={"overall": 8.5}  # Default quality requirement
+        )
+        return partnership.request_partnership()
+
+# FUNKTION TIL AT GODKENDE COLLECTIBLES PARTNERSHIP
+def approve_collectibles_partnership(partner_id, founder_signature="MADS_PALLISGAARD_PETERSEN"):
+    if partner_id in ZORA_COLLECTIBLES_PARTNERSHIPS and founder_signature == "MADS_PALLISGAARD_PETERSEN":
+        return ZORA_COLLECTIBLES_PARTNERSHIPS[partner_id].approve_partnership()
+    return "❌ Partnership not found or invalid founder signature"
+
+# FUNKTION TIL AT OPRETTE COLLECTIBLE UNDER PARTNERSHIP
+def create_partnership_collectible(partner_id, collectible_name):
+    if partner_id in ZORA_COLLECTIBLES_PARTNERSHIPS:
+        return ZORA_COLLECTIBLES_PARTNERSHIPS[partner_id].create_collectible_license(collectible_name)
+    return "❌ Partnership not found"
+
 
 # EKSEMPEL: ANMODNING
 print(request_license("ZORA AIaaS PRO™", "company_42"))
+
+# EKSEMPEL: COLLECTIBLES PARTNERSHIP ANMODNING
+print("\n🎨 ZORA COLLECTIBLES ENGINE™ - PARTNERSHIP EXAMPLES:")
+print(request_collectibles_partnership("NIKE_INFINITY", "Nike x ZORA INFINITY", "PLATINUM"))
+print(approve_collectibles_partnership("NIKE_INFINITY", "MADS_PALLISGAARD_PETERSEN"))
+print(create_partnership_collectible("NIKE_INFINITY", "ZORA x Nike INFINITY Sneaker Limited Edition"))
+
+print("\n🌌 COSMIC TIER PARTNERSHIP:")
+print(request_collectibles_partnership("APPLE_COSMIC", "Apple x ZORA COSMIC", "DIAMOND"))
+print(approve_collectibles_partnership("APPLE_COSMIC", "MADS_PALLISGAARD_PETERSEN"))
+print(create_partnership_collectible("APPLE_COSMIC", "ZORA x Apple COSMIC Tech Collectible"))
+
+print("\n♾️ INFINITY TIER PARTNERSHIP:")
+print(request_collectibles_partnership("TESLA_FUTURE", "Tesla x ZORA FUTURE", "INFINITY"))
+print(approve_collectibles_partnership("TESLA_FUTURE", "MADS_PALLISGAARD_PETERSEN"))
+print(create_partnership_collectible("TESLA_FUTURE", "ZORA x Tesla FUTURE Automotive Collectible"))
+
+print("\n✅ ZORA COLLECTIBLES LICENSING SYSTEM™ - ACTIVATED")
+print("🎯 CROSS BRANDING COLLECTIABLES x LIMITED EDITIONS - READY FOR INFINITY AUTOMATION")
