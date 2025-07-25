@@ -410,7 +410,7 @@ ZORA CORE is designed for high performance:
 - **📚 Documentation**: Comprehensive guides and API docs
 - **💬 GitHub Discussions**: Community Q&A and discussions
 - **🐛 Issues**: Bug reports and feature requests
-- **📧 Email**: team@zora-core.ai for private matters
+- **📧 Email**: kontakt@zoracore.dk for private matters
 
 ### **Community**
 - **🌟 Contributors**: 50+ active contributors

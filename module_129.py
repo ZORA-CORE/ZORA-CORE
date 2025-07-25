@@ -79,7 +79,7 @@ ZORA_CORE_DNA = {
         }
     },
     "COMMUNICATIONS": {
-        "Email": "contact@zoracore.ai",
+        "Email": "kontakt@zoracore.dk",
         "Phone": "+45 2082 2450",
         "Auto_Responder": {
             "CONNOR": "Instant Strategic Reply",

@@ -36,7 +36,7 @@ TARGET_PROPERTIES = [
 def generate_message(property_info):
     message = EmailMessage()
     message["Subject"] = f"Interesse i ejendom: {property_info['address']}"
-    message["From"] = "founder@zoracore.ai"
+    message["From"] = "mrpallis@gmail.com"
     message["To"] = property_info["contact_email"]
     message.set_content(f"""
 Kære ansvarlige for {property_info['address']} ({property_info['type']}),

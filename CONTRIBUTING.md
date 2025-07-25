@@ -335,7 +335,7 @@ python -m http.server 8080 -d _build/html
 - **GitHub Discussions**: For general discussions and questions
 - **Issues**: For bug reports and feature requests
 - **Discord**: Real-time community chat (link in README)
-- **Email**: team@zora-core.ai for private matters
+- **Email**: kontakt@zoracore.dk for private matters
 
 ### **Community Guidelines**
 - **Be Respectful**: Treat everyone with respect and kindness
@@ -393,7 +393,7 @@ For enhancing CONNOR, LUMINA, and ORACLE:
 
 ### **Maintainer Contact**
 - **Mads Pallisgaard Petersen**: Founder and Lead Maintainer
-- **Email**: founder@zora-core.ai
+- **Email**: mrpallis@gmail.com
 - **GitHub**: @THEZORACORE
 
 ---

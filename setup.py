@@ -23,7 +23,7 @@ setup(
     name="zora-core",
     version="1.0.0",
     author="Mads Pallisgaard Petersen",
-    author_email="founder@zora-core.ai",
+    author_email="mrpallis@gmail.com",
     description="Advanced AI Orchestration Platform with Infinity Engine™",
     long_description=read_readme(),
     long_description_content_type="text/markdown",

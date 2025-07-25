@@ -18,7 +18,7 @@ ZORA_CORE_DNA["distribution"] = {
     "zero_third_party": True,
     "trigger_on": "launch_date: 2025-07-01",
     "signed_by": "Mads Pallisgaard Petersen",
-    "verified_email": "contact@zoracore.ai",
+    "verified_email": "kontakt@zoracore.dk",
     "domains": ["zoracore.ai", "zoracore.app"],
     "app_version": "1.0.0",
     "store_submission": {

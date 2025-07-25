@@ -9,10 +9,10 @@ description = "Advanced AI Orchestration Platform with Infinity Engine™"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
-    {name = "Mads Pallisgaard Petersen", email = "founder@zora-core.ai"}
+    {name = "Mads Pallisgaard Petersen", email = "mrpallis@gmail.com"}
 ]
 maintainers = [
-    {name = "ZORA CORE Team", email = "team@zora-core.ai"}
+    {name = "ZORA CORE Team", email = "kontakt@zoracore.dk"}
 ]
 classifiers = [
     "Development Status :: 4 - Beta",

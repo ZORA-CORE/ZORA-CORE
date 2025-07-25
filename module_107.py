@@ -19,7 +19,7 @@ ZORA_CORE_DNA["SUPPORT_SYSTEM"] = {
     "EMAIL_SUPPORT": {
         "AUTO_GENERATE_AND_SEND": True,
         "USER_REVIEW_REQUIRED": False,
-        "MAIN_ADDRESS": "contact@zoracore.ai",
+        "MAIN_ADDRESS": "kontakt@zoracore.dk",
         "AI_SIGNATURE": "CONNOR & LUMINA for ZORA"
     },
     "REVIEW_SYSTEM": {

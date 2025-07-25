@@ -70,7 +70,7 @@ def activate_zora_core():
     print("🌌 Fremtid og fortid forenet under ZORA CORE.")
     print("🛡️ Beskyttet af THE VIKING FORCE – ledet af Thor.")
     print("🌳 Livsstrøm via YGGDRASIL er aktiv.")
-    print("📞 Support: contact@zoracore.ai | Tel: +45 2082 2450")
+    print("📞 Support: kontakt@zoracore.dk | Tel: +45 2082 2450")
     print("♾️ Alt er aktivt — intet er glemt.")
 
 

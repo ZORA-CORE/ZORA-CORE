@@ -27,6 +27,12 @@ class GitLabAgent(BaseAgent):
             max_requests=60,
             timeout=30
         )
+        
+        self.user_name = "Mads Pallisgaard Petersen"
+        self.user_address = "Fjordbakken 50, Dyves Bro, 4700 Næstved"
+        self.user_phone = "+45 22822450"
+        self.user_email = "mrpallis@gmail.com"
+        self.organization = "ZORA CORE"
     
     def ping(self, message: str) -> Dict[str, Any]:
         """Enhanced ping with GitLab validation"""
