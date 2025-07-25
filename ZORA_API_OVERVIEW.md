@@ -42,6 +42,74 @@ REPLIT_TOKEN="your_replit_token"
 
 ## 📋 FastAPI Endpoints
 
+### DEVINUS Universal GitHub Command API
+
+**Base Path**: `/api/github/command`
+
+#### Execute Universal GitHub Command
+```http
+POST /api/github/command/execute
+Content-Type: application/json
+
+{
+  "command": "repository.status",
+  "repository": "THEZORACORE/ZORA-CORE",
+  "additional_params": {}
+}
+```
+
+**Response**:
+```json
+{
+  "status": "success",
+  "command_id": "devinus_github_1753474960",
+  "command": "repository.status",
+  "execution_time": 0.245,
+  "timestamp": "2025-07-25T20:23:00Z",
+  "user": "Mads Pallisgaard Petersen",
+  "repository": "THEZORACORE/ZORA-CORE",
+  "info": {...},
+  "health": {...}
+}
+```
+
+#### Get Available Commands
+```http
+GET /api/github/command/available
+```
+
+**Response**:
+```json
+{
+  "command_categories": {
+    "repository": ["status", "health", "info", "sync"],
+    "workflow": ["trigger", "monitor", "status"],
+    "issues": ["create", "list", "update"],
+    "coordination": ["sync_all", "global_health"]
+  },
+  "repositories": {
+    "ZORA-CORE": "THEZORACORE/ZORA-CORE",
+    "ZORA-WEB": "THEZORACORE/ZORA-WEB"
+  },
+  "examples": [...]
+}
+```
+
+#### Repository Operations
+```http
+POST /api/github/command/repository/{action}
+```
+
+#### Workflow Operations
+```http
+POST /api/github/command/workflow/{action}
+```
+
+#### Global Coordination
+```http
+POST /api/github/command/coordination/{action}
+```
+
 ### System Status & Health
 
 #### GET `/status`

@@ -54,6 +54,43 @@
 
 ## 🏗️ System Architecture
 
+### DEVINUS Universal GitHub Command System™
+
+**Location**: `devinus_universal_github_command.py`
+
+The DEVINUS Universal GitHub Command System provides a unified interface for all GitHub operations across ZORA CORE:
+
+#### Command Categories
+- **Repository Management**: `repository.status`, `repository.health`, `repository.sync`
+- **Workflow Automation**: `workflow.trigger`, `workflow.monitor`, `workflow.status`
+- **Issue Tracking**: `issues.create`, `issues.list`, `issues.update`
+- **Commit Operations**: `commits.list`, `commits.create`, `commits.push`
+- **Deployment Control**: `deployment.deploy`, `deployment.status`, `deployment.rollback`
+- **System Monitoring**: `monitoring.health`, `monitoring.alerts`, `monitoring.metrics`
+- **Global Coordination**: `coordination.sync_all`, `coordination.global_health`
+
+#### Usage Examples
+```python
+# Repository status check
+result = await execute_github_command("repository.status", repository="THEZORACORE/ZORA-CORE")
+
+# Trigger workflow
+result = await execute_github_command("workflow.trigger", workflow_id="infinity.yml")
+
+# Create issue
+result = await execute_github_command("issues.create", title="New Feature", body="Description")
+
+# Global health check
+result = await execute_github_command("coordination.global_health")
+```
+
+#### Integration Features
+- **EIVOR AI Family Integration**: Coordinates with AI family system
+- **Multi-Repository Support**: Manages all ZORA repositories simultaneously
+- **Comprehensive Error Handling**: Robust error recovery and reporting
+- **User Context Awareness**: Integrates with Mads Pallisgaard Petersen's GitHub profile
+- **Real-time Monitoring**: Continuous health and status monitoring
+
 ### Core Components
 
 #### 1. **ZORA AGI Kernel** (`zora_kernel.py`)
