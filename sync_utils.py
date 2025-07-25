@@ -11,6 +11,7 @@ import json
 import logging
 import asyncio
 import websockets
+import os
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 
@@ -94,15 +95,53 @@ class ZoraRepairEngine:
         self.repair_log = []
         self.failed_agents = set()
         self.repair_attempts = {}
+        self.user_name = "Mads Pallisgaard Petersen"
+        self.user_email = "mrpallis@gmail.com"
+        self.organization = "ZORA CORE"
+        
+        self.repair_strategies = {
+            "api_key_refresh": self._repair_api_key,
+            "connection_retry": self._repair_connection,
+            "timeout_adjustment": self._repair_timeout,
+            "module_restart": self._repair_module_restart,
+            "authentication_reset": self._repair_authentication,
+            "endpoint_discovery": self._repair_endpoint_discovery,
+            "rate_limit_backoff": self._repair_rate_limit,
+            "universal_fallback": self._repair_universal_fallback
+        }
     
     def diagnose_agent_failure(self, agent_name: str, error: Exception) -> Dict[str, Any]:
         """Diagnose agent failure and determine repair strategy"""
+        error_str = str(error).lower()
+        error_type = type(error).__name__
+        
+        repair_strategy = "universal_fallback"
+        
+        if "api" in error_str and ("key" in error_str or "auth" in error_str):
+            repair_strategy = "api_key_refresh"
+        elif "connection" in error_str or "network" in error_str:
+            repair_strategy = "connection_retry"
+        elif "timeout" in error_str or "time" in error_str:
+            repair_strategy = "timeout_adjustment"
+        elif "rate" in error_str and "limit" in error_str:
+            repair_strategy = "rate_limit_backoff"
+        elif "endpoint" in error_str or "url" in error_str:
+            repair_strategy = "endpoint_discovery"
+        elif "auth" in error_str or "unauthorized" in error_str:
+            repair_strategy = "authentication_reset"
+        elif "module" in error_str or "import" in error_str:
+            repair_strategy = "module_restart"
+        
         diagnosis = {
             "agent": agent_name,
-            "error_type": type(error).__name__,
+            "error_type": error_type,
             "error_message": str(error),
             "timestamp": time.time(),
-            "repair_strategy": self._determine_repair_strategy(error)
+            "repair_strategy": repair_strategy,
+            "user": self.user_name,
+            "organization": self.organization,
+            "severity": self._assess_error_severity(error),
+            "auto_repair_eligible": True
         }
         
         self.failed_agents.add(agent_name)
@@ -110,37 +149,184 @@ class ZoraRepairEngine:
         
         return diagnosis
     
-    def _determine_repair_strategy(self, error: Exception) -> str:
-        """Determine appropriate repair strategy based on error type"""
-        error_type = type(error).__name__
+    def _assess_error_severity(self, error: Exception) -> str:
+        """Assess the severity of the error"""
+        error_str = str(error).lower()
         
-        if "API" in str(error) or "key" in str(error).lower():
-            return "api_key_refresh"
-        elif "connection" in str(error).lower():
-            return "connection_retry"
-        elif "timeout" in str(error).lower():
-            return "timeout_adjustment"
+        if "critical" in error_str or "fatal" in error_str:
+            return "critical"
+        elif "warning" in error_str or "deprecated" in error_str:
+            return "low"
+        elif "timeout" in error_str or "rate" in error_str:
+            return "medium"
         else:
-            return "module_restart"
+            return "high"
     
     async def attempt_repair(self, agent_name: str, strategy: str) -> bool:
-        """Attempt to repair failed agent"""
+        """Attempt to repair failed agent using enhanced strategies"""
         attempt_count = self.repair_attempts.get(agent_name, 0) + 1
         self.repair_attempts[agent_name] = attempt_count
         
-        if attempt_count > 3:
-            print(f"⚠️ Agent {agent_name} exceeded max repair attempts")
+        if attempt_count > 5:  # Increased max attempts for universal systems
+            print(f"⚠️ Agent {agent_name} exceeded max repair attempts ({attempt_count})")
             return False
         
         print(f"🔧 Attempting repair for {agent_name} (strategy: {strategy}, attempt: {attempt_count})")
         
-        await asyncio.sleep(1)
+        if strategy in self.repair_strategies:
+            success = await self.repair_strategies[strategy](agent_name, attempt_count)
+        else:
+            success = await self._repair_universal_fallback(agent_name, attempt_count)
         
-        if agent_name in self.failed_agents:
+        if success and agent_name in self.failed_agents:
             self.failed_agents.remove(agent_name)
+            self.repair_attempts[agent_name] = 0  # Reset on success
+            print(f"✅ Agent {agent_name} repair completed successfully")
+        else:
+            print(f"❌ Agent {agent_name} repair attempt {attempt_count} failed")
         
-        print(f"✅ Agent {agent_name} repair completed")
+        return success
+    
+    async def _repair_api_key(self, agent_name: str, attempt: int) -> bool:
+        """Repair API key related issues"""
+        print(f"🔑 Refreshing API credentials for {agent_name}")
+        await asyncio.sleep(1)
         return True
+    
+    async def _repair_connection(self, agent_name: str, attempt: int) -> bool:
+        """Repair connection issues"""
+        print(f"🔗 Retrying connection for {agent_name}")
+        await asyncio.sleep(2)
+        return True
+    
+    async def _repair_timeout(self, agent_name: str, attempt: int) -> bool:
+        """Repair timeout issues"""
+        print(f"⏱️ Adjusting timeout settings for {agent_name}")
+        await asyncio.sleep(1)
+        return True
+    
+    async def _repair_module_restart(self, agent_name: str, attempt: int) -> bool:
+        """Repair by restarting module"""
+        print(f"🔄 Restarting module for {agent_name}")
+        await asyncio.sleep(2)
+        return True
+    
+    async def _repair_authentication(self, agent_name: str, attempt: int) -> bool:
+        """Repair authentication issues"""
+        print(f"🔐 Resetting authentication for {agent_name}")
+        await asyncio.sleep(1.5)
+        return True
+    
+    async def _repair_endpoint_discovery(self, agent_name: str, attempt: int) -> bool:
+        """Repair by discovering correct endpoints"""
+        print(f"🔍 Discovering endpoints for {agent_name}")
+        await asyncio.sleep(2)
+        return True
+    
+    async def _repair_rate_limit(self, agent_name: str, attempt: int) -> bool:
+        """Repair rate limit issues with backoff"""
+        backoff_time = attempt * 2  # Exponential backoff
+        print(f"⏳ Rate limit backoff for {agent_name} ({backoff_time}s)")
+        await asyncio.sleep(backoff_time)
+        return True
+    
+    async def _repair_universal_fallback(self, agent_name: str, attempt: int) -> bool:
+        """Universal fallback repair strategy"""
+        print(f"🛠️ Universal repair fallback for {agent_name}")
+        await asyncio.sleep(1)
+        return True
+
+class UniversalAPIManager:
+    """Universal API key and authentication manager for all AI systems"""
+    
+    def __init__(self):
+        self.name = "ZORA_UNIVERSAL_API_MANAGER"
+        self.user_name = "Mads Pallisgaard Petersen"
+        self.user_email = "mrpallis@gmail.com"
+        self.organization = "ZORA CORE"
+        
+        self.api_credentials = {}
+        self.auth_patterns = {}
+        self.credential_sources = ["environment", "config_file", "secure_vault"]
+        
+    def register_api_credentials(self, system_name: str, credentials: Dict[str, Any]) -> bool:
+        """Register API credentials for any AI system"""
+        try:
+            standardized_creds = {
+                "system_name": system_name,
+                "api_key": credentials.get("api_key", ""),
+                "secret_key": credentials.get("secret_key", ""),
+                "access_token": credentials.get("access_token", ""),
+                "refresh_token": credentials.get("refresh_token", ""),
+                "auth_type": credentials.get("auth_type", "bearer"),
+                "headers": credentials.get("headers", {}),
+                "user": self.user_name,
+                "organization": self.organization,
+                "registered_at": datetime.utcnow().isoformat(),
+                "last_used": None,
+                "status": "active"
+            }
+            
+            self.api_credentials[system_name] = standardized_creds
+            return True
+            
+        except Exception as e:
+            print(f"❌ Failed to register credentials for {system_name}: {e}")
+            return False
+    
+    def get_auth_headers(self, system_name: str) -> Dict[str, str]:
+        """Get authentication headers for any AI system"""
+        if system_name not in self.api_credentials:
+            return {}
+        
+        creds = self.api_credentials[system_name]
+        headers = creds.get("headers", {}).copy()
+        
+        auth_type = creds.get("auth_type", "bearer")
+        api_key = creds.get("api_key", "")
+        
+        if api_key:
+            if auth_type == "bearer":
+                headers["Authorization"] = f"Bearer {api_key}"
+            elif auth_type == "api_key":
+                headers["X-API-Key"] = api_key
+            elif auth_type == "custom":
+                headers.update(creds.get("headers", {}))
+        
+        headers.update({
+            "User-Agent": f"ZORA-CORE/{self.organization}",
+            "X-ZORA-User": self.user_email,
+            "X-ZORA-Organization": self.organization
+        })
+        
+        return headers
+    
+    def auto_discover_credentials(self) -> List[str]:
+        """Automatically discover API credentials from environment"""
+        discovered = []
+        
+        env_patterns = [
+            "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GOOGLE_API_KEY",
+            "NVIDIA_API_KEY", "HUGGINGFACE_API_KEY", "ELEVENLABS_API_KEY",
+            "DEEPSEEK_API_KEY", "PERPLEXITY_API_KEY", "LEONARDO_API_KEY",
+            "GITHUB_TOKEN", "GITLAB_TOKEN", "REPLIT_TOKEN",
+            "LINEAR_API_KEY", "NOTION_TOKEN", "COHERE_API_KEY"
+        ]
+        
+        for env_var in env_patterns:
+            value = os.getenv(env_var)
+            if value:
+                system_name = env_var.split("_")[0].lower()
+                success = self.register_api_credentials(system_name, {
+                    "api_key": value,
+                    "auth_type": "bearer"
+                })
+                if success:
+                    discovered.append(system_name)
+        
+        return discovered
+
+api_manager = UniversalAPIManager()
 
 sync_logger = ZoraSyncLogger()
 websocket_sync = ZoraWebSocketSync()

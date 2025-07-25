@@ -24,6 +24,13 @@ from sync_utils import sync_all, log, websocket_sync, repair, get_sync_status
 from infinity import infinity_engine, TaskPriority, add_infinity_task
 from zora_kernel import zora_kernel
 
+try:
+    import subprocess
+    import json as json_lib
+    MCP_AVAILABLE = True
+except ImportError:
+    MCP_AVAILABLE = False
+
 class AgentStatus(Enum):
     """Agent status levels"""
     ONLINE = "online"
@@ -55,6 +62,20 @@ class AgentMetrics:
     last_error: Optional[str] = None
     capabilities: List[str] = field(default_factory=list)
     metadata: Dict[str, Any] = field(default_factory=dict)
+
+@dataclass
+class MCPServerMetrics:
+    """Metrics for MCP servers"""
+    server_name: str
+    status: AgentStatus = AgentStatus.OFFLINE
+    available_tools: List[str] = field(default_factory=list)
+    available_resources: List[str] = field(default_factory=list)
+    last_connection: Optional[datetime] = None
+    connection_count: int = 0
+    tool_calls: int = 0
+    successful_calls: int = 0
+    failed_calls: int = 0
+    average_response_time: float = 0.0
 
 class HubDashboard:
     """Real-time monitoring dashboard for the Universal Hub"""
@@ -126,6 +147,11 @@ class ZoraUniversalHub:
         self.agent_groups = defaultdict(list)
         self.coordination_rules = {}
         
+        self.mcp_servers = {}
+        self.mcp_metrics = {}
+        self.mcp_tools = defaultdict(list)
+        self.mcp_resources = defaultdict(list)
+        
         self.modules = []
         self.integrated_businesses = []
         self.active_integrations = {}
@@ -158,6 +184,7 @@ class ZoraUniversalHub:
         print(f"🔄 Mode: {self.mode.value.upper()}")
         
         self._initialize_ai_agents()
+        self._initialize_mcp_servers()
     
     def _initialize_ai_agents(self):
         """Initialize all 23 AI agents"""
@@ -180,6 +207,156 @@ class ZoraUniversalHub:
         except Exception as e:
             self.dashboard.add_alert("error", f"Agent initialization failed: {str(e)}")
             self.logger.error(f"Agent initialization error: {e}")
+    
+    def _initialize_mcp_servers(self):
+        """Initialize all available MCP servers"""
+        if not MCP_AVAILABLE:
+            print("⚠️ MCP not available - skipping MCP server initialization")
+            return
+            
+        try:
+            print("🔌 Initializing MCP Server Network...")
+            
+            mcp_servers = [
+                "linear", "zora-core", "circleci", "dockerhub", "firecrawl",
+                "neon", "notion", "paypal", "prisma", "sentry"
+            ]
+            
+            for server_name in mcp_servers:
+                self._register_mcp_server(server_name)
+            
+            print(f"🔌 {len(self.mcp_servers)} MCP servers registered")
+            
+        except Exception as e:
+            self.logger.error(f"Failed to initialize MCP servers: {e}")
+            print(f"❌ MCP server initialization failed: {e}")
+    
+    def _register_mcp_server(self, server_name: str):
+        """Register an MCP server"""
+        try:
+            metrics = MCPServerMetrics(server_name=server_name)
+            
+            tools = self._get_mcp_tools(server_name)
+            if tools:
+                metrics.available_tools = tools
+                metrics.status = AgentStatus.ONLINE
+                metrics.last_connection = datetime.utcnow()
+                self.mcp_tools[server_name] = tools
+                
+                print(f"✅ MCP Server '{server_name}': {len(tools)} tools available")
+            else:
+                metrics.status = AgentStatus.OFFLINE
+                print(f"⚠️ MCP Server '{server_name}': No tools available")
+            
+            self.mcp_servers[server_name] = server_name
+            self.mcp_metrics[server_name] = metrics
+            
+        except Exception as e:
+            print(f"❌ Failed to register MCP server '{server_name}': {e}")
+    
+    def _get_mcp_tools(self, server_name: str) -> List[str]:
+        """Get available tools from MCP server"""
+        try:
+            result = subprocess.run(
+                ["mcp-cli", "tool", "list", "--server", server_name],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            
+            if result.returncode == 0:
+                output = result.stdout
+                tools = []
+                
+                for line in output.split('\n'):
+                    if line.startswith('Tool: '):
+                        tool_name = line.replace('Tool: ', '').strip()
+                        tools.append(tool_name)
+                
+                return tools
+            else:
+                return []
+                
+        except Exception as e:
+            self.logger.error(f"Failed to get tools for MCP server {server_name}: {e}")
+            return []
+    
+    async def call_mcp_tool(self, server_name: str, tool_name: str, args: Dict[str, Any] = None) -> Dict[str, Any]:
+        """Call an MCP tool"""
+        start_time = time.time()
+        
+        try:
+            if server_name not in self.mcp_servers:
+                return {"error": f"MCP server '{server_name}' not registered"}
+            
+            if tool_name not in self.mcp_tools.get(server_name, []):
+                return {"error": f"Tool '{tool_name}' not available on server '{server_name}'"}
+            
+            args_json = json_lib.dumps(args or {})
+            
+            result = subprocess.run(
+                ["mcp-cli", "tool", "call", "--server", server_name, "--tool", tool_name, args_json],
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+            
+            response_time = time.time() - start_time
+            
+            if result.returncode == 0:
+                self._update_mcp_metrics(server_name, True, response_time)
+                
+                try:
+                    response_data = json_lib.loads(result.stdout)
+                    return {
+                        "success": True,
+                        "server": server_name,
+                        "tool": tool_name,
+                        "response": response_data,
+                        "response_time": response_time
+                    }
+                except json_lib.JSONDecodeError:
+                    return {
+                        "success": True,
+                        "server": server_name,
+                        "tool": tool_name,
+                        "response": result.stdout,
+                        "response_time": response_time
+                    }
+            else:
+                self._update_mcp_metrics(server_name, False, response_time)
+                return {
+                    "success": False,
+                    "server": server_name,
+                    "tool": tool_name,
+                    "error": result.stderr or result.stdout,
+                    "response_time": response_time
+                }
+                
+        except Exception as e:
+            response_time = time.time() - start_time
+            self._update_mcp_metrics(server_name, False, response_time)
+            return {
+                "success": False,
+                "server": server_name,
+                "tool": tool_name,
+                "error": str(e),
+                "response_time": response_time
+            }
+    
+    def _update_mcp_metrics(self, server_name: str, success: bool, response_time: float):
+        """Update MCP server metrics"""
+        if server_name in self.mcp_metrics:
+            metrics = self.mcp_metrics[server_name]
+            metrics.tool_calls += 1
+            
+            if success:
+                metrics.successful_calls += 1
+            else:
+                metrics.failed_calls += 1
+            
+            total_time = metrics.average_response_time * (metrics.tool_calls - 1) + response_time
+            metrics.average_response_time = total_time / metrics.tool_calls
     
     def _create_agent_groups(self):
         """Create logical groups of agents"""
@@ -509,6 +686,21 @@ class ZoraUniversalHub:
                 "success_rate": (self.successful_coordinations / max(self.total_coordinations, 1)) * 100,
                 "average_response_time": self.average_response_time
             },
+            "mcp_servers": {
+                "total": len(self.mcp_servers),
+                "online": len([m for m in self.mcp_metrics.values() if m.status == AgentStatus.ONLINE]),
+                "total_tools": sum(len(tools) for tools in self.mcp_tools.values()),
+                "servers": {
+                    name: {
+                        "status": metrics.status.value,
+                        "tools": len(metrics.available_tools),
+                        "tool_calls": metrics.tool_calls,
+                        "success_rate": (metrics.successful_calls / max(metrics.tool_calls, 1)) * 100,
+                        "avg_response_time": metrics.average_response_time
+                    }
+                    for name, metrics in self.mcp_metrics.items()
+                }
+            },
             "guardians": self.guardians,
             "final_say": self.final_say,
             "closed_source": self.closed_source,
@@ -529,14 +721,67 @@ class ZoraUniversalHub:
                 "get_hub_status",
                 "execute_coordinated_task",
                 "register_module",
-                "integrate_business"
+                "integrate_business",
+                "call_mcp_tool",
+                "get_mcp_status",
+                "list_mcp_tools"
             ],
             "agent_groups": list(self.agent_groups.keys()),
             "available_agents": list(self.agents.keys()),
+            "mcp_servers": list(self.mcp_servers.keys()),
+            "mcp_tools": dict(self.mcp_tools),
             "coordination_active": self.coordination_active,
             "mode": self.mode.value,
             "sync_interval": self.sync_interval
         }
+    
+    def get_mcp_status(self, server_name: str = None) -> Dict[str, Any]:
+        """Get MCP server status"""
+        if server_name:
+            if server_name in self.mcp_metrics:
+                metrics = self.mcp_metrics[server_name]
+                return {
+                    "server": server_name,
+                    "status": metrics.status.value,
+                    "tools": metrics.available_tools,
+                    "tool_calls": metrics.tool_calls,
+                    "successful_calls": metrics.successful_calls,
+                    "failed_calls": metrics.failed_calls,
+                    "success_rate": (metrics.successful_calls / max(metrics.tool_calls, 1)) * 100,
+                    "average_response_time": metrics.average_response_time,
+                    "last_connection": metrics.last_connection.isoformat() if metrics.last_connection else None
+                }
+            else:
+                return {"error": f"MCP server '{server_name}' not found"}
+        else:
+            return {
+                server_name: {
+                    "status": metrics.status.value,
+                    "tools": len(metrics.available_tools),
+                    "tool_calls": metrics.tool_calls,
+                    "success_rate": (metrics.successful_calls / max(metrics.tool_calls, 1)) * 100,
+                    "average_response_time": metrics.average_response_time
+                }
+                for server_name, metrics in self.mcp_metrics.items()
+            }
+    
+    def list_mcp_tools(self, server_name: str = None) -> Dict[str, Any]:
+        """List available MCP tools"""
+        if server_name:
+            if server_name in self.mcp_tools:
+                return {
+                    "server": server_name,
+                    "tools": self.mcp_tools[server_name],
+                    "total": len(self.mcp_tools[server_name])
+                }
+            else:
+                return {"error": f"MCP server '{server_name}' not found"}
+        else:
+            return {
+                "all_servers": dict(self.mcp_tools),
+                "total_tools": sum(len(tools) for tools in self.mcp_tools.values()),
+                "servers_count": len(self.mcp_tools)
+            }
 
 universal_hub = ZoraUniversalHub()
 
@@ -578,6 +823,18 @@ async def coordinate_ai_agents(group: str = None):
     """Coordinate AI agents"""
     return await universal_hub.coordinate_agents(group)
 
+async def call_mcp_tool(server_name: str, tool_name: str, args: Dict[str, Any] = None):
+    """Call MCP tool through Universal Hub"""
+    return await universal_hub.call_mcp_tool(server_name, tool_name, args)
+
+def get_mcp_status(server_name: str = None):
+    """Get MCP server status"""
+    return universal_hub.get_mcp_status(server_name)
+
+def list_mcp_tools(server_name: str = None):
+    """List MCP tools"""
+    return universal_hub.list_mcp_tools(server_name)
+
 if __name__ == "__main__":
     print("🌐 ZORA UNIVERSAL AI HUB™ - Standalone Mode")
     
@@ -604,5 +861,11 @@ if __name__ == "__main__":
     print(f"Available Commands: {len(control_interface['available_commands'])}")
     print(f"Agent Groups: {control_interface['agent_groups']}")
     print(f"Available Agents: {len(control_interface['available_agents'])}")
+    print(f"MCP Servers: {len(control_interface['mcp_servers'])}")
+    
+    print("\n🔌 MCP Server Status:")
+    mcp_status = universal_hub.get_mcp_status()
+    for server, status in mcp_status.items():
+        print(f"  {server}: {status['status']} ({status['tools']} tools)")
     
     print("\n🌟 ZORA UNIVERSAL AI HUB™ Ready for Operation")

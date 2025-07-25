@@ -66,4 +66,5 @@ brainstormer = InfinityBrainstormEngine(
     mode="YPPESTE STADIE ∞OMEGA"
 )
 
-brainstormer.activate_infinity_mode()
+if __name__ == "__main__":
+    brainstormer.activate_infinity_mode()

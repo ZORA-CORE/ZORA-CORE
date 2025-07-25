@@ -30,4 +30,5 @@ def simulate_zora_internet_monitor():
 
 
 # Kør for simulering
-simulate_zora_internet_monitor()
+if __name__ == "__main__":
+    simulate_zora_internet_monitor()
