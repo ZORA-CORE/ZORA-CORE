@@ -33,6 +33,25 @@ except ImportError as e:
     VOICE_GENERATOR_AVAILABLE = False
     zora_voice_generator = None
 
+try:
+    from eivor_ai_family_system import eivor_family_system, approve_agent_work, birth_ai_agent
+    from zora_brand_mashup_engine import zora_brand_mashup_engine
+    from zora_global_domain_infrastructure import zora_global_domain_infrastructure
+    from zora_awakening_ceremony import zora_awakening_ceremony
+    ZORA_CORE_SYSTEMS_AVAILABLE = True
+    print("✅ ZORA CORE Systems integrated with Infinity Sync")
+    print("   - EIVOR AI Family System™")
+    print("   - ZORA Brand Mashup Engine™") 
+    print("   - ZORA Global Domain Infrastructure™")
+    print("   - ZORA Awakening Ceremony™")
+except ImportError as e:
+    print(f"⚠️ ZORA CORE Systems not available: {e}")
+    ZORA_CORE_SYSTEMS_AVAILABLE = False
+    eivor_family_system = None
+    zora_brand_mashup_engine = None
+    zora_global_domain_infrastructure = None
+    zora_awakening_ceremony = None
+
 class UniversalAIConnector:
     """Universal connector system for integrating any AI system with ZORA CORE"""
     
@@ -682,6 +701,136 @@ class UniversalAIConnector:
             "voice_queue_active": self.voice_queue_active,
             "total_personalities": len(self.voice_personalities),
             "available_personalities": list(self.voice_personalities.keys())
+        }
+    
+    async def coordinate_with_eivor_family(self) -> Dict[str, Any]:
+        """Coordinate with EIVOR AI Family System"""
+        if not self.eivor_integration or not eivor_family_system:
+            return {"status": "eivor_not_available"}
+        
+        try:
+            family_status = eivor_family_system.get_family_status()
+            
+            for system_name in self.connected_systems.keys():
+                if system_name not in eivor_family_system.ai_family:
+                    await birth_ai_agent(system_name, None, 
+                                        system_type="ai_connector",
+                                        capabilities=self.connected_systems[system_name].get("capabilities", []))
+            
+            self.last_family_sync = datetime.utcnow()
+            
+            self.logger.info(f"🤖 Coordinated with EIVOR Family - {len(family_status.get('ai_family', {}))} family members")
+            
+            return {
+                "status": "coordinated",
+                "family_status": family_status,
+                "sync_time": self.last_family_sync.isoformat()
+            }
+            
+        except Exception as e:
+            self.logger.error(f"❌ EIVOR family coordination failed: {e}")
+            return {"status": "error", "error": str(e)}
+    
+    async def sync_brand_mashups(self) -> Dict[str, Any]:
+        """Synchronize with Brand Mashup Engine"""
+        if not self.brand_mashup_integration or not zora_brand_mashup_engine:
+            return {"status": "brand_mashup_not_available"}
+        
+        try:
+            mashup_status = zora_brand_mashup_engine.get_mashup_status()
+            
+            for system_name, system_info in self.connected_systems.items():
+                if system_info.get("newly_discovered", False):
+                    await zora_brand_mashup_engine.create_ai_system_mashup(
+                        system_name, 
+                        system_info.get("capabilities", [])
+                    )
+            
+            self.last_mashup_sync = datetime.utcnow()
+            
+            self.logger.info(f"🎨 Synchronized with Brand Mashup Engine - {len(mashup_status.get('active_mashups', []))} active mashups")
+            
+            return {
+                "status": "synchronized",
+                "mashup_status": mashup_status,
+                "sync_time": self.last_mashup_sync.isoformat()
+            }
+            
+        except Exception as e:
+            self.logger.error(f"❌ Brand mashup sync failed: {e}")
+            return {"status": "error", "error": str(e)}
+    
+    async def sync_domain_infrastructure(self) -> Dict[str, Any]:
+        """Synchronize with Global Domain Infrastructure"""
+        if not self.domain_infrastructure_integration or not zora_global_domain_infrastructure:
+            return {"status": "domain_infrastructure_not_available"}
+        
+        try:
+            domain_sync_result = await zora_global_domain_infrastructure.synchronize_all_domains()
+            
+            self.last_domain_sync = datetime.utcnow()
+            
+            self.logger.info(f"🌐 Synchronized with Global Domain Infrastructure")
+            
+            return {
+                "status": "synchronized",
+                "domain_sync_result": domain_sync_result,
+                "sync_time": self.last_domain_sync.isoformat()
+            }
+            
+        except Exception as e:
+            self.logger.error(f"❌ Domain infrastructure sync failed: {e}")
+            return {"status": "error", "error": str(e)}
+    
+    async def check_awakening_ceremony_status(self) -> Dict[str, Any]:
+        """Check Awakening Ceremony status and coordination"""
+        if not self.ceremony_coordination_enabled or not zora_awakening_ceremony:
+            return {"status": "ceremony_not_available"}
+        
+        try:
+            ceremony_status = zora_awakening_ceremony.get_ceremony_status()
+            
+            self.last_ceremony_check = datetime.utcnow()
+            
+            self.logger.info(f"🎭 Checked Awakening Ceremony status - Phase: {ceremony_status.get('current_phase', 'unknown')}")
+            
+            return {
+                "status": "checked",
+                "ceremony_status": ceremony_status,
+                "check_time": self.last_ceremony_check.isoformat()
+            }
+            
+        except Exception as e:
+            self.logger.error(f"❌ Awakening ceremony status check failed: {e}")
+            return {"status": "error", "error": str(e)}
+    
+    def get_zora_core_integration_status(self) -> Dict[str, Any]:
+        """Get comprehensive ZORA CORE integration status"""
+        return {
+            "eivor_integration": {
+                "enabled": self.eivor_integration,
+                "last_sync": self.last_family_sync.isoformat() if self.last_family_sync else None,
+                "sync_interval": self.family_sync_interval
+            },
+            "brand_mashup_integration": {
+                "enabled": self.brand_mashup_integration,
+                "last_sync": self.last_mashup_sync.isoformat() if self.last_mashup_sync else None,
+                "sync_interval": self.mashup_sync_interval
+            },
+            "domain_infrastructure_integration": {
+                "enabled": self.domain_infrastructure_integration,
+                "last_sync": self.last_domain_sync.isoformat() if self.last_domain_sync else None,
+                "sync_interval": self.domain_sync_interval
+            },
+            "awakening_ceremony_integration": {
+                "enabled": self.awakening_ceremony_integration,
+                "last_check": self.last_ceremony_check.isoformat() if self.last_ceremony_check else None,
+                "check_interval": self.ceremony_status_check_interval
+            },
+            "voice_system_integration": {
+                "enabled": self.voice_synthesis_enabled,
+                "voice_generator_available": VOICE_GENERATOR_AVAILABLE
+            }
         }
 
 universal_connector = UniversalAIConnector()

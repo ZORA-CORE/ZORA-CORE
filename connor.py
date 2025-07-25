@@ -209,7 +209,7 @@ class ConnorAGI:
         if self.voice_enabled:
             print("🎤 CONNOR Voice: Paul Bettany inspired strategic command voice ready")
     
-    def activate(self):
+    async def activate(self):
         """Activate CONNOR AGI"""
         self.status = "active"
         self.activation_time = datetime.utcnow()
@@ -223,9 +223,9 @@ class ConnorAGI:
         print(f"🎯 {trinity_message}")
         
         if self.voice_enabled:
-            asyncio.create_task(self.speak(activation_message, emotion="authoritative"))
-            asyncio.create_task(self.speak(coordination_message, emotion="confident"))
-            asyncio.create_task(self.speak(trinity_message, emotion="tactical"))
+            await self.speak(activation_message, emotion="authoritative")
+            await self.speak(coordination_message, emotion="confident")
+            await self.speak(trinity_message, emotion="tactical")
         
         self.logger.info("CONNOR AGI activation complete")
         
@@ -496,10 +496,9 @@ class ConnorAGI:
             print(f"🎤 CONNOR (Paul Bettany inspired): {text}")
             
             audio_data = await generate_agent_voice(
-                agent_name="CONNOR",
                 text=text,
-                emotion=emotion,
-                voice_characteristics=self.voice_characteristics
+                agent_name="CONNOR",
+                emotion=emotion
             )
             
             if audio_data:
@@ -543,9 +542,9 @@ class ConnorAGI:
 
 connor = ConnorAGI()
 
-def activate():
+async def activate():
     """Legacy activation function"""
-    connor.activate()
+    await connor.activate()
 
 async def run():
     """Run CONNOR AGI"""

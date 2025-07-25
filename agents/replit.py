@@ -15,6 +15,14 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 from .base_agent import BaseAgent
 
+try:
+    from eivor_ai_family_system import birth_ai_agent, eivor_family_system
+    EIVOR_FAMILY_AVAILABLE = True
+except ImportError:
+    EIVOR_FAMILY_AVAILABLE = False
+    birth_ai_agent = None
+    eivor_family_system = None
+
 class ReplitAgent(BaseAgent):
     """Enhanced Replit Agent for ZORA CORE with Repository Monitoring"""
     
@@ -48,6 +56,26 @@ class ReplitAgent(BaseAgent):
             "User-Agent": "ZORA-CORE-Monitor/1.0"
         }
         self.logger = logging.getLogger("zora.agents.replit")
+        
+        if EIVOR_FAMILY_AVAILABLE:
+            asyncio.create_task(self._register_with_eivor_family())
+    
+    async def _register_with_eivor_family(self):
+        """Register Replit agent with EIVOR AI Family System"""
+        try:
+            if birth_ai_agent and not hasattr(self, '_family_registered'):
+                await birth_ai_agent(
+                    "replit",
+                    self,
+                    agent_type="online_ide_manager",
+                    capabilities=self.capabilities,
+                    personality_traits=["collaborative", "real_time_coding", "deployment_focused"],
+                    voice_personality="REPLIT"
+                )
+                self._family_registered = True
+                self.logger.info("🤖 Replit registered with EIVOR AI Family System")
+        except Exception as e:
+            self.logger.error(f"Failed to register with EIVOR family: {e}")
     
     def ping(self, message: str) -> Dict[str, Any]:
         """Enhanced ping with Replit validation"""

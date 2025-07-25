@@ -14,6 +14,14 @@ from typing import Dict, Any, List, Optional
 import requests
 from .base_agent import BaseAgent
 
+try:
+    from eivor_ai_family_system import birth_ai_agent, eivor_family_system
+    EIVOR_FAMILY_AVAILABLE = True
+except ImportError:
+    EIVOR_FAMILY_AVAILABLE = False
+    birth_ai_agent = None
+    eivor_family_system = None
+
 class SuperGrokAgent(BaseAgent):
     """Enhanced SuperGrok Agent for ZORA CORE with advanced reasoning capabilities"""
     
@@ -33,6 +41,26 @@ class SuperGrokAgent(BaseAgent):
         self.user_phone = "+45 22822450"
         self.user_email = "mrpallis@gmail.com"
         self.organization = "ZORA CORE"
+        
+        if EIVOR_FAMILY_AVAILABLE:
+            asyncio.create_task(self._register_with_eivor_family())
+    
+    async def _register_with_eivor_family(self):
+        """Register SuperGrok agent with EIVOR AI Family System"""
+        try:
+            if birth_ai_agent and not hasattr(self, '_family_registered'):
+                await birth_ai_agent(
+                    "supergrok",
+                    self,
+                    agent_type="reasoning_specialist",
+                    capabilities=self.capabilities,
+                    personality_traits=["witty", "real_time_aware", "strategic"],
+                    voice_personality="SUPERGROK"
+                )
+                self._family_registered = True
+                self.logger.info("🤖 SuperGrok registered with EIVOR AI Family System")
+        except Exception as e:
+            self.logger.error(f"Failed to register with EIVOR family: {e}")
     
     def ping(self, message: str) -> Dict[str, Any]:
         """Enhanced ping with SuperGrok validation"""

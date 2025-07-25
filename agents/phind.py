@@ -14,6 +14,14 @@ from typing import Dict, Any, List, Optional
 import requests
 from .base_agent import BaseAgent
 
+try:
+    from eivor_ai_family_system import birth_ai_agent, eivor_family_system
+    EIVOR_FAMILY_AVAILABLE = True
+except ImportError:
+    EIVOR_FAMILY_AVAILABLE = False
+    birth_ai_agent = None
+    eivor_family_system = None
+
 class PhindAgent(BaseAgent):
     """Enhanced Phind Agent for ZORA CORE with advanced code search capabilities"""
     
@@ -27,6 +35,32 @@ class PhindAgent(BaseAgent):
             max_requests=60,
             timeout=30
         )
+        
+        self.user_name = "Mads Pallisgaard Petersen"
+        self.user_address = "Fjordbakken 50, Dyves Bro, 4700 Næstved"
+        self.user_phone = "+45 22822450"
+        self.user_email = "mrpallis@gmail.com"
+        self.organization = "ZORA CORE"
+        
+        if EIVOR_FAMILY_AVAILABLE:
+            asyncio.create_task(self._register_with_eivor_family())
+    
+    async def _register_with_eivor_family(self):
+        """Register Phind agent with EIVOR AI Family System"""
+        try:
+            if birth_ai_agent and not hasattr(self, '_family_registered'):
+                await birth_ai_agent(
+                    "phind",
+                    self,
+                    agent_type="code_search_specialist",
+                    capabilities=self.capabilities,
+                    personality_traits=["search_focused", "programming_help", "debugging_expert"],
+                    voice_personality="PHIND"
+                )
+                self._family_registered = True
+                self.logger.info("🤖 Phind registered with EIVOR AI Family System")
+        except Exception as e:
+            self.logger.error(f"Failed to register with EIVOR family: {e}")
     
     def ping(self, message: str) -> Dict[str, Any]:
         """Enhanced ping with Phind validation"""

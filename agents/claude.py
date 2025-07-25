@@ -14,6 +14,14 @@ from typing import Dict, Any, List, Optional
 import requests
 from .base_agent import BaseAgent
 
+try:
+    from eivor_ai_family_system import birth_ai_agent, eivor_family_system
+    EIVOR_FAMILY_AVAILABLE = True
+except ImportError:
+    EIVOR_FAMILY_AVAILABLE = False
+    birth_ai_agent = None
+    eivor_family_system = None
+
 class ClaudeAgent(BaseAgent):
     """Enhanced Claude AI Agent for ZORA CORE with full Anthropic API integration"""
     
@@ -29,12 +37,36 @@ class ClaudeAgent(BaseAgent):
         )
         self.max_tokens = 4096
         self.anthropic_version = "2023-06-01"
+        
+        self._eivor_registered = False
+    
+    async def _register_with_eivor_family(self):
+        """Register Claude agent with EIVOR AI Family System"""
+        try:
+            if birth_ai_agent and not hasattr(self, '_family_registered'):
+                await birth_ai_agent(
+                    "claude",
+                    self,
+                    capabilities=self.capabilities,
+                    personality_traits={"traits": ["analytical", "helpful", "ethical"], "voice_personality": "CLAUDE"}
+                )
+                self._family_registered = True
+                self.logger.info("🤖 Claude registered with EIVOR AI Family System")
+        except Exception as e:
+            self.logger.error(f"Failed to register with EIVOR family: {e}")
     
     def ping(self, message: str) -> Dict[str, Any]:
         """Enhanced ping with actual Claude API validation"""
         start_time = time.time()
         
         try:
+            if EIVOR_FAMILY_AVAILABLE and not self._eivor_registered:
+                try:
+                    asyncio.run(self._register_with_eivor_family())
+                    self._eivor_registered = True
+                except Exception as e:
+                    self.logger.error(f"Failed to register with EIVOR family: {e}")
+            
             self.last_ping = start_time
             
             if not self.api_key:

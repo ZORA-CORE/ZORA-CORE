@@ -875,12 +875,12 @@ class ZoraRepoMonitor:
                 "success_rate": (self.auto_fixes_successful / max(1, self.auto_fixes_attempted)) * 100
             },
             "security_metrics": {
-                "vulnerabilities_detected": self.security_vulnerabilities_detected,
-                "patches_applied": self.security_patches_applied,
-                "security_scan_enabled": self.security_scanner_enabled,
-                "auto_patch_enabled": self.security_auto_patch_enabled,
-                "last_security_scan": self.last_security_scan.isoformat() if self.last_security_scan else None,
-                "patch_success_rate": (self.security_patches_applied / max(1, self.security_vulnerabilities_detected)) * 100
+                "vulnerabilities_detected": getattr(self, 'security_vulnerabilities_detected', 0),
+                "patches_applied": getattr(self, 'security_patches_applied', 0),
+                "security_scan_enabled": getattr(self, 'security_scanner_enabled', True),
+                "auto_patch_enabled": getattr(self, 'security_auto_patch_enabled', True),
+                "last_security_scan": getattr(self, 'last_security_scan', None).isoformat() if getattr(self, 'last_security_scan', None) else None,
+                "patch_success_rate": (getattr(self, 'security_patches_applied', 0) / max(1, getattr(self, 'security_vulnerabilities_detected', 1))) * 100
             },
             "monitored_repos": list(self.monitored_repos.keys()),
             "last_sync": datetime.utcnow().isoformat()
@@ -910,8 +910,8 @@ class ZoraRepoMonitor:
         print(f"📊 Final stats: {self.total_repos_monitored} repos monitored")
         print(f"🚨 Issues: {self.total_issues_detected} detected, {self.total_issues_resolved} resolved")
         print(f"🔧 Auto-fixes: {self.auto_fixes_successful}/{self.auto_fixes_attempted} successful")
-        print(f"🔒 Security: {self.security_vulnerabilities_detected} vulnerabilities detected")
-        print(f"🛡️ Security patches: {self.security_patches_applied} applied")
+        print(f"🔒 Security: {getattr(self, 'security_vulnerabilities_detected', 0)} vulnerabilities detected")
+        print(f"🛡️ Security patches: {getattr(self, 'security_patches_applied', 0)} applied")
         
         self.logger.info("Repository monitoring system with security auto-patch shutdown complete")
 

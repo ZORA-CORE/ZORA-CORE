@@ -226,7 +226,7 @@ class OracleAGI:
         if self.voice_enabled:
             print("🎤 ORACLE Voice: Chris Hemsworth/Thor inspired wisdom voice ready")
     
-    def activate(self):
+    async def activate(self):
         """Activate ORACLE AGI"""
         self.status = "active"
         self.activation_time = datetime.utcnow()
@@ -240,9 +240,9 @@ class OracleAGI:
         print(f"🧠 {trinity_message}")
         
         if self.voice_enabled:
-            asyncio.create_task(self.speak(activation_message, emotion="wise"))
-            asyncio.create_task(self.speak(prediction_message, emotion="prophetic"))
-            asyncio.create_task(self.speak(trinity_message, emotion="commanding"))
+            await self.speak(activation_message, emotion="wise")
+            await self.speak(prediction_message, emotion="prophetic")
+            await self.speak(trinity_message, emotion="commanding")
         
         self.logger.info("ORACLE AGI activation complete")
         
@@ -499,10 +499,9 @@ class OracleAGI:
             print(f"🎤 ORACLE (Chris Hemsworth/Thor inspired): {text}")
             
             audio_data = await generate_agent_voice(
-                agent_name="ORACLE",
                 text=text,
-                emotion=emotion,
-                voice_characteristics=self.voice_characteristics
+                agent_name="ORACLE",
+                emotion=emotion
             )
             
             if audio_data:

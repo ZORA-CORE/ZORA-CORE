@@ -231,7 +231,7 @@ class LuminaAGI:
         if self.voice_enabled:
             print("🎤 LUMINA Voice: Emilia Clarke inspired creative intelligence voice ready")
     
-    def activate(self):
+    async def activate(self):
         """Activate LUMINA AGI"""
         self.status = "active"
         self.activation_time = datetime.utcnow()
@@ -245,9 +245,9 @@ class LuminaAGI:
         print(f"🌟 {trinity_message}")
         
         if self.voice_enabled:
-            asyncio.create_task(self.speak(activation_message, emotion="inspiring"))
-            asyncio.create_task(self.speak(creative_message, emotion="creative"))
-            asyncio.create_task(self.speak(trinity_message, emotion="visionary"))
+            await self.speak(activation_message, emotion="inspiring")
+            await self.speak(creative_message, emotion="creative")
+            await self.speak(trinity_message, emotion="visionary")
         
         self.logger.info("LUMINA AGI activation complete")
         
@@ -542,10 +542,9 @@ class LuminaAGI:
             print(f"🎤 LUMINA (Emilia Clarke inspired): {text}")
             
             audio_data = await generate_agent_voice(
-                agent_name="LUMINA",
                 text=text,
-                emotion=emotion,
-                voice_characteristics=self.voice_characteristics
+                agent_name="LUMINA",
+                emotion=emotion
             )
             
             if audio_data:

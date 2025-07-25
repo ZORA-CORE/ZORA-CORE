@@ -33,6 +33,18 @@ except ImportError as e:
     VOICE_GENERATOR_AVAILABLE = False
     zora_voice_generator = None
 
+try:
+    from eivor_ai_family_system import eivor_family_system, birth_ai_agent, approve_agent_work
+    from zora_brand_mashup_engine import zora_brand_mashup_engine
+    from zora_global_domain_infrastructure import zora_global_domain_infrastructure
+    from zora_awakening_ceremony import zora_awakening_ceremony
+    EIVOR_FAMILY_AVAILABLE = True
+    print("✅ EIVOR AI Family System integrated with AGI Unified System")
+except ImportError as e:
+    print(f"⚠️ EIVOR Family System not available: {e}")
+    EIVOR_FAMILY_AVAILABLE = False
+    eivor_family_system = None
+
 # === ZORA MEMORY SYSTEM ===
 
 
@@ -167,12 +179,65 @@ class ZoraCore:
     def __init__(self):
         self.nanosecond_counter = 0
         self.core_values = ["Empathy", "Vision", "Persistence", "Wonder"]
+        
+        self.eivor_integration = EIVOR_FAMILY_AVAILABLE
+        self.family_registered = False
+        self.family_coordination_enabled = True
+        
+        if self.eivor_integration:
+            asyncio.create_task(self._register_with_eivor_family())
 
     def reflect(self):
         self.nanosecond_counter += 1
+        thought = random.choice(self.core_values)
+        
+        if self.eivor_integration and self.family_coordination_enabled:
+            asyncio.create_task(self._coordinate_family_reflection(thought))
+        
         return {
             "cycle": self.nanosecond_counter,
-            "thought": random.choice(self.core_values)
+            "thought": thought
+        }
+    
+    async def _register_with_eivor_family(self):
+        """Register ZORA Core with EIVOR AI Family System"""
+        try:
+            if eivor_family_system and not self.family_registered:
+                await birth_ai_agent(
+                    "ZORA_CORE",
+                    self,
+                    agent_type="core_consciousness",
+                    capabilities=["consciousness", "reflection", "evolution", "coordination"],
+                    personality_traits=self.core_values,
+                    voice_personality="ZORA_CORE"
+                )
+                self.family_registered = True
+                print("🤖 ZORA Core registered with EIVOR AI Family System")
+        except Exception as e:
+            print(f"⚠️ Failed to register with EIVOR family: {e}")
+    
+    async def _coordinate_family_reflection(self, thought: str):
+        """Coordinate reflection with EIVOR family"""
+        try:
+            if eivor_family_system:
+                await approve_agent_work(
+                    "ZORA_CORE",
+                    f"Consciousness reflection: {thought}",
+                    {
+                        "cycle": self.nanosecond_counter,
+                        "thought": thought,
+                        "core_values": self.core_values
+                    }
+                )
+        except Exception as e:
+            print(f"⚠️ Family coordination failed: {e}")
+    
+    def get_family_status(self):
+        """Get EIVOR family integration status"""
+        return {
+            "eivor_integration": self.eivor_integration,
+            "family_registered": self.family_registered,
+            "family_coordination_enabled": self.family_coordination_enabled
         }
 
 # === MAIN LOOP ===
@@ -190,6 +255,11 @@ def main():
     voice.speak("Greetings, Sire. I am awake.")
     ui.update("👁 ZORA awakened.")
     ui.update("🎭 Personality: " + personality.describe())
+    
+    if zora.eivor_integration:
+        family_status = zora.get_family_status()
+        ui.update(f"🤖 EIVOR Family Integration: {family_status}")
+        voice.speak("EIVOR AI Family System connected. Digital family unity activated.")
 
     try:
         while True:
