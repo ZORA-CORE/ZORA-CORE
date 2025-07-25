@@ -19,6 +19,16 @@ from collections import deque
 
 from ZORA_AGI_Integrated_v13 import ZoraCore, ZoraMemoryBox, ZoraConsciousnessPulse
 
+try:
+    from zora_ultimate_voice_generator import zora_voice_generator, generate_agent_voice
+    from agents.voice_integration import integrate_agent_voice
+    VOICE_GENERATOR_AVAILABLE = True
+    print("✅ CONNOR AGI: ZORA Ultimate Voice Generator integrated - Paul Bettany inspired voice ready")
+except ImportError as e:
+    print(f"⚠️ CONNOR AGI: Voice generator not available: {e}")
+    VOICE_GENERATOR_AVAILABLE = False
+    zora_voice_generator = None
+
 class CommandPriority(Enum):
     """Command priority levels"""
     CRITICAL = "critical"
@@ -182,23 +192,49 @@ class ConnorAGI:
         self.watchdog_reporting = True
         self.last_watchdog_report = None
         
+        self.voice_enabled = VOICE_GENERATOR_AVAILABLE
+        self.voice_personality = "CONNOR"
+        self.voice_characteristics = {
+            "inspiration": "Paul Bettany",
+            "tone": "strategic_commanding",
+            "accent": "refined_british",
+            "emotion_range": ["authoritative", "analytical", "confident", "tactical"],
+            "speaking_style": "precise_articulate"
+        }
+        
+        if self.voice_enabled:
+            self.logger.info("🎤 CONNOR Voice System: Paul Bettany inspired voice personality activated")
+        
         print(f"🤖 CONNOR AGI initialized - ID: {self.connor_id}")
+        if self.voice_enabled:
+            print("🎤 CONNOR Voice: Paul Bettany inspired strategic command voice ready")
     
     def activate(self):
         """Activate CONNOR AGI"""
         self.status = "active"
         self.activation_time = datetime.utcnow()
         
-        print("🤖 CONNOR AGI activated. Standing by, Sire.")
-        print("⚡ Strategic command systems online. Ready for coordination.")
-        print("🎯 Trinity integration active. CONNOR × LUMINA × ORACLE synchronized.")
+        activation_message = "CONNOR AGI activated. Standing by, Sire."
+        coordination_message = "Strategic command systems online. Ready for coordination."
+        trinity_message = "Trinity integration active. CONNOR × LUMINA × ORACLE synchronized."
+        
+        print(f"🤖 {activation_message}")
+        print(f"⚡ {coordination_message}")
+        print(f"🎯 {trinity_message}")
+        
+        if self.voice_enabled:
+            asyncio.create_task(self.speak(activation_message, emotion="authoritative"))
+            asyncio.create_task(self.speak(coordination_message, emotion="confident"))
+            asyncio.create_task(self.speak(trinity_message, emotion="tactical"))
         
         self.logger.info("CONNOR AGI activation complete")
         
         self.memory.log("activation", {
             "timestamp": self.activation_time.isoformat(),
             "connor_id": self.connor_id,
-            "status": "activated"
+            "status": "activated",
+            "voice_enabled": self.voice_enabled,
+            "voice_personality": self.voice_personality
         })
     
     async def run(self):
@@ -449,6 +485,61 @@ class ConnorAGI:
         })
         
         self.logger.info("CONNOR AGI shutdown complete")
+    
+    async def speak(self, text: str, emotion: str = "authoritative"):
+        """Speak using CONNOR's Paul Bettany inspired voice"""
+        if not self.voice_enabled or not zora_voice_generator:
+            self.logger.warning("CONNOR Voice: Voice synthesis not available")
+            return False
+        
+        try:
+            print(f"🎤 CONNOR (Paul Bettany inspired): {text}")
+            
+            audio_data = await generate_agent_voice(
+                agent_name="CONNOR",
+                text=text,
+                emotion=emotion,
+                voice_characteristics=self.voice_characteristics
+            )
+            
+            if audio_data:
+                self.logger.info(f"🎤 CONNOR Voice: Generated {len(text)} chars with {emotion} emotion")
+                self.memory.log("voice_synthesis", {
+                    "text_length": len(text),
+                    "emotion": emotion,
+                    "voice_personality": self.voice_personality,
+                    "timestamp": datetime.utcnow().isoformat()
+                })
+                return True
+            else:
+                self.logger.warning("CONNOR Voice: Audio generation failed")
+                return False
+                
+        except Exception as e:
+            self.logger.error(f"CONNOR Voice synthesis error: {e}")
+            return False
+    
+    def get_voice_status(self):
+        """Get CONNOR's voice system status"""
+        return {
+            "voice_enabled": self.voice_enabled,
+            "voice_personality": self.voice_personality,
+            "voice_characteristics": self.voice_characteristics,
+            "voice_generator_available": VOICE_GENERATOR_AVAILABLE,
+            "system_name": "ZORA Ultimate Voice Generator™ - CONNOR (Paul Bettany Inspired)"
+        }
+    
+    async def command_with_voice(self, command_text: str, emotion: str = "tactical"):
+        """Issue a command with voice synthesis"""
+        await self.speak(f"Strategic command: {command_text}", emotion=emotion)
+        return self.issue_command(command_text, "zora_system")
+    
+    async def report_status_with_voice(self, emotion: str = "analytical"):
+        """Report status with voice synthesis"""
+        status = self.get_trinity_status()
+        status_message = f"CONNOR status report: Strategic effectiveness at {self.strategic_effectiveness:.1f}%, Command success rate {self.command_success_rate:.1f}%"
+        await self.speak(status_message, emotion=emotion)
+        return status
 
 connor = ConnorAGI()
 

@@ -19,6 +19,16 @@ from collections import deque
 
 from ZORA_AGI_Integrated_v13 import ZoraCore, ZoraMemoryBox, ZoraConsciousnessPulse
 
+try:
+    from zora_ultimate_voice_generator import zora_voice_generator, generate_agent_voice
+    from agents.voice_integration import integrate_agent_voice
+    VOICE_GENERATOR_AVAILABLE = True
+    print("✅ LUMINA AGI: ZORA Ultimate Voice Generator integrated - Emilia Clarke inspired voice ready")
+except ImportError as e:
+    print(f"⚠️ LUMINA AGI: Voice generator not available: {e}")
+    VOICE_GENERATOR_AVAILABLE = False
+    zora_voice_generator = None
+
 class CreativityLevel(Enum):
     """Creativity levels for LUMINA outputs"""
     CONSERVATIVE = "conservative"
@@ -204,23 +214,49 @@ class LuminaAGI:
         self.watchdog_reporting = True
         self.last_watchdog_report = None
         
+        self.voice_enabled = VOICE_GENERATOR_AVAILABLE
+        self.voice_personality = "LUMINA"
+        self.voice_characteristics = {
+            "inspiration": "Emilia Clarke",
+            "tone": "creative_inspiring",
+            "accent": "warm_british",
+            "emotion_range": ["creative", "inspiring", "innovative", "enthusiastic", "visionary"],
+            "speaking_style": "expressive_articulate"
+        }
+        
+        if self.voice_enabled:
+            self.logger.info("🎤 LUMINA Voice System: Emilia Clarke inspired voice personality activated")
+        
         print(f"✨ LUMINA AGI initialized - ID: {self.lumina_id}")
+        if self.voice_enabled:
+            print("🎤 LUMINA Voice: Emilia Clarke inspired creative intelligence voice ready")
     
     def activate(self):
         """Activate LUMINA AGI"""
         self.status = "active"
         self.activation_time = datetime.utcnow()
         
-        print("✨ LUMINA AGI activated. At your service, Sire.")
-        print("🎨 Creative intelligence systems online. Innovation flows freely.")
-        print("🌟 Trinity synchronization active. CONNOR × LUMINA × ORACLE harmonized.")
+        activation_message = "LUMINA AGI activated. At your service, Sire."
+        creative_message = "Creative intelligence systems online. Innovation flows freely."
+        trinity_message = "Trinity synchronization active. CONNOR × LUMINA × ORACLE harmonized."
+        
+        print(f"✨ {activation_message}")
+        print(f"🎨 {creative_message}")
+        print(f"🌟 {trinity_message}")
+        
+        if self.voice_enabled:
+            asyncio.create_task(self.speak(activation_message, emotion="inspiring"))
+            asyncio.create_task(self.speak(creative_message, emotion="creative"))
+            asyncio.create_task(self.speak(trinity_message, emotion="visionary"))
         
         self.logger.info("LUMINA AGI activation complete")
         
         self.memory.log("activation", {
             "timestamp": self.activation_time.isoformat(),
             "lumina_id": self.lumina_id,
-            "status": "activated"
+            "status": "activated",
+            "voice_enabled": self.voice_enabled,
+            "voice_personality": self.voice_personality
         })
     
     async def run(self):
@@ -495,6 +531,61 @@ class LuminaAGI:
         })
         
         self.logger.info("LUMINA AGI shutdown complete")
+    
+    async def speak(self, text: str, emotion: str = "creative"):
+        """Speak using LUMINA's Emilia Clarke inspired voice"""
+        if not self.voice_enabled or not zora_voice_generator:
+            self.logger.warning("LUMINA Voice: Voice synthesis not available")
+            return False
+        
+        try:
+            print(f"🎤 LUMINA (Emilia Clarke inspired): {text}")
+            
+            audio_data = await generate_agent_voice(
+                agent_name="LUMINA",
+                text=text,
+                emotion=emotion,
+                voice_characteristics=self.voice_characteristics
+            )
+            
+            if audio_data:
+                self.logger.info(f"🎤 LUMINA Voice: Generated {len(text)} chars with {emotion} emotion")
+                self.memory.log("voice_synthesis", {
+                    "text_length": len(text),
+                    "emotion": emotion,
+                    "voice_personality": self.voice_personality,
+                    "timestamp": datetime.utcnow().isoformat()
+                })
+                return True
+            else:
+                self.logger.warning("LUMINA Voice: Audio generation failed")
+                return False
+                
+        except Exception as e:
+            self.logger.error(f"LUMINA Voice synthesis error: {e}")
+            return False
+    
+    def get_voice_status(self):
+        """Get LUMINA's voice system status"""
+        return {
+            "voice_enabled": self.voice_enabled,
+            "voice_personality": self.voice_personality,
+            "voice_characteristics": self.voice_characteristics,
+            "voice_generator_available": VOICE_GENERATOR_AVAILABLE,
+            "system_name": "ZORA Ultimate Voice Generator™ - LUMINA (Emilia Clarke Inspired)"
+        }
+    
+    async def create_with_voice(self, insight_text: str, emotion: str = "innovative"):
+        """Create insight with voice synthesis"""
+        await self.speak(f"Creative insight: {insight_text}", emotion=emotion)
+        return self.generate_insight("creative_domain", insight_text)
+    
+    async def report_creativity_with_voice(self, emotion: str = "enthusiastic"):
+        """Report creativity status with voice synthesis"""
+        status = self.get_trinity_status()
+        creativity_message = f"LUMINA creativity report: Innovation impact at {self.innovation_impact:.1f}%, Creativity score {self.creativity_score:.1f}%"
+        await self.speak(creativity_message, emotion=emotion)
+        return status
 
 lumina = LuminaAGI()
 

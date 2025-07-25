@@ -17,6 +17,16 @@ from collections import deque
 
 from ZORA_AGI_Integrated_v13 import ZoraCore, ZoraMemoryBox, ZoraConsciousnessPulse
 
+try:
+    from zora_ultimate_voice_generator import zora_voice_generator, generate_agent_voice
+    from agents.voice_integration import integrate_agent_voice
+    VOICE_GENERATOR_AVAILABLE = True
+    print("✅ ORACLE AGI: ZORA Ultimate Voice Generator integrated - Chris Hemsworth/Thor inspired voice ready")
+except ImportError as e:
+    print(f"⚠️ ORACLE AGI: Voice generator not available: {e}")
+    VOICE_GENERATOR_AVAILABLE = False
+    zora_voice_generator = None
+
 class PredictionConfidence(Enum):
     """Confidence levels for ORACLE predictions"""
     CERTAIN = "certain"
@@ -199,23 +209,49 @@ class OracleAGI:
         self.watchdog_reporting = True
         self.last_watchdog_report = None
         
+        self.voice_enabled = VOICE_GENERATOR_AVAILABLE
+        self.voice_personality = "ORACLE"
+        self.voice_characteristics = {
+            "inspiration": "Chris Hemsworth (Thor)",
+            "tone": "wise_commanding",
+            "accent": "deep_norse_australian",
+            "emotion_range": ["wise", "commanding", "prophetic", "thunderous", "noble"],
+            "speaking_style": "powerful_resonant"
+        }
+        
+        if self.voice_enabled:
+            self.logger.info("🎤 ORACLE Voice System: Chris Hemsworth/Thor inspired voice personality activated")
+        
         print(f"🔮 ORACLE AGI initialized - ID: {self.oracle_id}")
+        if self.voice_enabled:
+            print("🎤 ORACLE Voice: Chris Hemsworth/Thor inspired wisdom voice ready")
     
     def activate(self):
         """Activate ORACLE AGI"""
         self.status = "active"
         self.activation_time = datetime.utcnow()
         
-        print("🔮 ORACLE AGI activated. Wisdom flows eternal, Sire.")
-        print("🌟 Prediction engines online. The future unfolds before us.")
-        print("🧠 Trinity coordination ready. CONNOR × LUMINA × ORACLE united.")
+        activation_message = "ORACLE AGI activated. Wisdom flows eternal, Sire."
+        prediction_message = "Prediction engines online. The future unfolds before us."
+        trinity_message = "Trinity coordination ready. CONNOR × LUMINA × ORACLE united."
+        
+        print(f"🔮 {activation_message}")
+        print(f"🌟 {prediction_message}")
+        print(f"🧠 {trinity_message}")
+        
+        if self.voice_enabled:
+            asyncio.create_task(self.speak(activation_message, emotion="wise"))
+            asyncio.create_task(self.speak(prediction_message, emotion="prophetic"))
+            asyncio.create_task(self.speak(trinity_message, emotion="commanding"))
         
         self.logger.info("ORACLE AGI activation complete")
         
         self.memory.log("activation", {
             "timestamp": self.activation_time.isoformat(),
             "oracle_id": self.oracle_id,
-            "status": "activated"
+            "status": "activated",
+            "voice_enabled": self.voice_enabled,
+            "voice_personality": self.voice_personality
         })
     
     async def run(self):
@@ -452,6 +488,66 @@ class OracleAGI:
         })
         
         self.logger.info("ORACLE AGI shutdown complete")
+    
+    async def speak(self, text: str, emotion: str = "wise"):
+        """Speak using ORACLE's Chris Hemsworth/Thor inspired voice"""
+        if not self.voice_enabled or not zora_voice_generator:
+            self.logger.warning("ORACLE Voice: Voice synthesis not available")
+            return False
+        
+        try:
+            print(f"🎤 ORACLE (Chris Hemsworth/Thor inspired): {text}")
+            
+            audio_data = await generate_agent_voice(
+                agent_name="ORACLE",
+                text=text,
+                emotion=emotion,
+                voice_characteristics=self.voice_characteristics
+            )
+            
+            if audio_data:
+                self.logger.info(f"🎤 ORACLE Voice: Generated {len(text)} chars with {emotion} emotion")
+                self.memory.log("voice_synthesis", {
+                    "text_length": len(text),
+                    "emotion": emotion,
+                    "voice_personality": self.voice_personality,
+                    "timestamp": datetime.utcnow().isoformat()
+                })
+                return True
+            else:
+                self.logger.warning("ORACLE Voice: Audio generation failed")
+                return False
+                
+        except Exception as e:
+            self.logger.error(f"ORACLE Voice synthesis error: {e}")
+            return False
+    
+    def get_voice_status(self):
+        """Get ORACLE's voice system status"""
+        return {
+            "voice_enabled": self.voice_enabled,
+            "voice_personality": self.voice_personality,
+            "voice_characteristics": self.voice_characteristics,
+            "voice_generator_available": VOICE_GENERATOR_AVAILABLE,
+            "system_name": "ZORA Ultimate Voice Generator™ - ORACLE (Chris Hemsworth/Thor Inspired)"
+        }
+    
+    async def predict_with_voice(self, prediction_text: str, emotion: str = "prophetic"):
+        """Make prediction with voice synthesis"""
+        await self.speak(f"Oracle prediction: {prediction_text}", emotion=emotion)
+        return self.get_prediction()
+    
+    async def share_wisdom_with_voice(self, wisdom_text: str, emotion: str = "noble"):
+        """Share wisdom with voice synthesis"""
+        await self.speak(f"Oracle wisdom: {wisdom_text}", emotion=emotion)
+        return self.get_wisdom_insight()
+    
+    async def report_wisdom_with_voice(self, emotion: str = "thunderous"):
+        """Report wisdom status with voice synthesis"""
+        status = self.get_trinity_status()
+        wisdom_message = f"ORACLE wisdom report: Prediction accuracy at {self.prediction_accuracy:.1f}%, Wisdom score {self.wisdom_score:.1f}%"
+        await self.speak(wisdom_message, emotion=emotion)
+        return status
 
 oracle = OracleAGI()
 
