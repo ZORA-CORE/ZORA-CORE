@@ -22,6 +22,12 @@ from zora_contact_config import (
     ZORA_CONTACT_INFO,
     get_localized_email_label,
     generate_phone_number,
+    get_full_contact_data,
+    validate_contact_info,
+    get_official_address_for_documents,
+    get_operational_addresses,
+    generate_email_footer,
+    generate_invoice_header,
     INFINITY_FOOTER_STRUCTURE,
     INFINITY_EMAIL,
     INFINITY_CVR,
@@ -469,6 +475,59 @@ def contact_localized(language):
         "timestamp": datetime.utcnow().isoformat()
     })
 
+@app.route('/api/email/footer/<language>')
+def get_email_footer(language):
+    """Get email footer with HQ address for outgoing emails"""
+    try:
+        footer = generate_email_footer(language)
+        return jsonify({
+            "email_footer": footer,
+            "hq_address": get_official_address_for_documents(),
+            "operational_addresses": get_operational_addresses(),
+            "language": language,
+            "infinity_mode": True
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/invoice/header')
+def get_invoice_header_api():
+    """Get invoice header with HQ address for all invoices"""
+    try:
+        header = generate_invoice_header()
+        return jsonify({
+            "invoice_header": header,
+            "hq_address": get_official_address_for_documents(),
+            "operational_addresses": get_operational_addresses(),
+            "infinity_mode": True
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/addresses/official')
+def get_official_address():
+    """Get official HQ address for documents, emails, and invoices"""
+    try:
+        return jsonify({
+            "official_address": get_official_address_for_documents(),
+            "usage": "For all emails, invoices, legal documents, and official communications",
+            "infinity_mode": True
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/addresses/operational')
+def get_operational_address():
+    """Get operational addresses for daily business activities"""
+    try:
+        return jsonify({
+            "operational_addresses": get_operational_addresses(),
+            "usage": "For daily business operations, meetings, and physical presence",
+            "infinity_mode": True
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == "__main__":
     print("🌐 Starting ZORA Core Flask Web Interface...")
     print("♾️ INFINITY INJEKTION™ Contact System Active")
@@ -477,6 +536,10 @@ if __name__ == "__main__":
     print("📚 API Info: http://localhost:5000/api/info")
     print("📧 Contact API: http://localhost:5000/api/contact")
     print("🌍 Localized Contact: http://localhost:5000/api/contact/<language>")
+    print("📧 Email Footer API: http://localhost:5000/api/email/footer/<language>")
+    print("📄 Invoice Header API: http://localhost:5000/api/invoice/header")
+    print("🏢 Official Address API: http://localhost:5000/api/addresses/official")
+    print("📍 Operational Address API: http://localhost:5000/api/addresses/operational")
     print("🔧 For full API functionality, use the FastAPI server (zora.py)")
     print(f"📍 HQ: {INFINITY_HQ_ADDRESS}")
     print(f"🏛️ CVR: {INFINITY_CVR}")

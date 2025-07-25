@@ -207,6 +207,97 @@ INFINITY_EMAIL = "kontakt@zoracore.dk"
 INFINITY_CVR = "37750514"
 INFINITY_HQ_ADDRESS = "Fjordbakken 50, Dyves Bro, 4700 Næstved"
 
+def get_official_address_for_documents():
+    """Get the official HQ address for emails, invoices, and legal documents"""
+    hq = ZORA_CONTACT_INFO["headquarters"]
+    return {
+        "name": hq["name"],
+        "address": hq["address"],
+        "cvr": hq["cvr"],
+        "country": hq["country"],
+        "formatted_address": f"{hq['name']}\n{hq['address']}\nCVR: {hq['cvr']}\n{hq['country']}"
+    }
+
+def get_operational_addresses():
+    """Get the daily operational addresses (KOBBERHJØRNET x ORINGE)"""
+    p_enheder = ZORA_CONTACT_INFO["p_enheder"]
+    return {
+        "structure": p_enheder["structure"],
+        "primary": {
+            "name": p_enheder["kobberhjornet"]["name"],
+            "address": p_enheder["kobberhjornet"]["address"],
+            "type": "primary_operations"
+        },
+        "secondary": {
+            "name": p_enheder["oringe"]["name"],
+            "address": p_enheder["oringe"]["address"],
+            "type": "secondary_operations"
+        },
+        "formatted_structure": f"{p_enheder['kobberhjornet']['name']}: {p_enheder['kobberhjornet']['address']}\n{p_enheder['oringe']['name']}: {p_enheder['oringe']['address']}"
+    }
+
+def generate_email_footer(language="da"):
+    """Generate email footer with HQ address for all outgoing emails"""
+    hq = get_official_address_for_documents()
+    ops = get_operational_addresses()
+    
+    email_labels = {
+        "da": {
+            "hq_label": "Hovedkontor",
+            "operations_label": "Daglige aktiviteter",
+            "contact_label": "Kontakt"
+        },
+        "en": {
+            "hq_label": "Headquarters", 
+            "operations_label": "Daily Operations",
+            "contact_label": "Contact"
+        },
+        "de": {
+            "hq_label": "Hauptsitz",
+            "operations_label": "Tägliche Operationen", 
+            "contact_label": "Kontakt"
+        },
+        "fr": {
+            "hq_label": "Siège social",
+            "operations_label": "Opérations quotidiennes",
+            "contact_label": "Contact"
+        }
+    }
+    
+    labels = email_labels.get(language, email_labels["da"])
+    
+    return f"""
+---
+{labels['hq_label']}: {hq['name']}
+{hq['address']}
+CVR: {hq['cvr']}
+
+{labels['operations_label']}: {ops['structure']}
+{ops['formatted_structure']}
+
+{labels['contact_label']}: {INFINITY_EMAIL}
+"""
+
+def generate_invoice_header():
+    """Generate invoice header with official HQ address"""
+    hq = get_official_address_for_documents()
+    
+    return {
+        "company_name": hq["name"],
+        "address": hq["address"],
+        "cvr": hq["cvr"],
+        "country": hq["country"],
+        "email": INFINITY_EMAIL,
+        "formatted_header": f"""
+{hq['name']}
+{hq['address']}
+CVR: {hq['cvr']}
+{hq['country']}
+
+Email: {INFINITY_EMAIL}
+"""
+    }
+
 if __name__ == "__main__":
     print("🌐 ZORA INFINITY CONTACT CONFIGURATION")
     print("=" * 50)
