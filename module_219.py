@@ -13,7 +13,15 @@ from datetime import datetime
 
 class ZoraPhysicalAddressEngine:
     def __init__(self):
-        self.addresses = []
+        self.addresses = [
+            {
+                "address": "Fjordbakken 50, Dyves Bro, 4700 Næstved",
+                "purpose": "Legal",
+                "type": "HQ",
+                "active": True,
+                "updated": "2025-07-25"
+            }
+        ]
         self.purposes = [
             "Legal", "Postal", "Datacenter", "PublicRep", "Storage", "Backup"
         ]

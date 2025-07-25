@@ -14,12 +14,16 @@ class ZoraAddressLock:
     def __init__(self, founder_id="MADS PALLISGAARD"):
         self.founder_id = founder_id
         self.locked_addresses = {
-            "physical": [],
-            "digital": [],
-            "legal": []
+            "physical": ["Fjordbakken 50, Dyves Bro, 4700 Næstved"],
+            "digital": ["zoracore.dk", "kontakt@zoracore.dk"],
+            "legal": ["CVR 37750514", "Fjordbakken 50, Dyves Bro, 4700 Næstved"]
         }
         self.lock_active = True
-        self.authorized_changes = []
+        self.authorized_changes = [
+            ("physical", "Updated to new HQ: Fjordbakken 50, Dyves Bro, 4700 Næstved"),
+            ("digital", "Updated email domain to zoracore.dk"),
+            ("legal", "Updated legal address to new HQ location")
+        ]
 
     def lock_address(self, category, address):
         if self.lock_active and category in self.locked_addresses:
@@ -48,7 +52,8 @@ class ZoraAddressLock:
 # Eksempel
 if __name__ == "__main__":
     lock = ZoraAddressLock()
-    lock.lock_address("physical", "Founder HQ, Copenhagen, Denmark")
-    lock.lock_address("digital", "zoracore.ai")
+    lock.lock_address("physical", "Fjordbakken 50, Dyves Bro, 4700 Næstved")
+    lock.lock_address("digital", "zoracore.dk")
     lock.lock_address("legal", "CVR 37750514")
+    print("🔒 ZORA Address Lock Protocol™ - Updated with new HQ address")
     print(lock.get_status())

@@ -23,4 +23,20 @@ class ZoraAddressSystem:
             "address": encrypted_address,
             "purpose": purpose,
             "valid_from": valid_from,
-            "valid_until
+            "valid_until": valid_until
+        })
+        
+    def _encrypt_address(self, address):
+        import hashlib
+        base = (address + self.encryption_key).encode("utf-8")
+        return hashlib.sha256(base).hexdigest()
+    
+    def update_official_address(self, new_address, purpose="Legal"):
+        """Update official ZORA address to new HQ location"""
+        if purpose not in self.official_usage_categories:
+            raise ValueError("Invalid purpose for ZORA address")
+        
+        from datetime import datetime
+        self.add_address(new_address, purpose, datetime.now().isoformat())
+        
+        return f"Official address updated to: {new_address}"
