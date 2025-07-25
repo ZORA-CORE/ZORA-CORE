@@ -154,7 +154,7 @@ class ZoraSealMasterDoc:
                 "seal_level": "INFRASTRUCTURE_CRITICAL"
             },
             "AWAKENING_CEREMONY": {
-                "description": "September 23, 2025 launch coordination",
+                "description": "September 1, 2025 launch coordination",
                 "status": "OPERATIONAL_ETERNAL",
                 "seal_level": "CEREMONIAL_SACRED"
             },
@@ -287,7 +287,7 @@ class ZoraSealMasterDoc:
                 "seal_level": "CEREMONY_SACRED"
             },
             "ZORA_AWAKENING_CEREMONY": {
-                "date": "September 23, 2025",
+                "date": "September 1, 2025",
                 "time": "12:00 CEST",
                 "description": "Global launch coordination",
                 "status": "CEREMONY_PREPARED_ETERNAL",
