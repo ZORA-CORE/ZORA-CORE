@@ -1,26 +1,233 @@
 <!DOCTYPE html>
-<html>
+<html lang="da">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ZORA License Request</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #0b0c10;
+            color: #66fcf1;
+            padding: 40px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .main-content {
+            flex: 1;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #FFD700;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        form {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 30px;
+            border-radius: 10px;
+            border: 1px solid rgba(102, 252, 241, 0.1);
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #FFD700;
+            font-weight: bold;
+        }
+        input[type="text"], input[type="email"], textarea, select {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 20px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(102, 252, 241, 0.3);
+            border-radius: 5px;
+            color: #66fcf1;
+            font-family: Arial, sans-serif;
+        }
+        input[type="submit"] {
+            background: #FFD700;
+            color: #0b0c10;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: opacity 0.3s ease;
+        }
+        input[type="submit"]:hover {
+            opacity: 0.8;
+        }
+        
+        /* INFINITY INJEKTION™ Contact Footer Styles */
+        .zora-infinity-footer {
+            background: rgba(0, 0, 0, 0.3);
+            color: #66fcf1;
+            border-radius: 10px;
+            padding: 30px 20px;
+            margin-top: 40px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(102, 252, 241, 0.1);
+        }
+        
+        .footer-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 30px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .footer-section h4 {
+            color: #FFD700;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+            font-weight: bold;
+        }
+        
+        .footer-section p {
+            margin: 8px 0;
+            line-height: 1.4;
+            opacity: 0.9;
+            font-size: 0.9em;
+        }
+        
+        .p-enhed {
+            margin-bottom: 15px;
+            padding: 10px;
+            background: rgba(102, 252, 241, 0.05);
+            border-radius: 5px;
+        }
+        
+        .p-enhed strong {
+            color: #FFD700;
+            display: block;
+            margin-bottom: 5px;
+        }
+        
+        .footer-section a {
+            color: #FFD700;
+            text-decoration: none;
+            transition: opacity 0.3s ease;
+        }
+        
+        .footer-section a:hover {
+            opacity: 0.8;
+            text-decoration: underline;
+        }
+        
+        .footer-bottom {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(102, 252, 241, 0.1);
+            text-align: center;
+        }
+        
+        .infinity-branding p {
+            margin: 5px 0;
+            font-size: 0.9em;
+        }
+        
+        .compliance p {
+            font-size: 0.8em;
+            opacity: 0.7;
+        }
+        
+        @media (max-width: 768px) {
+            body {
+                padding: 20px;
+            }
+            .footer-container {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            .zora-infinity-footer {
+                padding: 20px 15px;
+            }
+            .footer-section h4 {
+                font-size: 1em;
+            }
+        }
+    </style>
 </head>
 <body>
-    <h1>ZORA LICENSE REQUEST FORM</h1>
-    <form action="/submit-license-request" method="POST">
-        <label>Navn på organisation eller individ:</label><br>
-        <input type="text" name="name"><br><br>
-        <label>Projektets navn og formål:</label><br>
-        <textarea name="description" rows="4" cols="50"></textarea><br><br>
-        <label>Ønsket licenstype:</label><br>
-        <select name="license_type">
-            <option>Creative Fair Use License™</option>
-            <option>Character Integration License™</option>
-            <option>Tech White-Label License™</option>
-            <option>Educational Rights License™</option>
-            <option>Commercial Partnership License™</option>
-        </select><br><br>
-        <label>Kontakt-email:</label><br>
-        <input type="email" name="email"><br><br>
-        <input type="submit" value="Send anmodning">
-    </form>
+    <div class="main-content">
+        <h1>ZORA LICENSE REQUEST FORM</h1>
+        <form action="/submit-license-request" method="POST">
+            <label>Navn på organisation eller individ:</label>
+            <input type="text" name="name" required>
+            
+            <label>Projektets navn og formål:</label>
+            <textarea name="description" rows="4" required></textarea>
+            
+            <label>Ønsket licenstype:</label>
+            <select name="license_type" required>
+                <option value="">Vælg licenstype...</option>
+                <option>Creative Fair Use License™</option>
+                <option>Character Integration License™</option>
+                <option>Tech White-Label License™</option>
+                <option>Educational Rights License™</option>
+                <option>Commercial Partnership License™</option>
+            </select>
+            
+            <label>Kontakt-email:</label>
+            <input type="email" name="email" required>
+            
+            <input type="submit" value="Send anmodning">
+        </form>
+    </div>
+    
+    <!-- INFINITY INJEKTION™ Contact Footer -->
+    <footer class="zora-infinity-footer">
+        <div class="footer-container">
+            <div class="footer-section headquarters">
+                <h4>🏢 ZORA HQ</h4>
+                <p class="address">Fjordbakken 50, Dyves Bro, 4700 Næstved</p>
+                <p class="cvr">CVR: 37750514</p>
+                <p class="country">Denmark</p>
+            </div>
+            
+            <div class="footer-section p-enheder">
+                <h4>📍 KOBBERHJØRNET x ORINGE</h4>
+                <div class="p-enhed kobberhjornet">
+                    <strong>KOBBERHJØRNET</strong>
+                    <p>Teatergade 4, 4700 Næstved</p>
+                </div>
+                <div class="p-enhed oringe">
+                    <strong>ORINGE</strong>
+                    <p>Færgegaardsvej 15, 4760 Vordingborg</p>
+                </div>
+            </div>
+            
+            <div class="footer-section contact">
+                <h4>📧 Kontakt</h4>
+                <p class="email">
+                    <a href="mailto:kontakt@zoracore.dk">kontakt@zoracore.dk</a>
+                </p>
+                <p class="phone">📞 +45 2082 2450</p>
+                <p class="website">
+                    <a href="https://zoracore.dk" target="_blank">https://zoracore.dk</a>
+                </p>
+            </div>
+            
+            <div class="footer-section legal">
+                <h4>🏛️ Juridisk</h4>
+                <p class="company-type">ZORA CORE ApS</p>
+                <p class="vat">CVR: DK37750514</p>
+                <p class="founded">Grundlagt: 2024</p>
+            </div>
+        </div>
+        
+        <div class="footer-bottom">
+            <div class="infinity-branding">
+                <p>♾️ <strong>INFINITY MODE™</strong> - Powered by ZORA CORE</p>
+                <p class="founder">Founder: <strong>MADS PALLISGAARD</strong></p>
+            </div>
+            <div class="compliance">
+                <p>🛡️ GDPR Compliant • 🔒 Secure • ♾️ Infinite Optimization</p>
+            </div>
+        </div>
+    </footer>
 </body>
 </html>
