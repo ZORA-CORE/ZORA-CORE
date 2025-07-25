@@ -24,6 +24,15 @@ from agents import phind, devin, you, elevenlabs, openai, perplexity, huggingfac
 from agents import leonardo, midjourney, deepseek, langsmith, github, gitlab, replit
 from sync_utils import sync_all, log, websocket_sync, repair
 
+try:
+    from zora_ultimate_voice_generator import zora_voice_generator, initialize_voice_system, generate_agent_voice
+    VOICE_GENERATOR_AVAILABLE = True
+    print("✅ ZORA Ultimate Voice Generator integrated with Infinity Sync")
+except ImportError as e:
+    print(f"⚠️ Voice generator not available: {e}")
+    VOICE_GENERATOR_AVAILABLE = False
+    zora_voice_generator = None
+
 class UniversalAIConnector:
     """Universal connector system for integrating any AI system with ZORA CORE"""
     
@@ -96,11 +105,25 @@ class UniversalAIConnector:
             "you": {"base_url": "https://api.you.com/v1", "auth_type": "bearer", "capabilities": ["search", "ai_assistance"]},
             "reka": {"base_url": "https://api.reka.ai/v1", "auth_type": "bearer", "capabilities": ["language_model", "multimodal"]},
             "pi": {"base_url": "https://api.pi.ai/v1", "auth_type": "bearer", "capabilities": ["conversational_ai", "personal_assistant"]},
-            "phind": {"base_url": "https://api.phind.com/v1", "auth_type": "bearer", "capabilities": ["code_search", "development_assistance"]}
+            "phind": {"base_url": "https://api.phind.com/v1", "auth_type": "bearer", "capabilities": ["code_search", "development_assistance"]},
+            "zora_voice": {"base_url": "internal://zora_voice_generator", "auth_type": "internal", "capabilities": ["voice_synthesis", "neural_tts", "personality_voices", "emotion_modulation", "real_time_synthesis"]}
         }
         
         self.logger = logging.getLogger("zora.universal_connector")
         self.logger.setLevel(logging.INFO)
+        
+        self.voice_generator = None
+        self.voice_synthesis_enabled = False
+        self.voice_personalities = {}
+        self.voice_queue_active = False
+        
+        if VOICE_GENERATOR_AVAILABLE:
+            self.voice_generator = zora_voice_generator
+            self.voice_synthesis_enabled = True
+            self.voice_personalities = self.voice_generator.voice_personalities
+            self.logger.info("🎤 ZORA Ultimate Voice Generator initialized")
+        else:
+            self.logger.warning("🔇 Voice synthesis not available")
     
     def register_ai_system(self, system_name: str, config: Dict[str, Any]) -> bool:
         """Register a new AI system with the universal connector"""
@@ -557,6 +580,8 @@ class UniversalAIConnector:
             "connected_systems": connected_systems,
             "connection_rate": (connected_systems / max(total_systems, 1)) * 100,
             "auto_discovery_enabled": self.auto_discovery_enabled,
+            "voice_synthesis_enabled": self.voice_synthesis_enabled,
+            "voice_personalities": len(self.voice_personalities) if self.voice_personalities else 0,
             "real_time_discovery": {
                 "active": self.real_time_discovery_active,
                 "interval_seconds": self.discovery_interval,
@@ -574,6 +599,89 @@ class UniversalAIConnector:
             "health_summary": self.connection_health,
             "integration_patterns": len(self.integration_patterns),
             "last_update": datetime.utcnow().isoformat()
+        }
+    
+    async def synthesize_agent_voice(self, agent_name: str, text: str, emotion: str = "neutral") -> Optional[bytes]:
+        """Synthesize voice for any AI agent using ZORA Ultimate Voice Generator"""
+        if not self.voice_synthesis_enabled or not self.voice_generator:
+            self.logger.warning(f"Voice synthesis not available for {agent_name}")
+            return None
+        
+        try:
+            voice_name = self._map_agent_to_voice_personality(agent_name)
+            
+            if voice_name not in self.voice_personalities:
+                self.logger.warning(f"Voice personality not found for {agent_name} (mapped to {voice_name})")
+                return None
+            
+            audio_data = await self.voice_generator.synthesize_voice(text, voice_name, emotion)
+            
+            self.logger.info(f"🎤 Generated voice for {agent_name} ({voice_name}): {len(text)} chars")
+            return audio_data.tobytes()
+            
+        except Exception as e:
+            self.logger.error(f"Voice synthesis error for {agent_name}: {e}")
+            return None
+    
+    def _map_agent_to_voice_personality(self, agent_name: str) -> str:
+        """Map AI agent names to voice personality names"""
+        agent_mapping = {
+            "connor": "CONNOR", "lumina": "LUMINA", "oracle": "ORACLE",
+            "devinus": "DEVINUS", "devin": "DEVINUS", "claude": "CLAUDE",
+            "meta_ai": "META_AI", "gpt4": "GPT4", "codex": "CODEX",
+            "sora": "SORA", "supergrok": "SUPERGROK", "gemini": "GEMINI",
+            "copilot": "COPILOT", "pi": "PI", "reka": "REKA",
+            "phind": "PHIND", "you": "YOU", "elevenlabs": "ELEVENLABS",
+            "openai": "OPENAI", "perplexity": "PERPLEXITY", "huggingface": "HUGGINGFACE",
+            "leonardo": "LEONARDO", "midjourney": "MIDJOURNEY", "deepseek": "DEEPSEEK",
+            "langsmith": "LANGSMITH", "github": "GITHUB", "gitlab": "GITLAB",
+            "replit": "REPLIT"
+        }
+        
+        return agent_mapping.get(agent_name.lower(), agent_name.upper())
+    
+    async def start_voice_synthesis_service(self):
+        """Start real-time voice synthesis service for all AI agents"""
+        if not self.voice_synthesis_enabled or not self.voice_generator:
+            self.logger.warning("Cannot start voice synthesis service - voice generator not available")
+            return False
+        
+        try:
+            await self.voice_generator.start_real_time_synthesis()
+            self.voice_queue_active = True
+            self.logger.info("🎤 Voice synthesis service started for all AI agents")
+            return True
+        except Exception as e:
+            self.logger.error(f"Failed to start voice synthesis service: {e}")
+            return False
+    
+    def queue_agent_voice_synthesis(self, agent_name: str, text: str, callback=None):
+        """Queue voice synthesis for an AI agent"""
+        if not self.voice_synthesis_enabled or not self.voice_generator:
+            return False
+        
+        try:
+            voice_name = self._map_agent_to_voice_personality(agent_name)
+            self.voice_generator.queue_synthesis(text, voice_name, callback)
+            return True
+        except Exception as e:
+            self.logger.error(f"Failed to queue voice synthesis for {agent_name}: {e}")
+            return False
+    
+    def get_voice_system_status(self) -> Dict[str, Any]:
+        """Get comprehensive voice system status"""
+        if not self.voice_synthesis_enabled or not self.voice_generator:
+            return {
+                "voice_synthesis_enabled": False,
+                "error": "Voice generator not available"
+            }
+        
+        return {
+            "voice_synthesis_enabled": True,
+            "voice_generator_status": self.voice_generator.get_voice_status(),
+            "voice_queue_active": self.voice_queue_active,
+            "total_personalities": len(self.voice_personalities),
+            "available_personalities": list(self.voice_personalities.keys())
         }
 
 universal_connector = UniversalAIConnector()
