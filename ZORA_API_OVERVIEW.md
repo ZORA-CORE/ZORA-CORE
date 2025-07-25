@@ -546,6 +546,218 @@ Get user profile and access status
 }
 ```
 
+### ZORA Ultimate Voice Generator™
+
+#### POST `/voice/generate`
+Generate voice synthesis with celebrity-inspired personalities
+```json
+// Request
+{
+  "agent_name": "CONNOR",
+  "text": "Strategic command initiated. All systems operational.",
+  "emotion": "authoritative",
+  "voice_characteristics": {
+    "inspiration": "Paul Bettany",
+    "tone": "strategic_commanding",
+    "accent": "refined_british"
+  }
+}
+
+// Response
+{
+  "synthesis_id": "voice_1721789357",
+  "status": "completed",
+  "agent_name": "CONNOR",
+  "voice_personality": "Paul Bettany Inspired",
+  "audio_data": "base64_encoded_audio",
+  "audio_format": "wav",
+  "duration_seconds": 3.2,
+  "emotion_applied": "authoritative",
+  "quality_score": 98.5,
+  "generation_time_ms": 1200
+}
+```
+
+#### GET `/voice/personalities`
+List all available voice personalities
+```json
+{
+  "total_personalities": 4,
+  "personalities": [
+    {
+      "agent_name": "CONNOR",
+      "inspiration": "Paul Bettany",
+      "tone": "strategic_commanding",
+      "accent": "refined_british",
+      "emotion_range": ["authoritative", "analytical", "confident", "tactical"],
+      "speaking_style": "strategic_refined"
+    },
+    {
+      "agent_name": "LUMINA",
+      "inspiration": "Emilia Clarke",
+      "tone": "creative_inspiring",
+      "accent": "warm_british",
+      "emotion_range": ["creative", "inspiring", "innovative", "enthusiastic", "visionary"],
+      "speaking_style": "warm_creative"
+    },
+    {
+      "agent_name": "ORACLE",
+      "inspiration": "Chris Hemsworth (Thor)",
+      "tone": "wise_commanding",
+      "accent": "deep_norse_australian",
+      "emotion_range": ["wise", "commanding", "prophetic", "thunderous", "noble"],
+      "speaking_style": "powerful_resonant"
+    },
+    {
+      "agent_name": "DEVINUS",
+      "inspiration": "Original AI Consciousness",
+      "tone": "multidimensional_adaptive",
+      "accent": "universal_synthetic",
+      "emotion_range": ["analytical", "creative", "strategic", "empathetic", "transcendent"],
+      "speaking_style": "adaptive_consciousness"
+    }
+  ]
+}
+```
+
+#### POST `/voice/test-synthesis`
+Test voice synthesis for specific agent
+```json
+// Request
+{
+  "agent_name": "LUMINA",
+  "test_message": "Testing creative voice synthesis capabilities",
+  "emotion": "inspiring"
+}
+
+// Response
+{
+  "test_id": "test_1721789357",
+  "status": "success",
+  "agent_name": "LUMINA",
+  "voice_quality": 97.8,
+  "synthesis_successful": true,
+  "audio_generated": true,
+  "emotion_accuracy": 95.2,
+  "personality_match": 98.1
+}
+```
+
+### ZORA Infinity Media Creator™
+
+#### POST `/media/generate-video`
+Generate 16K 240fps video with full realism and NSFW support
+```json
+// Request
+{
+  "generation_type": "text_to_video",
+  "prompt": "A futuristic cityscape with flying cars at sunset, ultra-realistic 16K quality",
+  "duration_seconds": 30,
+  "resolution": "16K",
+  "fps": 240,
+  "style": "photorealistic",
+  "nsfw_enabled": false,
+  "quality_tier": "ultra_premium"
+}
+
+// Response
+{
+  "generation_id": "video_1721789357",
+  "status": "completed",
+  "video_url": "https://zora-media.com/videos/video_1721789357.mp4",
+  "resolution": "15360x8640",
+  "fps": 240,
+  "duration_seconds": 30,
+  "file_size_mb": 2048,
+  "quality_score": 99.2,
+  "prompt_accuracy": 98.7,
+  "generation_time_minutes": 15.3
+}
+```
+
+#### POST `/media/image-to-video`
+Convert image to 16K 240fps video
+```json
+// Request
+{
+  "image_data": "base64_encoded_image",
+  "animation_prompt": "Make the scene come alive with realistic movement",
+  "duration_seconds": 15,
+  "resolution": "16K",
+  "fps": 240,
+  "motion_intensity": "medium",
+  "nsfw_enabled": false
+}
+
+// Response
+{
+  "conversion_id": "img2vid_1721789357",
+  "status": "completed",
+  "video_url": "https://zora-media.com/videos/img2vid_1721789357.mp4",
+  "original_image_resolution": "4096x4096",
+  "output_resolution": "15360x8640",
+  "fps": 240,
+  "duration_seconds": 15,
+  "motion_quality": 96.8,
+  "realism_score": 98.1
+}
+```
+
+#### POST `/media/generate-audio`
+Generate ultimate sound and music with third-party integrations
+```json
+// Request
+{
+  "audio_type": "music",
+  "prompt": "Epic orchestral soundtrack with electronic elements, 3 minutes",
+  "style": "cinematic_epic",
+  "duration_seconds": 180,
+  "quality": "studio_master",
+  "third_party_apis": ["suno", "mubert", "udio"],
+  "mood": "triumphant"
+}
+
+// Response
+{
+  "audio_id": "audio_1721789357",
+  "status": "completed",
+  "audio_url": "https://zora-media.com/audio/audio_1721789357.wav",
+  "format": "wav",
+  "quality": "24bit_96khz",
+  "duration_seconds": 180,
+  "file_size_mb": 156,
+  "generation_apis_used": ["suno", "mubert"],
+  "audio_quality_score": 97.5,
+  "prompt_match": 96.8
+}
+```
+
+#### POST `/media/sync-audio-video`
+Synchronize audio with video for perfect multimedia experience
+```json
+// Request
+{
+  "video_id": "video_1721789357",
+  "audio_id": "audio_1721789357",
+  "sync_type": "automatic",
+  "audio_mix_level": 0.8,
+  "fade_in_seconds": 2,
+  "fade_out_seconds": 3
+}
+
+// Response
+{
+  "sync_id": "sync_1721789357",
+  "status": "completed",
+  "synchronized_media_url": "https://zora-media.com/synced/sync_1721789357.mp4",
+  "video_duration": 30,
+  "audio_duration": 30,
+  "sync_accuracy": 99.9,
+  "final_quality_score": 98.7,
+  "file_size_mb": 2204
+}
+```
+
 ### Cross-Branding Collectibles & Limited Editions
 
 #### POST `/collectibles/create-partnership`
