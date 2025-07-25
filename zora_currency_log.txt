@@ -27,3 +27,9 @@
 [2025-07-25 18:01:38.011368] ZORA KRONE™ aktiveret som global valuta.
 [2025-07-25 18:01:43.084065] ZORA KRONE™ aktiveret som global valuta.
 [2025-07-25 18:02:12.759973] ZORA KRONE™ aktiveret som global valuta.
+[2025-07-25 22:11:30.893733] ZORA KRONE™ aktiveret som global valuta.
+[2025-07-25 22:44:32.270677] ZORA KRONE™ aktiveret som global valuta.
+[2025-07-25 22:46:39.000772] ZORA KRONE™ aktiveret som global valuta.
+[2025-07-25 22:48:25.738626] ZORA KRONE™ aktiveret som global valuta.
+[2025-07-25 22:49:40.032044] ZORA KRONE™ aktiveret som global valuta.
+[2025-07-25 22:53:04.872181] ZORA KRONE™ aktiveret som global valuta.

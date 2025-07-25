@@ -26,6 +26,10 @@ try:
 except ImportError as e:
     print(f"⚠️ Media generation dependencies not available: {e}")
     MEDIA_GENERATION_AVAILABLE = False
+    class Image:
+        class Image:
+            pass
+    import io
 
 class ZoraInfinityMediaCreator:
     """Ultimate infinity media creation system for ZORA CORE"""
@@ -49,8 +53,6 @@ class ZoraInfinityMediaCreator:
         self.audio_storage_path = f"{self.media_storage_path}/audio"
         self.cache_storage_path = f"{self.media_storage_path}/cache"
         
-        self._initialize_storage()
-        
         self.text_to_image_model = None
         self.text_to_video_model = None
         self.image_to_video_model = None
@@ -68,6 +70,8 @@ class ZoraInfinityMediaCreator:
         
         self.logger = logging.getLogger("zora.infinity_media_creator")
         self.logger.setLevel(logging.INFO)
+        
+        self._initialize_storage()
         
         if self.media_generation_enabled:
             self.logger.info("🎬 ZORA Ultimate Infinity Media Creator initialized")
@@ -316,7 +320,7 @@ class ZoraInfinityMediaCreator:
             self.logger.error(f"❌ Image-to-video generation failed: {e}")
             return None
     
-    async def _upscale_to_16k(self, image: Image.Image) -> Image.Image:
+    async def _upscale_to_16k(self, image) -> any:
         """Upscale image to 16K resolution using AI upscaling"""
         try:
             target_width = 15360  # 16K width
@@ -776,6 +780,9 @@ class ZoraInfinityMediaCreator:
         return {
             "system_name": self.system_name,
             "version": self.version,
+            "founder": self.founder,
+            "contact": self.contact,
+            "organization": self.organization,
             "media_generation_enabled": self.media_generation_enabled,
             "nsfw_enabled": self.nsfw_enabled,
             "target_resolution": self.target_resolution,

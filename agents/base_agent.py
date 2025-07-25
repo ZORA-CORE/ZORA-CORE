@@ -59,6 +59,14 @@ class BaseAgent(ABC):
         self.average_response_time = 0.0
         self.last_error = None
         
+        self.performance_metrics = {
+            "total_requests": 0,
+            "successful_requests": 0,
+            "failed_requests": 0,
+            "average_response_time": 0.0,
+            "uptime_percentage": 100.0
+        }
+        
         self.coordination_enabled = True
         self.infinity_sync = True
         self.trinity_member = name.lower() in ['connor', 'lumina', 'oracle']
@@ -136,6 +144,7 @@ class BaseAgent(ABC):
                          extra={"error_type": type(error).__name__, "context": context})
         
         return {
+            "agent": self.name,
             "name": self.name,
             "status": "error",
             "error": str(error),
@@ -249,3 +258,13 @@ class BaseAgent(ABC):
         """Placeholder for voice training - will be replaced by voice integration"""
         self.logger.warning(f"{self.name}: Voice training not available - integration required")
         return False
+    
+    def get_performance_summary(self) -> Dict[str, Any]:
+        """Get performance summary for testing compatibility"""
+        return {
+            "total_requests": self.total_requests,
+            "successful_requests": self.successful_requests,
+            "failed_requests": self.failed_requests,
+            "success_rate": self.successful_requests / max(self.total_requests, 1) * 100,
+            "average_response_time": self.average_response_time
+        }
