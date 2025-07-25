@@ -62,6 +62,10 @@ class BaseAgent(ABC):
         self.coordination_enabled = True
         self.infinity_sync = True
         self.trinity_member = name.lower() in ['connor', 'lumina', 'oracle']
+        
+        self.voice_enabled = False
+        self.voice_personality = None
+        self.voice_integration_status = "not_integrated"
     
     @abstractmethod
     def ping(self, message: str) -> Dict[str, Any]:
@@ -98,6 +102,11 @@ class BaseAgent(ABC):
                 "infinity_sync": self.infinity_sync,
                 "trinity_member": self.trinity_member,
                 "coordination_enabled": self.coordination_enabled
+            },
+            "voice_capabilities": {
+                "voice_enabled": self.voice_enabled,
+                "voice_personality": self.voice_personality,
+                "voice_integration_status": self.voice_integration_status
             },
             "last_error": self.last_error
         }
@@ -202,3 +211,41 @@ class BaseAgent(ABC):
                 (self.average_response_time * (self.total_requests - 1) + response_time) 
                 / self.total_requests
             )
+    
+    async def integrate_voice_capabilities(self) -> bool:
+        """Integrate voice capabilities with this agent"""
+        try:
+            from .voice_integration import integrate_agent_voice
+            result = await integrate_agent_voice(self.name, self)
+            if result:
+                self.voice_enabled = True
+                self.voice_integration_status = "integrated"
+                self.log_activity("voice_integration_successful")
+            return result
+        except Exception as e:
+            self.logger.error(f"Voice integration failed for {self.name}: {e}")
+            self.voice_integration_status = "failed"
+            return False
+    
+    def synthesize_voice(self, text: str, emotion: str = "neutral"):
+        """Placeholder for voice synthesis - will be replaced by voice integration"""
+        self.logger.warning(f"{self.name}: Voice synthesis not available - integration required")
+        return None
+    
+    def speak(self, text: str, emotion: str = "neutral", save_sample: bool = False):
+        """Placeholder for speaking - will be replaced by voice integration"""
+        self.logger.warning(f"{self.name}: Speaking not available - integration required")
+        return False
+    
+    def get_voice_status(self):
+        """Placeholder for voice status - will be replaced by voice integration"""
+        return {
+            "voice_integrated": self.voice_enabled,
+            "voice_personality": self.voice_personality,
+            "integration_status": self.voice_integration_status
+        }
+    
+    def train_voice(self, training_config: Dict[str, Any] = None):
+        """Placeholder for voice training - will be replaced by voice integration"""
+        self.logger.warning(f"{self.name}: Voice training not available - integration required")
+        return False

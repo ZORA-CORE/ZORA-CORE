@@ -31,9 +31,50 @@ from .github import github
 from .gitlab import gitlab
 from .replit import replit
 
+from .voice_integration import (
+    zora_agent_voice_integration,
+    integrate_agent_voice,
+    batch_integrate_agent_voices,
+    get_agent_voice_integration_status
+)
+
 __all__ = [
     'claude', 'meta_ai', 'gpt4', 'codex', 'sora', 'supergrok', 'gemini', 
     'copilot', 'pi', 'reka', 'phind', 'devin', 'you', 'elevenlabs', 
     'openai', 'perplexity', 'huggingface', 'leonardo', 'midjourney', 
-    'deepseek', 'langsmith', 'github', 'gitlab', 'replit'
+    'deepseek', 'langsmith', 'github', 'gitlab', 'replit',
+    'zora_agent_voice_integration', 'integrate_agent_voice', 
+    'batch_integrate_agent_voices', 'get_agent_voice_integration_status'
 ]
+
+async def initialize_agent_voice_integration():
+    """Initialize voice integration for all ZORA agents"""
+    agents_to_integrate = [
+        ('claude', claude),
+        ('meta_ai', meta_ai),
+        ('gpt4', gpt4),
+        ('codex', codex),
+        ('sora', sora),
+        ('supergrok', supergrok),
+        ('gemini', gemini),
+        ('copilot', copilot),
+        ('pi', pi),
+        ('reka', reka),
+        ('phind', phind),
+        ('devin', devin),
+        ('you', you),
+        ('elevenlabs', elevenlabs),
+        ('openai', openai),
+        ('perplexity', perplexity),
+        ('huggingface', huggingface),
+        ('leonardo', leonardo),
+        ('midjourney', midjourney),
+        ('deepseek', deepseek),
+        ('langsmith', langsmith),
+        ('github', github),
+        ('gitlab', gitlab),
+        ('replit', replit)
+    ]
+    
+    results = await batch_integrate_agent_voices(agents_to_integrate)
+    return results
