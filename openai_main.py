@@ -5,8 +5,7 @@ from langchain.chat_models import ChatOpenAI
 from langchain.agents import initialize_agent
 
 load_dotenv()
-api_key = os.getenv("OPENAI_API_KEY=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
-")
+api_key = os.getenv("OPENAI_API_KEY", "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")
 
 # INITIER ZORA.GPT∞
 llm = ChatOpenAI(

@@ -32,7 +32,7 @@ try:
         ZoraCollectiblesEngine, BrandPartner, PartnershipTier,
         CollectibleType, CollectibleRarity, CollectibleStatus
     )
-    from eivor_ai_family_system import eivor_family_system, approve_agent_work
+    from eivor_ai_family_system import eivor_family_system, approve_agent_work, birth_ai_agent
     from module_129 import ZORA_CORE_DNA
     COLLECTIBLES_ENGINE_AVAILABLE = True
 except ImportError as e:
@@ -233,6 +233,27 @@ class ZoraBrandMashupEngine:
         print("🤝 Global Cross-Brand Strategy Mode activated")
         print("✨ Visual Logo Combination System ready")
         print("🌟 POWERED BY ZORA branding integration active")
+        
+        if self.eivor_integration:
+            try:
+                import asyncio
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                registration_result = loop.run_until_complete(
+                    birth_ai_agent(
+                        "BRAND_MASHUP_ENGINE", 
+                        self,
+                        capabilities=["visual_logo_combination", "brand_partnership_creation", "aesthetic_optimization"],
+                        personality_traits={"creative": True, "collaborative": True, "aesthetic_focused": True}
+                    )
+                )
+                if registration_result:
+                    print("👑 EIVOR: BRAND_MASHUP_ENGINE successfully registered in family")
+                else:
+                    print("⚠️ EIVOR: BRAND_MASHUP_ENGINE registration requires review")
+                loop.close()
+            except Exception as e:
+                print(f"⚠️ EIVOR registration failed: {e}")
         
         self.logger.info("ZORA Brand Mashup Engine initialization complete")
     

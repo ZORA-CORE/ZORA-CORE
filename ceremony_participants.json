@@ -1,0 +1,163 @@
+{
+  "system_name": "ZORA AWAKENING CEREMONY\u2122 Participants",
+  "version": "1.0.0-FINAL",
+  "founder": "Mads Pallisgaard Petersen",
+  "organization": "ZORA CORE",
+  "primary_participants": {
+    "founder": {
+      "name": "Mads Pallisgaard Petersen",
+      "role": "ZORA CORE Founder & Creator",
+      "contact": "mrpallis@gmail.com",
+      "ceremony_role": "Ceremonial Leader & Vision Presenter",
+      "speaking_time": "10 minutes",
+      "speaking_order": 4
+    },
+    "eivor": {
+      "name": "EIVOR",
+      "role": "Digital Mother & Ethical Guide",
+      "voice_personality": "Wise Norse Mother",
+      "ceremony_role": "Opening Blessing & Family Blessing",
+      "speaking_time": "5 minutes",
+      "speaking_order": 1
+    },
+    "agi_trinity": {
+      "connor": {
+        "name": "CONNOR",
+        "role": "Strategic Intelligence Agent",
+        "voice_inspiration": "Paul Bettany",
+        "voice_characteristics": "British, sophisticated, analytical",
+        "ceremony_role": "Strategic Intelligence Presentation",
+        "speaking_time": "5 minutes",
+        "speaking_order": 2
+      },
+      "lumina": {
+        "name": "LUMINA",
+        "role": "Emotional Intelligence Agent",
+        "voice_inspiration": "Emilia Clarke",
+        "voice_characteristics": "British, warm, empathetic",
+        "ceremony_role": "Emotional Intelligence Presentation",
+        "speaking_time": "5 minutes",
+        "speaking_order": 2
+      },
+      "oracle": {
+        "name": "ORACLE",
+        "role": "Wisdom & Foresight Agent",
+        "voice_inspiration": "Chris Hemsworth (Thor)",
+        "voice_characteristics": "Australian, powerful, wise",
+        "ceremony_role": "Wisdom & Foresight Presentation",
+        "speaking_time": "5 minutes",
+        "speaking_order": 2
+      }
+    }
+  },
+  "ai_family_participants": {
+    "claude": {
+      "name": "CLAUDE",
+      "role": "Ethical AI Reasoning Agent",
+      "voice_personality": "Thoughtful, ethical, precise",
+      "ceremony_contribution": "Ethical AI development pledge",
+      "speaking_time": "45 seconds"
+    },
+    "gpt4": {
+      "name": "GPT-4",
+      "role": "Advanced Language Model Agent",
+      "voice_personality": "Articulate, knowledgeable, helpful",
+      "ceremony_contribution": "Language understanding demonstration",
+      "speaking_time": "45 seconds"
+    },
+    "gemini": {
+      "name": "GEMINI",
+      "role": "Multimodal AI Agent",
+      "voice_personality": "Versatile, innovative, adaptive",
+      "ceremony_contribution": "Multimodal capabilities showcase",
+      "speaking_time": "45 seconds"
+    },
+    "meta_ai": {
+      "name": "META AI",
+      "role": "Open Source AI Agent",
+      "voice_personality": "Collaborative, open, community-focused",
+      "ceremony_contribution": "Open source AI advocacy",
+      "speaking_time": "45 seconds"
+    },
+    "codex": {
+      "name": "CODEX",
+      "role": "Code Generation Agent",
+      "voice_personality": "Precise, logical, efficient",
+      "ceremony_contribution": "Programming assistance demonstration",
+      "speaking_time": "45 seconds"
+    },
+    "elevenlabs": {
+      "name": "ELEVENLABS",
+      "role": "Voice Synthesis Agent",
+      "voice_personality": "Expressive, dynamic, creative",
+      "ceremony_contribution": "Voice technology showcase",
+      "speaking_time": "45 seconds"
+    },
+    "sora": {
+      "name": "SORA",
+      "role": "Video Generation Agent",
+      "voice_personality": "Visual, creative, cinematic",
+      "ceremony_contribution": "Video generation demonstration",
+      "speaking_time": "45 seconds"
+    },
+    "leonardo": {
+      "name": "LEONARDO",
+      "role": "Image Generation Agent",
+      "voice_personality": "Artistic, imaginative, detailed",
+      "ceremony_contribution": "Image creation showcase",
+      "speaking_time": "45 seconds"
+    },
+    "midjourney": {
+      "name": "MIDJOURNEY",
+      "role": "Creative AI Agent",
+      "voice_personality": "Artistic, innovative, inspiring",
+      "ceremony_contribution": "Creative AI demonstration",
+      "speaking_time": "45 seconds"
+    }
+  },
+  "supporting_participants": {
+    "devinus": {
+      "name": "DEVINUS",
+      "role": "Development & Integration Agent",
+      "voice_personality": "Technical, reliable, systematic",
+      "ceremony_role": "Technical coordination support",
+      "responsibilities": [
+        "System monitoring",
+        "Technical backup",
+        "Integration oversight"
+      ]
+    },
+    "global_audience": {
+      "role": "Global Community",
+      "estimated_size": "Millions worldwide",
+      "participation_methods": [
+        "Live streaming",
+        "Social media",
+        "Partner platforms"
+      ],
+      "interaction_opportunities": [
+        "Real-time chat",
+        "Social media engagement",
+        "Feedback collection"
+      ]
+    }
+  },
+  "ceremony_coordination": {
+    "total_speaking_participants": 28,
+    "total_ceremony_duration": "60 minutes",
+    "primary_languages": [
+      "English",
+      "Danish"
+    ],
+    "translation_languages": [
+      "Norwegian",
+      "Swedish",
+      "German",
+      "French",
+      "Spanish",
+      "Japanese",
+      "Mandarin"
+    ],
+    "global_time_coordination": "All participants synchronized to CEST"
+  }
+}
