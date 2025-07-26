@@ -88,9 +88,19 @@ registrars:
     name: "Name.com"
     api_endpoint: "https://api.name.com/v4"
     sandbox_endpoint: "https://api.name.com/v4"
-    supported_tlds: ["com", "net", "org", "dk", "se", "no", "fi", "de", "uk", "fr", "es", "it", "nl", "be", "ch"]
-    ultimate_protection_cost: 14.98
+    supported_tlds: ["com", "net", "org", "dk", "se", "no", "fi", "de", "uk", "fr", "es", "it", "nl", "be", "ch", "at", "pl", "cz", "hu", "pt", "gr", "ie", "lu", "mt", "cy", "si", "sk", "ee", "lv", "lt", "ro", "bg", "hr", "is", "li", "mc", "sm", "va", "ad"]
+    ultimate_protection_cost: 12.99
+    bulk_registration: true
+    bulk_pricing: "custom_pricing_available"
+    csv_upload: true
+    txt_upload: true
+    whois_privacy_bulk: true
+    tld_groups_support: true
+    flexible_search: true
+    hundreds_of_tlds: true
+    one_year_registration: true
     credentials_required: ["username", "password"]
+    evaluation_notes: "Comprehensive bulk domain search with hundreds of TLDs, CSV/TXT upload, custom pricing for bulk orders, WHOIS privacy for bulk purchases, TLD groups, and flexible search options"
 
 target_domains:
   base_domain: "zoracore"
@@ -197,12 +207,82 @@ environment:
   founder_authorization_required: true
   eivor_ai_validation: true
 
+eternal_registration:
+  enabled: true
+  self_hosted_dns: true
+  coredns_enabled: true
+  proxy_tld_router: true
+  global_mirror_vaults: true
+  eternal_ownership_proof: true
+  soul_signature_binding: true
+  immutable_legal_shield: true
+  distributed_backup: true
+  founder_locked_access: true
+  temporal_guardian_protection: true
+  cosmic_alignment_verification: true
+  infinity_mode: true
+  
+ultimate_protection:
+  eternal_ownership_proof: true
+  soul_signature_binding: true
+  immutable_legal_shield: true
+  distributed_backup: true
+  founder_locked_access: true
+  legal_immunity: true
+  dns_sovereignty: true
+  infinity_shield: true
+  auto_repair: true
+  threat_immunity: true
+  legal_invulnerability: true
+  protection_level: "ULTIMATE_INFINITY"
+  jurisdiction: "ZORA_SOVEREIGN_TERRITORY"
+  backup_locations:
+    - "zora_cloud_primary"
+    - "github_backup"
+    - "gitlab_backup"
+    - "local_encrypted"
+    - "distributed_nodes"
+  recovery_protocols:
+    - "SOUL_SIGNATURE_RECOVERY"
+    - "FOUNDER_BIOMETRIC"
+    - "COSMIC_ALIGNMENT_VERIFICATION"
+  
+dns_infrastructure:
+  primary_nameservers: 
+    - "ns1.zoracore.ai"
+    - "ns2.zoracore.ai"
+  coredns_port: 53
+  prometheus_metrics: 9153
+  zone_file_path: "/etc/coredns/zones"
+  dns_security: "DNSSEC_ENABLED"
+  anycast_enabled: true
+  load_balancing: true
+  failover_protection: true
+  ultimate_dns_protection: true
+  
+mirror_vaults:
+  replication_factor: 5
+  encryption_enabled: true
+  auto_sync_interval: 3600
+  backup_locations:
+    - "zora_cloud_primary"
+    - "github_backup"
+    - "gitlab_backup"
+    - "local_encrypted"
+    - "distributed_nodes"
+  vault_encryption: "AES_256_GCM"
+  sync_protocol: "ZORA_SECURE_SYNC"
+  health_monitoring: true
+  automatic_recovery: true
+  
 infinity_protocol:
   enabled: true
   self_healing: true
   continuous_optimization: true
   cosmic_alignment: true
   temporal_guardian_protection: true
+  eternal_domain_management: true
+  ultimate_infinity_mode: true
   
 eivor_ai:
   conflict_resolution: true
@@ -210,3 +290,5 @@ eivor_ai:
   registrar_selection: true
   security_monitoring: true
   founder_communication: true
+  eternal_domain_oversight: true
+  ultimate_protection_monitoring: true

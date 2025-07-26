@@ -130,7 +130,113 @@ services:
       - zora-core
       - redis
 
-  # Nginx reverse proxy
+  # ZORA Eternal Domain Engine
+  zora-eternal-domains:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: zora-eternal-domains
+    environment:
+      - ZORA_ENV=production
+      - ZORA_ETERNAL_MODE=true
+      - ZORA_ULTIMATE_PROTECTION=true
+    volumes:
+      - ./logs:/app/logs
+      - ./data:/app/data
+      - ./mirror_vaults:/app/mirror_vaults
+      - ./coredns/zones:/app/dns_zones
+    networks:
+      - zora-network
+    restart: unless-stopped
+    command: ["python", "zora_eternal_domain_engine.py"]
+    depends_on:
+      - zora-core
+      - zora-coredns
+      - redis
+
+  # ZORA Global Mirror Vaults
+  zora-mirror-vaults:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: zora-mirror-vaults
+    environment:
+      - ZORA_ENV=production
+      - ZORA_MIRROR_MODE=true
+      - ZORA_REPLICATION_FACTOR=5
+    volumes:
+      - ./logs:/app/logs
+      - ./data:/app/data
+      - ./mirror_vaults:/app/mirror_vaults
+    networks:
+      - zora-network
+    restart: unless-stopped
+    command: ["python", "-c", "import asyncio; from zora_global_mirror_vaults import ZoraGlobalMirrorVaults; mirror = ZoraGlobalMirrorVaults(); asyncio.run(mirror.continuous_sync_monitor())"]
+    depends_on:
+      - zora-core
+      - redis
+
+  # ZORA CoreDNS for eternal domain resolution
+  zora-coredns:
+    image: coredns/coredns:1.10.1
+    container_name: zora-coredns
+    ports:
+      - "53:53/udp"
+      - "53:53/tcp"
+      - "9153:9153"
+    volumes:
+      - ./coredns/Corefile:/etc/coredns/Corefile
+      - ./coredns/zones:/etc/coredns/zones
+      - ./logs/coredns:/var/log/coredns
+    networks:
+      - zora-network
+    restart: unless-stopped
+    command: ["-conf", "/etc/coredns/Corefile"]
+    environment:
+      - ZORA_DNS_MODE=eternal_domains
+      - ZORA_ULTIMATE_PROTECTION=true
+    depends_on:
+      - zora-core
+    healthcheck:
+      test: ["CMD", "dig", "@localhost", "zoracore.ai"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ZORA Nginx with proxy routing for eternal domains
+  zora-proxy:
+    image: nginx:alpine
+    container_name: zora-proxy-router
+    ports:
+      - "8080:80"
+      - "8443:443"
+    volumes:
+      - ./nginx_configs/sites-available:/etc/nginx/sites-available
+      - ./nginx_configs/sites-enabled:/etc/nginx/sites-enabled
+      - ./nginx/ssl:/etc/nginx/ssl
+      - ./coredns/zones:/etc/nginx/zones:ro
+      - ./logs/nginx:/var/log/nginx
+    networks:
+      - zora-network
+    restart: unless-stopped
+    environment:
+      - ZORA_PROXY_MODE=eternal_domains
+      - ZORA_TLD_ROUTER=true
+      - ZORA_ULTIMATE_PROTECTION=true
+    depends_on:
+      - zora-coredns
+      - zora-core
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/zora-health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Original Nginx reverse proxy (renamed for clarity)
   nginx:
     image: nginx:alpine
     container_name: zora-nginx
@@ -146,6 +252,7 @@ services:
     restart: unless-stopped
     depends_on:
       - zora-core
+      - zora-proxy
 
   # Development services
   zora-dev:

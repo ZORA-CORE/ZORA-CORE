@@ -1,0 +1,48 @@
+.:53 {
+    errors
+    health {
+        lameduck 5s
+    }
+    ready
+    kubernetes cluster.local in-addr.arpa ip6.arpa {
+        pods insecure
+        fallthrough in-addr.arpa ip6.arpa
+        ttl 30
+    }
+    prometheus :9153
+    forward . /etc/resolv.conf {
+        max_concurrent 1000
+    }
+    cache 30
+    loop
+    reload
+    loadbalance
+}
+
+zoracore.ai:53 {
+    file /etc/coredns/zones/zoracore.ai.zone
+    log
+    errors
+    reload
+}
+
+zoracore.app:53 {
+    file /etc/coredns/zones/zoracore.app.zone  
+    log
+    errors
+    reload
+}
+
+*.zoracore.ai:53 {
+    file /etc/coredns/zones/eternal-subdomains.zone
+    log
+    errors
+    reload
+}
+
+*.zoracore.app:53 {
+    file /etc/coredns/zones/eternal-subdomains.zone
+    log
+    errors
+    reload
+}

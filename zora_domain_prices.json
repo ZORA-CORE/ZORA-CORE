@@ -1,0 +1,1654 @@
+{
+  "zoracore.dk": [
+    {
+      "domain": "zoracore.dk",
+      "registrar": "Porkbun",
+      "price": 13.85,
+      "currency": "USD",
+      "registration_url": "https://porkbun.com/checkout/search?q=zoracore.dk",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.dk",
+      "registrar": "Cloudflare",
+      "price": 14.5,
+      "currency": "USD",
+      "registration_url": "https://dash.cloudflare.com/sign-up/registrar",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.dk",
+      "registrar": "Namecheap",
+      "price": 15.88,
+      "currency": "USD",
+      "registration_url": "https://www.namecheap.com/domains/registration/results/?domain=zoracore.dk",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.dk",
+      "registrar": "Dynadot",
+      "price": 16.0,
+      "currency": "USD",
+      "registration_url": "https://www.dynadot.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.dk",
+      "registrar": "Gandi",
+      "price": 16.0,
+      "currency": "USD",
+      "registration_url": "https://www.gandi.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.dk",
+      "registrar": "Hover",
+      "price": 16.0,
+      "currency": "USD",
+      "registration_url": "https://www.hover.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.dk",
+      "registrar": "Name.com",
+      "price": 16.0,
+      "currency": "USD",
+      "registration_url": "https://www.namecom.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.dk",
+      "registrar": "eNom",
+      "price": 16.0,
+      "currency": "USD",
+      "registration_url": "https://www.enom.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.dk",
+      "registrar": "Internet.bs",
+      "price": 16.0,
+      "currency": "USD",
+      "registration_url": "https://www.internetbs.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.dk",
+      "registrar": "GoDaddy",
+      "price": 19.99,
+      "currency": "USD",
+      "registration_url": "https://www.godaddy.com/domainsearch/find?checkAvail=1&domainToCheck=zoracore.dk",
+      "availability": true
+    }
+  ],
+  "zoracore.se": [
+    {
+      "domain": "zoracore.se",
+      "registrar": "Porkbun",
+      "price": 16.25,
+      "currency": "USD",
+      "registration_url": "https://porkbun.com/checkout/search?q=zoracore.se",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.se",
+      "registrar": "Cloudflare",
+      "price": 17.25,
+      "currency": "USD",
+      "registration_url": "https://dash.cloudflare.com/sign-up/registrar",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.se",
+      "registrar": "Namecheap",
+      "price": 18.88,
+      "currency": "USD",
+      "registration_url": "https://www.namecheap.com/domains/registration/results/?domain=zoracore.se",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.se",
+      "registrar": "Dynadot",
+      "price": 19.0,
+      "currency": "USD",
+      "registration_url": "https://www.dynadot.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.se",
+      "registrar": "Gandi",
+      "price": 19.0,
+      "currency": "USD",
+      "registration_url": "https://www.gandi.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.se",
+      "registrar": "Hover",
+      "price": 19.0,
+      "currency": "USD",
+      "registration_url": "https://www.hover.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.se",
+      "registrar": "Name.com",
+      "price": 19.0,
+      "currency": "USD",
+      "registration_url": "https://www.namecom.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.se",
+      "registrar": "eNom",
+      "price": 19.0,
+      "currency": "USD",
+      "registration_url": "https://www.enom.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.se",
+      "registrar": "Internet.bs",
+      "price": 19.0,
+      "currency": "USD",
+      "registration_url": "https://www.internetbs.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.se",
+      "registrar": "GoDaddy",
+      "price": 22.99,
+      "currency": "USD",
+      "registration_url": "https://www.godaddy.com/domainsearch/find?checkAvail=1&domainToCheck=zoracore.se",
+      "availability": true
+    }
+  ],
+  "zoracore.no": [
+    {
+      "domain": "zoracore.no",
+      "registrar": "Porkbun",
+      "price": 19.75,
+      "currency": "USD",
+      "registration_url": "https://porkbun.com/checkout/search?q=zoracore.no",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.no",
+      "registrar": "Cloudflare",
+      "price": 20.75,
+      "currency": "USD",
+      "registration_url": "https://dash.cloudflare.com/sign-up/registrar",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.no",
+      "registrar": "Namecheap",
+      "price": 22.88,
+      "currency": "USD",
+      "registration_url": "https://www.namecheap.com/domains/registration/results/?domain=zoracore.no",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.no",
+      "registrar": "Dynadot",
+      "price": 23.0,
+      "currency": "USD",
+      "registration_url": "https://www.dynadot.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.no",
+      "registrar": "Gandi",
+      "price": 23.0,
+      "currency": "USD",
+      "registration_url": "https://www.gandi.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.no",
+      "registrar": "Hover",
+      "price": 23.0,
+      "currency": "USD",
+      "registration_url": "https://www.hover.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.no",
+      "registrar": "Name.com",
+      "price": 23.0,
+      "currency": "USD",
+      "registration_url": "https://www.namecom.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.no",
+      "registrar": "eNom",
+      "price": 23.0,
+      "currency": "USD",
+      "registration_url": "https://www.enom.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.no",
+      "registrar": "Internet.bs",
+      "price": 23.0,
+      "currency": "USD",
+      "registration_url": "https://www.internetbs.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.no",
+      "registrar": "GoDaddy",
+      "price": 25.99,
+      "currency": "USD",
+      "registration_url": "https://www.godaddy.com/domainsearch/find?checkAvail=1&domainToCheck=zoracore.no",
+      "availability": true
+    }
+  ],
+  "zoracore.fi": [
+    {
+      "domain": "zoracore.fi",
+      "registrar": "Porkbun",
+      "price": 17.5,
+      "currency": "USD",
+      "registration_url": "https://porkbun.com/checkout/search?q=zoracore.fi",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.fi",
+      "registrar": "Cloudflare",
+      "price": 18.5,
+      "currency": "USD",
+      "registration_url": "https://dash.cloudflare.com/sign-up/registrar",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.fi",
+      "registrar": "Namecheap",
+      "price": 19.88,
+      "currency": "USD",
+      "registration_url": "https://www.namecheap.com/domains/registration/results/?domain=zoracore.fi",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.fi",
+      "registrar": "Dynadot",
+      "price": 20.0,
+      "currency": "USD",
+      "registration_url": "https://www.dynadot.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.fi",
+      "registrar": "Gandi",
+      "price": 20.0,
+      "currency": "USD",
+      "registration_url": "https://www.gandi.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.fi",
+      "registrar": "Hover",
+      "price": 20.0,
+      "currency": "USD",
+      "registration_url": "https://www.hover.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.fi",
+      "registrar": "Name.com",
+      "price": 20.0,
+      "currency": "USD",
+      "registration_url": "https://www.namecom.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.fi",
+      "registrar": "eNom",
+      "price": 20.0,
+      "currency": "USD",
+      "registration_url": "https://www.enom.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.fi",
+      "registrar": "Internet.bs",
+      "price": 20.0,
+      "currency": "USD",
+      "registration_url": "https://www.internetbs.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.fi",
+      "registrar": "GoDaddy",
+      "price": 23.99,
+      "currency": "USD",
+      "registration_url": "https://www.godaddy.com/domainsearch/find?checkAvail=1&domainToCheck=zoracore.fi",
+      "availability": true
+    }
+  ],
+  "zoracore.is": [
+    {
+      "domain": "zoracore.is",
+      "registrar": "Namecheap",
+      "price": 15.0,
+      "currency": "USD",
+      "registration_url": "https://www.namecheap.com/domains/registration/results/?domain=zoracore.is",
+      "availability": true
+    }
+  ],
+  "zoracore.de": [
+    {
+      "domain": "zoracore.de",
+      "registrar": "Porkbun",
+      "price": 7.95,
+      "currency": "USD",
+      "registration_url": "https://porkbun.com/checkout/search?q=zoracore.de",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.de",
+      "registrar": "Cloudflare",
+      "price": 8.5,
+      "currency": "USD",
+      "registration_url": "https://dash.cloudflare.com/sign-up/registrar",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.de",
+      "registrar": "Namecheap",
+      "price": 9.88,
+      "currency": "USD",
+      "registration_url": "https://www.namecheap.com/domains/registration/results/?domain=zoracore.de",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.de",
+      "registrar": "Dynadot",
+      "price": 10.5,
+      "currency": "USD",
+      "registration_url": "https://www.dynadot.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.de",
+      "registrar": "Gandi",
+      "price": 10.5,
+      "currency": "USD",
+      "registration_url": "https://www.gandi.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.de",
+      "registrar": "Hover",
+      "price": 10.5,
+      "currency": "USD",
+      "registration_url": "https://www.hover.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.de",
+      "registrar": "Name.com",
+      "price": 10.5,
+      "currency": "USD",
+      "registration_url": "https://www.namecom.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.de",
+      "registrar": "eNom",
+      "price": 10.5,
+      "currency": "USD",
+      "registration_url": "https://www.enom.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.de",
+      "registrar": "Internet.bs",
+      "price": 10.5,
+      "currency": "USD",
+      "registration_url": "https://www.internetbs.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.de",
+      "registrar": "GoDaddy",
+      "price": 12.99,
+      "currency": "USD",
+      "registration_url": "https://www.godaddy.com/domainsearch/find?checkAvail=1&domainToCheck=zoracore.de",
+      "availability": true
+    }
+  ],
+  "zoracore.uk": [
+    {
+      "domain": "zoracore.uk",
+      "registrar": "Porkbun",
+      "price": 7.25,
+      "currency": "USD",
+      "registration_url": "https://porkbun.com/checkout/search?q=zoracore.uk",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.uk",
+      "registrar": "Cloudflare",
+      "price": 7.85,
+      "currency": "USD",
+      "registration_url": "https://dash.cloudflare.com/sign-up/registrar",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.uk",
+      "registrar": "Namecheap",
+      "price": 8.88,
+      "currency": "USD",
+      "registration_url": "https://www.namecheap.com/domains/registration/results/?domain=zoracore.uk",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.uk",
+      "registrar": "Dynadot",
+      "price": 9.5,
+      "currency": "USD",
+      "registration_url": "https://www.dynadot.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.uk",
+      "registrar": "Gandi",
+      "price": 9.5,
+      "currency": "USD",
+      "registration_url": "https://www.gandi.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.uk",
+      "registrar": "Hover",
+      "price": 9.5,
+      "currency": "USD",
+      "registration_url": "https://www.hover.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.uk",
+      "registrar": "Name.com",
+      "price": 9.5,
+      "currency": "USD",
+      "registration_url": "https://www.namecom.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.uk",
+      "registrar": "eNom",
+      "price": 9.5,
+      "currency": "USD",
+      "registration_url": "https://www.enom.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.uk",
+      "registrar": "Internet.bs",
+      "price": 9.5,
+      "currency": "USD",
+      "registration_url": "https://www.internetbs.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.uk",
+      "registrar": "GoDaddy",
+      "price": 11.99,
+      "currency": "USD",
+      "registration_url": "https://www.godaddy.com/domainsearch/find?checkAvail=1&domainToCheck=zoracore.uk",
+      "availability": true
+    }
+  ],
+  "zoracore.fr": [
+    {
+      "domain": "zoracore.fr",
+      "registrar": "Porkbun",
+      "price": 10.75,
+      "currency": "USD",
+      "registration_url": "https://porkbun.com/checkout/search?q=zoracore.fr",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.fr",
+      "registrar": "Cloudflare",
+      "price": 11.25,
+      "currency": "USD",
+      "registration_url": "https://dash.cloudflare.com/sign-up/registrar",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.fr",
+      "registrar": "Namecheap",
+      "price": 12.88,
+      "currency": "USD",
+      "registration_url": "https://www.namecheap.com/domains/registration/results/?domain=zoracore.fr",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.fr",
+      "registrar": "Dynadot",
+      "price": 13.5,
+      "currency": "USD",
+      "registration_url": "https://www.dynadot.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.fr",
+      "registrar": "Gandi",
+      "price": 13.5,
+      "currency": "USD",
+      "registration_url": "https://www.gandi.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.fr",
+      "registrar": "Hover",
+      "price": 13.5,
+      "currency": "USD",
+      "registration_url": "https://www.hover.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.fr",
+      "registrar": "Name.com",
+      "price": 13.5,
+      "currency": "USD",
+      "registration_url": "https://www.namecom.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.fr",
+      "registrar": "eNom",
+      "price": 13.5,
+      "currency": "USD",
+      "registration_url": "https://www.enom.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.fr",
+      "registrar": "Internet.bs",
+      "price": 13.5,
+      "currency": "USD",
+      "registration_url": "https://www.internetbs.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.fr",
+      "registrar": "GoDaddy",
+      "price": 15.99,
+      "currency": "USD",
+      "registration_url": "https://www.godaddy.com/domainsearch/find?checkAvail=1&domainToCheck=zoracore.fr",
+      "availability": true
+    }
+  ],
+  "zoracore.es": [
+    {
+      "domain": "zoracore.es",
+      "registrar": "Porkbun",
+      "price": 8.15,
+      "currency": "USD",
+      "registration_url": "https://porkbun.com/checkout/search?q=zoracore.es",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.es",
+      "registrar": "Cloudflare",
+      "price": 8.75,
+      "currency": "USD",
+      "registration_url": "https://dash.cloudflare.com/sign-up/registrar",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.es",
+      "registrar": "Namecheap",
+      "price": 9.88,
+      "currency": "USD",
+      "registration_url": "https://www.namecheap.com/domains/registration/results/?domain=zoracore.es",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.es",
+      "registrar": "Dynadot",
+      "price": 10.5,
+      "currency": "USD",
+      "registration_url": "https://www.dynadot.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.es",
+      "registrar": "Gandi",
+      "price": 10.5,
+      "currency": "USD",
+      "registration_url": "https://www.gandi.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.es",
+      "registrar": "Hover",
+      "price": 10.5,
+      "currency": "USD",
+      "registration_url": "https://www.hover.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.es",
+      "registrar": "Name.com",
+      "price": 10.5,
+      "currency": "USD",
+      "registration_url": "https://www.namecom.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.es",
+      "registrar": "eNom",
+      "price": 10.5,
+      "currency": "USD",
+      "registration_url": "https://www.enom.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.es",
+      "registrar": "Internet.bs",
+      "price": 10.5,
+      "currency": "USD",
+      "registration_url": "https://www.internetbs.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.es",
+      "registrar": "GoDaddy",
+      "price": 12.99,
+      "currency": "USD",
+      "registration_url": "https://www.godaddy.com/domainsearch/find?checkAvail=1&domainToCheck=zoracore.es",
+      "availability": true
+    }
+  ],
+  "zoracore.it": [
+    {
+      "domain": "zoracore.it",
+      "registrar": "Porkbun",
+      "price": 9.85,
+      "currency": "USD",
+      "registration_url": "https://porkbun.com/checkout/search?q=zoracore.it",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.it",
+      "registrar": "Cloudflare",
+      "price": 10.5,
+      "currency": "USD",
+      "registration_url": "https://dash.cloudflare.com/sign-up/registrar",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.it",
+      "registrar": "Namecheap",
+      "price": 11.88,
+      "currency": "USD",
+      "registration_url": "https://www.namecheap.com/domains/registration/results/?domain=zoracore.it",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.it",
+      "registrar": "Dynadot",
+      "price": 12.5,
+      "currency": "USD",
+      "registration_url": "https://www.dynadot.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.it",
+      "registrar": "Gandi",
+      "price": 12.5,
+      "currency": "USD",
+      "registration_url": "https://www.gandi.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.it",
+      "registrar": "Hover",
+      "price": 12.5,
+      "currency": "USD",
+      "registration_url": "https://www.hover.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.it",
+      "registrar": "Name.com",
+      "price": 12.5,
+      "currency": "USD",
+      "registration_url": "https://www.namecom.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.it",
+      "registrar": "eNom",
+      "price": 12.5,
+      "currency": "USD",
+      "registration_url": "https://www.enom.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.it",
+      "registrar": "Internet.bs",
+      "price": 12.5,
+      "currency": "USD",
+      "registration_url": "https://www.internetbs.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.it",
+      "registrar": "GoDaddy",
+      "price": 14.99,
+      "currency": "USD",
+      "registration_url": "https://www.godaddy.com/domainsearch/find?checkAvail=1&domainToCheck=zoracore.it",
+      "availability": true
+    }
+  ],
+  "zoracore.nl": [
+    {
+      "domain": "zoracore.nl",
+      "registrar": "Porkbun",
+      "price": 11.25,
+      "currency": "USD",
+      "registration_url": "https://porkbun.com/checkout/search?q=zoracore.nl",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.nl",
+      "registrar": "Cloudflare",
+      "price": 11.75,
+      "currency": "USD",
+      "registration_url": "https://dash.cloudflare.com/sign-up/registrar",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.nl",
+      "registrar": "Namecheap",
+      "price": 12.88,
+      "currency": "USD",
+      "registration_url": "https://www.namecheap.com/domains/registration/results/?domain=zoracore.nl",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.nl",
+      "registrar": "Dynadot",
+      "price": 13.5,
+      "currency": "USD",
+      "registration_url": "https://www.dynadot.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.nl",
+      "registrar": "Gandi",
+      "price": 13.5,
+      "currency": "USD",
+      "registration_url": "https://www.gandi.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.nl",
+      "registrar": "Hover",
+      "price": 13.5,
+      "currency": "USD",
+      "registration_url": "https://www.hover.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.nl",
+      "registrar": "Name.com",
+      "price": 13.5,
+      "currency": "USD",
+      "registration_url": "https://www.namecom.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.nl",
+      "registrar": "eNom",
+      "price": 13.5,
+      "currency": "USD",
+      "registration_url": "https://www.enom.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.nl",
+      "registrar": "Internet.bs",
+      "price": 13.5,
+      "currency": "USD",
+      "registration_url": "https://www.internetbs.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.nl",
+      "registrar": "GoDaddy",
+      "price": 15.99,
+      "currency": "USD",
+      "registration_url": "https://www.godaddy.com/domainsearch/find?checkAvail=1&domainToCheck=zoracore.nl",
+      "availability": true
+    }
+  ],
+  "zoracore.be": [
+    {
+      "domain": "zoracore.be",
+      "registrar": "Porkbun",
+      "price": 7.45,
+      "currency": "USD",
+      "registration_url": "https://porkbun.com/checkout/search?q=zoracore.be",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.be",
+      "registrar": "Cloudflare",
+      "price": 7.95,
+      "currency": "USD",
+      "registration_url": "https://dash.cloudflare.com/sign-up/registrar",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.be",
+      "registrar": "Namecheap",
+      "price": 8.88,
+      "currency": "USD",
+      "registration_url": "https://www.namecheap.com/domains/registration/results/?domain=zoracore.be",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.be",
+      "registrar": "Dynadot",
+      "price": 9.5,
+      "currency": "USD",
+      "registration_url": "https://www.dynadot.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.be",
+      "registrar": "Gandi",
+      "price": 9.5,
+      "currency": "USD",
+      "registration_url": "https://www.gandi.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.be",
+      "registrar": "Hover",
+      "price": 9.5,
+      "currency": "USD",
+      "registration_url": "https://www.hover.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.be",
+      "registrar": "Name.com",
+      "price": 9.5,
+      "currency": "USD",
+      "registration_url": "https://www.namecom.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.be",
+      "registrar": "eNom",
+      "price": 9.5,
+      "currency": "USD",
+      "registration_url": "https://www.enom.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.be",
+      "registrar": "Internet.bs",
+      "price": 9.5,
+      "currency": "USD",
+      "registration_url": "https://www.internetbs.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.be",
+      "registrar": "GoDaddy",
+      "price": 11.99,
+      "currency": "USD",
+      "registration_url": "https://www.godaddy.com/domainsearch/find?checkAvail=1&domainToCheck=zoracore.be",
+      "availability": true
+    }
+  ],
+  "zoracore.ch": [
+    {
+      "domain": "zoracore.ch",
+      "registrar": "Porkbun",
+      "price": 13.75,
+      "currency": "USD",
+      "registration_url": "https://porkbun.com/checkout/search?q=zoracore.ch",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.ch",
+      "registrar": "Cloudflare",
+      "price": 14.25,
+      "currency": "USD",
+      "registration_url": "https://dash.cloudflare.com/sign-up/registrar",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.ch",
+      "registrar": "Namecheap",
+      "price": 15.88,
+      "currency": "USD",
+      "registration_url": "https://www.namecheap.com/domains/registration/results/?domain=zoracore.ch",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.ch",
+      "registrar": "Gandi",
+      "price": 16.5,
+      "currency": "USD",
+      "registration_url": "https://www.gandi.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.ch",
+      "registrar": "Name.com",
+      "price": 16.5,
+      "currency": "USD",
+      "registration_url": "https://www.namecom.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.ch",
+      "registrar": "Internet.bs",
+      "price": 16.5,
+      "currency": "USD",
+      "registration_url": "https://www.internetbs.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.ch",
+      "registrar": "GoDaddy",
+      "price": 18.99,
+      "currency": "USD",
+      "registration_url": "https://www.godaddy.com/domainsearch/find?checkAvail=1&domainToCheck=zoracore.ch",
+      "availability": true
+    }
+  ],
+  "zoracore.at": [
+    {
+      "domain": "zoracore.at",
+      "registrar": "Porkbun",
+      "price": 12.0,
+      "currency": "USD",
+      "registration_url": "https://porkbun.com/checkout/search?q=zoracore.at",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.at",
+      "registrar": "Cloudflare",
+      "price": 13.0,
+      "currency": "USD",
+      "registration_url": "https://dash.cloudflare.com/sign-up/registrar",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.at",
+      "registrar": "Namecheap",
+      "price": 15.0,
+      "currency": "USD",
+      "registration_url": "https://www.namecheap.com/domains/registration/results/?domain=zoracore.at",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.at",
+      "registrar": "Gandi",
+      "price": 15.0,
+      "currency": "USD",
+      "registration_url": "https://www.gandi.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.at",
+      "registrar": "Name.com",
+      "price": 15.0,
+      "currency": "USD",
+      "registration_url": "https://www.namecom.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.at",
+      "registrar": "Internet.bs",
+      "price": 15.0,
+      "currency": "USD",
+      "registration_url": "https://www.internetbs.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.at",
+      "registrar": "GoDaddy",
+      "price": 18.0,
+      "currency": "USD",
+      "registration_url": "https://www.godaddy.com/domainsearch/find?checkAvail=1&domainToCheck=zoracore.at",
+      "availability": true
+    }
+  ],
+  "zoracore.pl": [
+    {
+      "domain": "zoracore.pl",
+      "registrar": "Porkbun",
+      "price": 12.0,
+      "currency": "USD",
+      "registration_url": "https://porkbun.com/checkout/search?q=zoracore.pl",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.pl",
+      "registrar": "Namecheap",
+      "price": 15.0,
+      "currency": "USD",
+      "registration_url": "https://www.namecheap.com/domains/registration/results/?domain=zoracore.pl",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.pl",
+      "registrar": "Gandi",
+      "price": 15.0,
+      "currency": "USD",
+      "registration_url": "https://www.gandi.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.pl",
+      "registrar": "Internet.bs",
+      "price": 15.0,
+      "currency": "USD",
+      "registration_url": "https://www.internetbs.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.pl",
+      "registrar": "GoDaddy",
+      "price": 18.0,
+      "currency": "USD",
+      "registration_url": "https://www.godaddy.com/domainsearch/find?checkAvail=1&domainToCheck=zoracore.pl",
+      "availability": true
+    }
+  ],
+  "zoracore.cz": [
+    {
+      "domain": "zoracore.cz",
+      "registrar": "Porkbun",
+      "price": 12.0,
+      "currency": "USD",
+      "registration_url": "https://porkbun.com/checkout/search?q=zoracore.cz",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.cz",
+      "registrar": "Namecheap",
+      "price": 15.0,
+      "currency": "USD",
+      "registration_url": "https://www.namecheap.com/domains/registration/results/?domain=zoracore.cz",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.cz",
+      "registrar": "Gandi",
+      "price": 15.0,
+      "currency": "USD",
+      "registration_url": "https://www.gandi.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.cz",
+      "registrar": "Internet.bs",
+      "price": 15.0,
+      "currency": "USD",
+      "registration_url": "https://www.internetbs.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.cz",
+      "registrar": "GoDaddy",
+      "price": 18.0,
+      "currency": "USD",
+      "registration_url": "https://www.godaddy.com/domainsearch/find?checkAvail=1&domainToCheck=zoracore.cz",
+      "availability": true
+    }
+  ],
+  "zoracore.hu": [
+    {
+      "domain": "zoracore.hu",
+      "registrar": "Namecheap",
+      "price": 15.0,
+      "currency": "USD",
+      "registration_url": "https://www.namecheap.com/domains/registration/results/?domain=zoracore.hu",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.hu",
+      "registrar": "Gandi",
+      "price": 15.0,
+      "currency": "USD",
+      "registration_url": "https://www.gandi.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.hu",
+      "registrar": "Internet.bs",
+      "price": 15.0,
+      "currency": "USD",
+      "registration_url": "https://www.internetbs.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.hu",
+      "registrar": "GoDaddy",
+      "price": 18.0,
+      "currency": "USD",
+      "registration_url": "https://www.godaddy.com/domainsearch/find?checkAvail=1&domainToCheck=zoracore.hu",
+      "availability": true
+    }
+  ],
+  "zoracore.ro": [
+    {
+      "domain": "zoracore.ro",
+      "registrar": "Namecheap",
+      "price": 15.0,
+      "currency": "USD",
+      "registration_url": "https://www.namecheap.com/domains/registration/results/?domain=zoracore.ro",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.ro",
+      "registrar": "Gandi",
+      "price": 15.0,
+      "currency": "USD",
+      "registration_url": "https://www.gandi.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.ro",
+      "registrar": "GoDaddy",
+      "price": 18.0,
+      "currency": "USD",
+      "registration_url": "https://www.godaddy.com/domainsearch/find?checkAvail=1&domainToCheck=zoracore.ro",
+      "availability": true
+    }
+  ],
+  "zoracore.bg": [
+    {
+      "domain": "zoracore.bg",
+      "registrar": "Namecheap",
+      "price": 15.0,
+      "currency": "USD",
+      "registration_url": "https://www.namecheap.com/domains/registration/results/?domain=zoracore.bg",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.bg",
+      "registrar": "GoDaddy",
+      "price": 18.0,
+      "currency": "USD",
+      "registration_url": "https://www.godaddy.com/domainsearch/find?checkAvail=1&domainToCheck=zoracore.bg",
+      "availability": true
+    }
+  ],
+  "zoracore.hr": [
+    {
+      "domain": "zoracore.hr",
+      "registrar": "Namecheap",
+      "price": 15.0,
+      "currency": "USD",
+      "registration_url": "https://www.namecheap.com/domains/registration/results/?domain=zoracore.hr",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.hr",
+      "registrar": "GoDaddy",
+      "price": 18.0,
+      "currency": "USD",
+      "registration_url": "https://www.godaddy.com/domainsearch/find?checkAvail=1&domainToCheck=zoracore.hr",
+      "availability": true
+    }
+  ],
+  "zoracore.si": [
+    {
+      "domain": "zoracore.si",
+      "registrar": "Namecheap",
+      "price": 15.0,
+      "currency": "USD",
+      "registration_url": "https://www.namecheap.com/domains/registration/results/?domain=zoracore.si",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.si",
+      "registrar": "GoDaddy",
+      "price": 18.0,
+      "currency": "USD",
+      "registration_url": "https://www.godaddy.com/domainsearch/find?checkAvail=1&domainToCheck=zoracore.si",
+      "availability": true
+    }
+  ],
+  "zoracore.sk": [
+    {
+      "domain": "zoracore.sk",
+      "registrar": "Namecheap",
+      "price": 15.0,
+      "currency": "USD",
+      "registration_url": "https://www.namecheap.com/domains/registration/results/?domain=zoracore.sk",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.sk",
+      "registrar": "GoDaddy",
+      "price": 18.0,
+      "currency": "USD",
+      "registration_url": "https://www.godaddy.com/domainsearch/find?checkAvail=1&domainToCheck=zoracore.sk",
+      "availability": true
+    }
+  ],
+  "zoracore.lt": [
+    {
+      "domain": "zoracore.lt",
+      "registrar": "Namecheap",
+      "price": 15.0,
+      "currency": "USD",
+      "registration_url": "https://www.namecheap.com/domains/registration/results/?domain=zoracore.lt",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.lt",
+      "registrar": "GoDaddy",
+      "price": 18.0,
+      "currency": "USD",
+      "registration_url": "https://www.godaddy.com/domainsearch/find?checkAvail=1&domainToCheck=zoracore.lt",
+      "availability": true
+    }
+  ],
+  "zoracore.lv": [
+    {
+      "domain": "zoracore.lv",
+      "registrar": "Namecheap",
+      "price": 15.0,
+      "currency": "USD",
+      "registration_url": "https://www.namecheap.com/domains/registration/results/?domain=zoracore.lv",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.lv",
+      "registrar": "GoDaddy",
+      "price": 18.0,
+      "currency": "USD",
+      "registration_url": "https://www.godaddy.com/domainsearch/find?checkAvail=1&domainToCheck=zoracore.lv",
+      "availability": true
+    }
+  ],
+  "zoracore.ee": [
+    {
+      "domain": "zoracore.ee",
+      "registrar": "Namecheap",
+      "price": 15.0,
+      "currency": "USD",
+      "registration_url": "https://www.namecheap.com/domains/registration/results/?domain=zoracore.ee",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.ee",
+      "registrar": "GoDaddy",
+      "price": 18.0,
+      "currency": "USD",
+      "registration_url": "https://www.godaddy.com/domainsearch/find?checkAvail=1&domainToCheck=zoracore.ee",
+      "availability": true
+    }
+  ],
+  "zoracore.ie": [
+    {
+      "domain": "zoracore.ie",
+      "registrar": "Namecheap",
+      "price": 15.0,
+      "currency": "USD",
+      "registration_url": "https://www.namecheap.com/domains/registration/results/?domain=zoracore.ie",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.ie",
+      "registrar": "GoDaddy",
+      "price": 18.0,
+      "currency": "USD",
+      "registration_url": "https://www.godaddy.com/domainsearch/find?checkAvail=1&domainToCheck=zoracore.ie",
+      "availability": true
+    }
+  ],
+  "zoracore.pt": [
+    {
+      "domain": "zoracore.pt",
+      "registrar": "Namecheap",
+      "price": 15.0,
+      "currency": "USD",
+      "registration_url": "https://www.namecheap.com/domains/registration/results/?domain=zoracore.pt",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.pt",
+      "registrar": "GoDaddy",
+      "price": 18.0,
+      "currency": "USD",
+      "registration_url": "https://www.godaddy.com/domainsearch/find?checkAvail=1&domainToCheck=zoracore.pt",
+      "availability": true
+    }
+  ],
+  "zoracore.gr": [
+    {
+      "domain": "zoracore.gr",
+      "registrar": "Namecheap",
+      "price": 15.0,
+      "currency": "USD",
+      "registration_url": "https://www.namecheap.com/domains/registration/results/?domain=zoracore.gr",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.gr",
+      "registrar": "GoDaddy",
+      "price": 18.0,
+      "currency": "USD",
+      "registration_url": "https://www.godaddy.com/domainsearch/find?checkAvail=1&domainToCheck=zoracore.gr",
+      "availability": true
+    }
+  ],
+  "zoracore.cy": [
+    {
+      "domain": "zoracore.cy",
+      "registrar": "Namecheap",
+      "price": 15.0,
+      "currency": "USD",
+      "registration_url": "https://www.namecheap.com/domains/registration/results/?domain=zoracore.cy",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.cy",
+      "registrar": "GoDaddy",
+      "price": 18.0,
+      "currency": "USD",
+      "registration_url": "https://www.godaddy.com/domainsearch/find?checkAvail=1&domainToCheck=zoracore.cy",
+      "availability": true
+    }
+  ],
+  "zoracore.mt": [
+    {
+      "domain": "zoracore.mt",
+      "registrar": "Namecheap",
+      "price": 15.0,
+      "currency": "USD",
+      "registration_url": "https://www.namecheap.com/domains/registration/results/?domain=zoracore.mt",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.mt",
+      "registrar": "GoDaddy",
+      "price": 18.0,
+      "currency": "USD",
+      "registration_url": "https://www.godaddy.com/domainsearch/find?checkAvail=1&domainToCheck=zoracore.mt",
+      "availability": true
+    }
+  ],
+  "zoracore.lu": [
+    {
+      "domain": "zoracore.lu",
+      "registrar": "Namecheap",
+      "price": 15.0,
+      "currency": "USD",
+      "registration_url": "https://www.namecheap.com/domains/registration/results/?domain=zoracore.lu",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.lu",
+      "registrar": "GoDaddy",
+      "price": 18.0,
+      "currency": "USD",
+      "registration_url": "https://www.godaddy.com/domainsearch/find?checkAvail=1&domainToCheck=zoracore.lu",
+      "availability": true
+    }
+  ],
+  "zoracore.com": [
+    {
+      "domain": "zoracore.com",
+      "registrar": "Porkbun",
+      "price": 7.65,
+      "currency": "USD",
+      "registration_url": "https://porkbun.com/checkout/search?q=zoracore.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.com",
+      "registrar": "Cloudflare",
+      "price": 8.03,
+      "currency": "USD",
+      "registration_url": "https://dash.cloudflare.com/sign-up/registrar",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.com",
+      "registrar": "Namecheap",
+      "price": 8.88,
+      "currency": "USD",
+      "registration_url": "https://www.namecheap.com/domains/registration/results/?domain=zoracore.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.com",
+      "registrar": "Dynadot",
+      "price": 10.0,
+      "currency": "USD",
+      "registration_url": "https://www.dynadot.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.com",
+      "registrar": "Gandi",
+      "price": 10.0,
+      "currency": "USD",
+      "registration_url": "https://www.gandi.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.com",
+      "registrar": "Hover",
+      "price": 10.0,
+      "currency": "USD",
+      "registration_url": "https://www.hover.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.com",
+      "registrar": "Name.com",
+      "price": 10.0,
+      "currency": "USD",
+      "registration_url": "https://www.namecom.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.com",
+      "registrar": "eNom",
+      "price": 10.0,
+      "currency": "USD",
+      "registration_url": "https://www.enom.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.com",
+      "registrar": "Internet.bs",
+      "price": 10.0,
+      "currency": "USD",
+      "registration_url": "https://www.internetbs.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.com",
+      "registrar": "GoDaddy",
+      "price": 11.99,
+      "currency": "USD",
+      "registration_url": "https://www.godaddy.com/domainsearch/find?checkAvail=1&domainToCheck=zoracore.com",
+      "availability": true
+    }
+  ],
+  "zoracore.net": [
+    {
+      "domain": "zoracore.net",
+      "registrar": "Porkbun",
+      "price": 10.45,
+      "currency": "USD",
+      "registration_url": "https://porkbun.com/checkout/search?q=zoracore.net",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.net",
+      "registrar": "Cloudflare",
+      "price": 11.15,
+      "currency": "USD",
+      "registration_url": "https://dash.cloudflare.com/sign-up/registrar",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.net",
+      "registrar": "Namecheap",
+      "price": 11.98,
+      "currency": "USD",
+      "registration_url": "https://www.namecheap.com/domains/registration/results/?domain=zoracore.net",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.net",
+      "registrar": "Dynadot",
+      "price": 13.0,
+      "currency": "USD",
+      "registration_url": "https://www.dynadot.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.net",
+      "registrar": "Gandi",
+      "price": 13.0,
+      "currency": "USD",
+      "registration_url": "https://www.gandi.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.net",
+      "registrar": "Hover",
+      "price": 13.0,
+      "currency": "USD",
+      "registration_url": "https://www.hover.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.net",
+      "registrar": "Name.com",
+      "price": 13.0,
+      "currency": "USD",
+      "registration_url": "https://www.namecom.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.net",
+      "registrar": "eNom",
+      "price": 13.0,
+      "currency": "USD",
+      "registration_url": "https://www.enom.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.net",
+      "registrar": "Internet.bs",
+      "price": 13.0,
+      "currency": "USD",
+      "registration_url": "https://www.internetbs.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.net",
+      "registrar": "GoDaddy",
+      "price": 14.99,
+      "currency": "USD",
+      "registration_url": "https://www.godaddy.com/domainsearch/find?checkAvail=1&domainToCheck=zoracore.net",
+      "availability": true
+    }
+  ],
+  "zoracore.org": [
+    {
+      "domain": "zoracore.org",
+      "registrar": "Porkbun",
+      "price": 11.15,
+      "currency": "USD",
+      "registration_url": "https://porkbun.com/checkout/search?q=zoracore.org",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.org",
+      "registrar": "Cloudflare",
+      "price": 12.06,
+      "currency": "USD",
+      "registration_url": "https://dash.cloudflare.com/sign-up/registrar",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.org",
+      "registrar": "Namecheap",
+      "price": 12.98,
+      "currency": "USD",
+      "registration_url": "https://www.namecheap.com/domains/registration/results/?domain=zoracore.org",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.org",
+      "registrar": "Dynadot",
+      "price": 13.5,
+      "currency": "USD",
+      "registration_url": "https://www.dynadot.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.org",
+      "registrar": "Gandi",
+      "price": 13.5,
+      "currency": "USD",
+      "registration_url": "https://www.gandi.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.org",
+      "registrar": "Hover",
+      "price": 13.5,
+      "currency": "USD",
+      "registration_url": "https://www.hover.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.org",
+      "registrar": "Name.com",
+      "price": 13.5,
+      "currency": "USD",
+      "registration_url": "https://www.namecom.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.org",
+      "registrar": "eNom",
+      "price": 13.5,
+      "currency": "USD",
+      "registration_url": "https://www.enom.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.org",
+      "registrar": "Internet.bs",
+      "price": 13.5,
+      "currency": "USD",
+      "registration_url": "https://www.internetbs.com",
+      "availability": true
+    },
+    {
+      "domain": "zoracore.org",
+      "registrar": "GoDaddy",
+      "price": 14.99,
+      "currency": "USD",
+      "registration_url": "https://www.godaddy.com/domainsearch/find?checkAvail=1&domainToCheck=zoracore.org",
+      "availability": true
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+$ORIGIN zoracore.ai.
+$TTL 300
+
+; Eternal subdomain wildcard records
+* IN A 185.199.108.153
+* IN AAAA 2606:50c0:8000::153
+* IN TXT "ZORA-ETERNAL-DOMAIN-PROTECTION"
+
+; Specific eternal subdomain records will be added dynamically
