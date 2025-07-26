@@ -34,8 +34,7 @@ class GameFlicksLicenseNegotiator:
     f"Contact initiated with {publisher} via all methods. Logging status.")
 
     def start_negotiation(self):
-        print("Starting GAMEFLICKS™ license negotiation engine...
-")
+        print("Starting GAMEFLICKS™ license negotiation engine...")
         for publisher in self.publishers:
             self.contact_publisher(publisher)
         print("\nAll publishers contacted. Status log generated.")

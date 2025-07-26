@@ -53,8 +53,7 @@ class ZoraTransparencySuite:
             "status": "EXPOSED"
         }
         self.memory_vault.append(entry)
-        print(f"[ZORA TRANSPARENCY] Exposure logged and verified by EIVOR:
-{entry}")
+        print(f"[ZORA TRANSPARENCY] Exposure logged and verified by EIVOR: {entry}")
 
     def evaluate_and_expose(self, content: str):
         if self.detect_secret(content):
