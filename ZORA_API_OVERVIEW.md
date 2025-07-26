@@ -232,6 +232,212 @@ Content-Type: application/json
 }
 ```
 
+### ZORA Ultimate Domain Registration System™ API
+
+**Base Path**: `/api/domain/registration`
+
+#### Check Domain Availability
+```http
+POST /api/domain/registration/check-availability
+Content-Type: application/json
+Authorization: Bearer YOUR_API_TOKEN
+
+{
+  "domains": ["zoracore.dk", "zoracore.se", "zoracore.no"],
+  "registrars": ["namecheap", "godaddy", "cloudflare", "porkbun"],
+  "ultimate_protection": true,
+  "registration_period_years": 1
+}
+```
+
+**Response**:
+```json
+{
+  "check_id": "zora_domain_check_1753532200",
+  "total_domains_checked": 3,
+  "available_domains": 3,
+  "unavailable_domains": 0,
+  "results": [
+    {
+      "domain": "zoracore.dk",
+      "available": true,
+      "cheapest_registrar": "Porkbun",
+      "cheapest_price_usd": 15.99,
+      "cheapest_price_dkk": 115.93,
+      "ultimate_protection_included": true,
+      "registrars": {
+        "Porkbun": {"available": true, "price_usd": 15.99, "ultimate_protection": true},
+        "Cloudflare": {"available": true, "price_usd": 17.99, "ultimate_protection": true},
+        "Namecheap": {"available": true, "price_usd": 18.99, "ultimate_protection": true}
+      }
+    }
+  ],
+  "total_cost_usd": 47.97,
+  "total_cost_dkk": 347.79,
+  "danish_report_generated": true
+}
+```
+
+#### Start Automated Registration
+```http
+POST /api/domain/registration/start-automated
+Content-Type: application/json
+Authorization: Bearer YOUR_API_TOKEN
+
+{
+  "founder_authentication": "ZORA-FOUNDER-KEY",
+  "target_domains": 34,
+  "registration_period_years": 1,
+  "ultimate_protection": true,
+  "payment_method": "ZORA_PAY",
+  "generate_danish_report": true
+}
+```
+
+**Response**:
+```json
+{
+  "registration_id": "zora_auto_reg_1753532250",
+  "status": "INITIATED",
+  "total_domains": 34,
+  "estimated_cost_usd": 387.45,
+  "estimated_cost_dkk": 2654.03,
+  "queue_created": true,
+  "payment_links_generated": true,
+  "danish_report_url": "/reports/ZORA_DOMÆNE_RAPPORT.md",
+  "ultimate_protection_features": [
+    "WHOIS Privacy Protection",
+    "Domain Transfer Lock",
+    "DNS Security (DNSSEC)",
+    "Auto-Renewal Protection"
+  ]
+}
+```
+
+#### Get Registration Progress
+```http
+GET /api/domain/registration/progress/{registration_id}
+Authorization: Bearer YOUR_API_TOKEN
+```
+
+**Response**:
+```json
+{
+  "registration_id": "zora_auto_reg_1753532250",
+  "status": "IN_PROGRESS",
+  "progress_percentage": 67.6,
+  "total_domains": 34,
+  "completed_domains": 23,
+  "failed_domains": 2,
+  "pending_domains": 9,
+  "successful_registrations": [
+    {
+      "domain": "zoracore.dk",
+      "registrar": "Porkbun",
+      "price_usd": 15.99,
+      "ultimate_protection": true,
+      "dns_configured": true
+    }
+  ],
+  "failed_registrations": [
+    {
+      "domain": "zoracore.invalid",
+      "error": "Domain not available",
+      "retry_scheduled": false
+    }
+  ]
+}
+```
+
+#### Generate Danish Domain Report
+```http
+POST /api/domain/registration/generate-danish-report
+Content-Type: application/json
+Authorization: Bearer YOUR_API_TOKEN
+
+{
+  "domains": ["zoracore.dk", "zoracore.se", "zoracore.no"],
+  "include_pricing": true,
+  "include_protection_details": true,
+  "include_payment_links": true,
+  "currency": "DKK"
+}
+```
+
+**Response**:
+```json
+{
+  "report_id": "zora_danish_report_1753532300",
+  "report_url": "/reports/ZORA_DOMÆNE_RAPPORT.md",
+  "total_domains": 34,
+  "total_cost_usd": 387.45,
+  "total_cost_dkk": 2654.03,
+  "cheapest_registrar": "Porkbun",
+  "ultimate_protection_included": true,
+  "payment_methods": ["Dankort", "MobilePay", "Visa", "Mastercard"],
+  "report_language": "Danish",
+  "generated_at": "2025-07-26T13:25:00Z"
+}
+```
+
+#### ZORA PAY Integration
+```http
+POST /api/domain/registration/zora-pay/create-payment
+Content-Type: application/json
+Authorization: Bearer YOUR_API_TOKEN
+
+{
+  "domains": ["zoracore.dk", "zoracore.se"],
+  "total_amount_usd": 31.98,
+  "total_amount_dkk": 231.86,
+  "customer_email": "mads@zoracore.ai",
+  "ultimate_protection": true,
+  "registration_period_years": 1
+}
+```
+
+**Response**:
+```json
+{
+  "payment_id": "zora_pay_domain_1753532350",
+  "payment_url": "https://zora-pay.com/domain-registration?id=zora_pay_domain_1753532350",
+  "amount_usd": 31.98,
+  "amount_dkk": 231.86,
+  "domains": ["zoracore.dk", "zoracore.se"],
+  "payment_methods": ["Dankort", "MobilePay", "Visa", "Mastercard"],
+  "ultimate_protection_included": true,
+  "expires_at": "2025-07-27T13:25:00Z"
+}
+```
+
+#### DNS Management Integration
+```http
+POST /api/domain/registration/dns/configure
+Content-Type: application/json
+Authorization: Bearer YOUR_API_TOKEN
+
+{
+  "domain": "zoracore.dk",
+  "registrar": "namecheap",
+  "dns_password": "dns_password_here",
+  "ultimate_protection": true,
+  "auto_renewal": true
+}
+```
+
+**Response**:
+```json
+{
+  "dns_config_id": "zora_dns_config_1753532400",
+  "domain": "zoracore.dk",
+  "dns_status": "CONFIGURED",
+  "nameservers": ["ns1.zoracore.ai", "ns2.zoracore.ai"],
+  "ultimate_protection": true,
+  "auto_renewal": true,
+  "monitoring_enabled": true
+}
+```
+
 ### DEVINUS Universal GitHub Command API
 
 **Base Path**: `/api/github/command`

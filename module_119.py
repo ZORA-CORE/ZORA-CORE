@@ -13,7 +13,7 @@ except ImportError:
     ZORA_CORE_DNA = {}
 
 ZORA_CORE_DNA["DOMAIN_PROTOCOL"] = {
-    "registered_with": "Namecheap",
+    "registered_with": "Multiple Registrars (Automated)",
     "owns": ["zoracore.ai", "zoracore.app"],
     "active_nameservers": ["ns1.zoracore.ai", "ns2.zoracore.ai"],
     "migration_status": "migrated_to_zora_cloud",
@@ -25,6 +25,32 @@ ZORA_CORE_DNA["DOMAIN_PROTOCOL"] = {
         "api": "api_server",
         "studio": "ZORA_STUDIO",
         "mail": "ZORA_MAIL™"
+    },
+    "automated_registration": {
+        "enabled": True,
+        "engine": "ZORA_AUTOMATED_DOMAIN_REGISTRATION™",
+        "target_domains": 34,
+        "registration_period": "1_year",
+        "ultimate_protection": True,
+        "supported_registrars": [
+            "namecheap", "godaddy", "cloudflare", "porkbun", 
+            "gandi", "dynadot", "hover", "name_com"
+        ],
+        "payment_integration": "ZORA_PAY",
+        "bulk_registration": True,
+        "price_optimization": True,
+        "availability_monitoring": True
+    },
+    "domain_expansion": {
+        "country_tlds": [
+            "dk", "se", "no", "fi", "de", "uk", "fr", "es", "it", 
+            "nl", "be", "ch", "at", "pl", "cz", "hu", "pt", "gr", 
+            "ie", "lu", "mt", "cy", "si", "sk", "ee", "lv", "lt", 
+            "ro", "bg", "hr", "is", "li", "mc", "sm", "va", "ad"
+        ],
+        "generic_tlds": ["com", "net", "org", "info", "biz"],
+        "total_target_domains": 34,
+        "registration_status": "queued_for_automated_registration"
     }
 }
 

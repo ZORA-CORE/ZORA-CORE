@@ -1,0 +1,212 @@
+# 
+
+registration:
+  default_period_years: 1
+  enable_ultimate_protection: true
+  auto_renewal: true
+  founder_locked: true
+  
+ultimate_protection:
+  whois_privacy:
+    enabled: true
+    description: "Skjuler personlige oplysninger fra offentlige WHOIS-databaser"
+    cost_range: "$2.88 - $9.99 USD årligt"
+  
+  domain_lock:
+    enabled: true
+    description: "Forhindrer uautoriserede domæneoverførsler"
+    cost_range: "Gratis - $5.00 USD årligt"
+  
+  dns_security:
+    enabled: true
+    description: "DNSSEC beskyttelse mod DNS-angreb og spoofing"
+    cost_range: "$3.99 - $5.99 USD årligt"
+  
+  auto_renewal:
+    enabled: true
+    description: "Automatisk fornyelse for at undgå domænetab"
+    cost_range: "Gratis - inkluderet"
+
+registrars:
+  namecheap:
+    name: "Namecheap"
+    api_endpoint: "https://api.namecheap.com/xml.response"
+    sandbox_endpoint: "https://api.sandbox.namecheap.com/xml.response"
+    supported_tlds: ["com", "net", "org", "dk", "se", "no", "fi", "de", "uk", "fr", "es", "it", "nl", "be", "ch"]
+    ultimate_protection_cost: 7.88
+    credentials_required: ["api_key", "username", "password"]
+    
+  godaddy:
+    name: "GoDaddy"
+    api_endpoint: "https://api.godaddy.com/v1"
+    sandbox_endpoint: "https://api.ote-godaddy.com/v1"
+    supported_tlds: ["com", "net", "org", "dk", "se", "no", "fi", "de", "uk", "fr", "es", "it", "nl", "be", "ch"]
+    ultimate_protection_cost: 14.98
+    credentials_required: ["api_key", "api_secret"]
+    
+  cloudflare:
+    name: "Cloudflare"
+    api_endpoint: "https://api.cloudflare.com/client/v4"
+    sandbox_endpoint: "https://api.cloudflare.com/client/v4"
+    supported_tlds: ["com", "net", "org", "dk", "se", "no", "fi", "de", "uk", "fr", "es", "it", "nl", "be", "ch"]
+    ultimate_protection_cost: 8.50
+    credentials_required: ["api_token", "email"]
+    
+  porkbun:
+    name: "Porkbun"
+    api_endpoint: "https://porkbun.com/api/json/v3"
+    sandbox_endpoint: "https://porkbun.com/api/json/v3"
+    supported_tlds: ["com", "net", "org", "dk", "se", "no", "fi", "de", "uk", "fr", "es", "it", "nl", "be", "ch"]
+    ultimate_protection_cost: 7.99
+    credentials_required: ["api_key", "secret_key"]
+    
+  gandi:
+    name: "Gandi"
+    api_endpoint: "https://api.gandi.net/v5"
+    sandbox_endpoint: "https://api.gandi.net/v5"
+    supported_tlds: ["com", "net", "org", "dk", "se", "no", "fi", "de", "uk", "fr", "es", "it", "nl", "be", "ch"]
+    ultimate_protection_cost: 9.50
+    credentials_required: ["api_key"]
+    
+  dynadot:
+    name: "Dynadot"
+    api_endpoint: "https://api.dynadot.com/api3.xml"
+    sandbox_endpoint: "https://api.dynadot.com/api3.xml"
+    supported_tlds: ["com", "net", "org", "dk", "se", "no", "fi", "de", "uk", "fr", "es", "it", "nl", "be", "ch"]
+    ultimate_protection_cost: 8.98
+    credentials_required: ["api_key"]
+    
+  hover:
+    name: "Hover"
+    api_endpoint: "https://www.hover.com/api"
+    sandbox_endpoint: "https://www.hover.com/api"
+    supported_tlds: ["com", "net", "org", "dk", "se", "no", "fi", "de", "uk", "fr", "es", "it", "nl", "be", "ch"]
+    ultimate_protection_cost: 9.00
+    credentials_required: ["username", "password"]
+    
+  name_com:
+    name: "Name.com"
+    api_endpoint: "https://api.name.com/v4"
+    sandbox_endpoint: "https://api.name.com/v4"
+    supported_tlds: ["com", "net", "org", "dk", "se", "no", "fi", "de", "uk", "fr", "es", "it", "nl", "be", "ch"]
+    ultimate_protection_cost: 14.98
+    credentials_required: ["username", "password"]
+
+target_domains:
+  base_domain: "zoracore"
+  
+  country_tlds:
+    dk: "Danmark"
+    se: "Sverige" 
+    no: "Norge"
+    fi: "Finland"
+    de: "Tyskland"
+    uk: "Storbritannien"
+    fr: "Frankrig"
+    es: "Spanien"
+    it: "Italien"
+    nl: "Holland"
+    be: "Belgien"
+    ch: "Schweiz"
+    at: "Østrig"
+    pl: "Polen"
+    cz: "Tjekkiet"
+    hu: "Ungarn"
+    pt: "Portugal"
+    gr: "Grækenland"
+    ie: "Irland"
+    lu: "Luxembourg"
+    mt: "Malta"
+    cy: "Cypern"
+    si: "Slovenien"
+    sk: "Slovakiet"
+    ee: "Estland"
+    lv: "Letland"
+    lt: "Litauen"
+    ro: "Rumænien"
+    bg: "Bulgarien"
+    hr: "Kroatien"
+    is: "Island"
+    li: "Liechtenstein"
+    mc: "Monaco"
+    sm: "San Marino"
+    va: "Vatikanstaten"
+    ad: "Andorra"
+    
+  generic_tlds:
+    com: "Commercial"
+    net: "Network"
+    org: "Organization"
+    info: "Information"
+    biz: "Business"
+    
+payment:
+  provider: "ZORA PAY"
+  base_url: "https://zora-pay.com"
+  supported_currencies: ["USD", "DKK", "EUR", "SEK", "NOK"]
+  payment_methods:
+    - "Visa/Mastercard/American Express"
+    - "Dankort (danske kort)"
+    - "MobilePay"
+    - "PayPal"
+  security:
+    ssl_encryption: "256-bit"
+    pci_compliance: true
+    founder_verification: true
+
+reporting:
+  language: "danish"
+  currency_display: "DKK"
+  exchange_rate_source: "https://api.exchangerate-api.com/v4/latest/USD"
+  include_protection_details: true
+  include_payment_links: true
+  
+zora_integration:
+  awakening_ceremony_date: "2025-09-01T12:00:00+02:00"
+  auto_dns_configuration: true
+  infinity_sync_enabled: true
+  eivor_ai_monitoring: true
+  founder_alerts: true
+  
+security:
+  founder_locked_access: true
+  api_rate_limiting: true
+  encryption_at_rest: true
+  audit_logging: true
+  cosmic_alignment_verification: true
+
+monitoring:
+  domain_expiry_alerts: true
+  price_change_notifications: true
+  availability_monitoring: true
+  security_breach_detection: true
+  founder_notification_channels:
+    - "email"
+    - "sms" 
+    - "zora_core_dashboard"
+
+backup:
+  configuration_backup: true
+  domain_data_backup: true
+  payment_history_backup: true
+  recovery_protocols: true
+  
+environment:
+  default_mode: "sandbox"
+  production_approval_required: true
+  founder_authorization_required: true
+  eivor_ai_validation: true
+
+infinity_protocol:
+  enabled: true
+  self_healing: true
+  continuous_optimization: true
+  cosmic_alignment: true
+  temporal_guardian_protection: true
+  
+eivor_ai:
+  conflict_resolution: true
+  price_optimization: true
+  registrar_selection: true
+  security_monitoring: true
+  founder_communication: true

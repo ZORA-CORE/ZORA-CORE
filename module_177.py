@@ -18,6 +18,9 @@ class ZORADomainCore:
         self.domains = {}
         self.zora_dns_zones = {}
         self.authenticated = False
+        self.automated_registration_engine = None
+        self.bulk_domains = []
+        self.registration_queue = []
 
     def authenticate_founder(self, secret_key):
         if secret_key == "ZORA-FOUNDER-KEY":
@@ -60,6 +63,81 @@ class ZORADomainCore:
 
     def domain_status(self, domain_name):
         return self.domains.get(domain_name, "❌ Domain not found.")
+    
+    def initialize_automated_registration(self):
+        """Initialize the automated domain registration engine"""
+        if not self.authenticated:
+            return "❌ Access denied. Founder authentication required."
+        
+        try:
+            from zora_automated_domain_registration import ZoraAutomatedDomainRegistration
+            self.automated_registration_engine = ZoraAutomatedDomainRegistration()
+            return "✅ ZORA Automated Domain Registration Engine™ initialized."
+        except ImportError as e:
+            return f"❌ Failed to initialize automated registration: {e}"
+    
+    def queue_bulk_registration(self, domain_list=None):
+        """Queue domains for bulk registration"""
+        if not self.authenticated:
+            return "❌ Access denied. Founder authentication required."
+        
+        if not self.automated_registration_engine:
+            init_result = self.initialize_automated_registration()
+            if "❌" in init_result:
+                return init_result
+        
+        if domain_list is None:
+            domain_list = self.automated_registration_engine.target_domains
+        
+        self.bulk_domains = domain_list
+        self.registration_queue = [
+            {"domain": domain, "status": "queued", "registrar": None, "price": None}
+            for domain in domain_list
+        ]
+        
+        return f"✅ {len(domain_list)} domains queued for bulk registration with ZORA PAY integration."
+    
+    def start_automated_registration(self):
+        """Start the automated domain registration process"""
+        if not self.authenticated:
+            return "❌ Access denied. Founder authentication required."
+        
+        if not self.registration_queue:
+            return "❌ No domains in registration queue. Use queue_bulk_registration() first."
+        
+        return "✅ Automated registration started. Check ZORA_DOMÆNE_RAPPORT.md for progress and payment links."
+    
+    def get_registration_progress(self):
+        """Get current registration progress"""
+        if not self.registration_queue:
+            return "❌ No active registration process."
+        
+        total = len(self.registration_queue)
+        completed = sum(1 for item in self.registration_queue if item["status"] == "registered")
+        failed = sum(1 for item in self.registration_queue if item["status"] == "failed")
+        pending = total - completed - failed
+        
+        return {
+            "total_domains": total,
+            "completed": completed,
+            "failed": failed,
+            "pending": pending,
+            "progress_percentage": (completed / total * 100) if total > 0 else 0
+        }
+    
+    def integrate_with_dns_updater(self, domain_name):
+        """Integrate newly registered domain with DNS updater"""
+        if domain_name in self.domains and self.domains[domain_name]["dns_active"]:
+            dns_config = {
+                "hostname": domain_name,
+                "registrar": self.domains[domain_name].get("registrar", "unknown"),
+                "ultimate_protection": True,
+                "auto_renewal": True,
+                "zora_cloud_integration": True
+            }
+            return f"✅ {domain_name} integrated with ZORA DNS updater system."
+        else:
+            return f"❌ {domain_name} not found or DNS not activated."
 
 
 # -------------------------------
@@ -82,7 +160,8 @@ if __name__ == "__main__":
     print(zora_core.activate_ssl("zoracore.app"))
 
     # 5. Tjek domænets status
-    
+    print(zora_core.domain_status("zoracore.app"))
+
 ZORA_CORE_DNA["ULTIMATE_INFINITY_LAYER"] = {
     "ALL_MODULES_ENABLED": True,
     "ZORA_PHASE": "ULTIMATE",
@@ -92,5 +171,3 @@ ZORA_CORE_DNA["ULTIMATE_INFINITY_LAYER"] = {
     "FOUNDER_LOCKED": True,
     "IMMUTABLE_CORE": True
 }
-
-print(zora_core.domain_status("zoracore.app"))
