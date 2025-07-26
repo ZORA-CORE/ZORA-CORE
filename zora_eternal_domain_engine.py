@@ -49,6 +49,7 @@ class ZoraEternalDomainEngine:
         
         self._initialize_legal_integration()
         self._initialize_dns_infrastructure()
+        self._initialize_legal_infinity_brand_system()
         self.logger.info("✅ ZORA Eternal Domain Engine™ initialized")
     
     def _initialize_legal_integration(self):
@@ -75,6 +76,19 @@ class ZoraEternalDomainEngine:
             self.logger.warning(f"⚠️ DNS infrastructure not yet available: {e}")
             self.dns_manager = None
             self.proxy_router = None
+    
+    def _initialize_legal_infinity_brand_system(self):
+        """Initialize LEGAL x INFINITY BRAND SYSTEM™ integration"""
+        try:
+            from zora_legal_infinity_brand_system import ZoraLegalInfinityBrandSystem
+            self.legal_infinity_system = ZoraLegalInfinityBrandSystem()
+            self.auto_ip_protection = True
+            self.logger.info("✅ LEGAL x INFINITY BRAND SYSTEM™ integration initialized")
+            self.logger.info("🛡️ Automatic IP protection enabled for all new domains")
+        except ImportError as e:
+            self.logger.warning(f"⚠️ LEGAL x INFINITY BRAND SYSTEM™ not available: {e}")
+            self.legal_infinity_system = None
+            self.auto_ip_protection = False
     
     def create_eternal_subdomain(self, full_domain: str, target_ip: str = "127.0.0.1", config: Dict = None) -> EternalDomainRecord:
         """Create eternal subdomain registration with enhanced configuration"""
@@ -113,6 +127,15 @@ class ZoraEternalDomainEngine:
         
         if self.dns_manager:
             self._configure_subdomain_dns(eternal_record)
+        
+        if self.auto_ip_protection and self.legal_infinity_system:
+            try:
+                protection_record = self.legal_infinity_system.auto_protect_new_item(
+                    full_domain, f"Eternal subdomain: {full_domain}", "eternal_subdomain"
+                )
+                self.logger.info(f"🛡️ Automatic IP protection applied to: {full_domain}")
+            except Exception as e:
+                self.logger.warning(f"⚠️ Failed to apply IP protection to {full_domain}: {e}")
         
         self.logger.info(f"✅ Eternal subdomain created: {full_domain}")
         return eternal_record
@@ -159,6 +182,15 @@ class ZoraEternalDomainEngine:
         
         if self.legal_shield:
             self.legal_shield.register_eternal_domain_ownership(domain_name, proof_data)
+        
+        if self.auto_ip_protection and self.legal_infinity_system:
+            try:
+                protection_record = self.legal_infinity_system.auto_protect_new_item(
+                    domain_name, f"Eternal direct TLD domain: {domain_name}", "direct_tld_domain"
+                )
+                self.logger.info(f"🛡️ Automatic IP protection applied to: {domain_name}")
+            except Exception as e:
+                self.logger.warning(f"⚠️ Failed to apply IP protection to {domain_name}: {e}")
         
         self.logger.info(f"✅ Eternal direct TLD domain created: {domain_name}")
         return eternal_record
@@ -212,6 +244,15 @@ class ZoraEternalDomainEngine:
                     loop.run_until_complete(self._configure_proxy_routing(eternal_record))
             except RuntimeError:
                 asyncio.run(self._configure_proxy_routing(eternal_record))
+        
+        if self.auto_ip_protection and self.legal_infinity_system:
+            try:
+                protection_record = self.legal_infinity_system.auto_protect_new_item(
+                    domain_name, f"Eternal proxy domain: {domain_name}", "proxy_domain"
+                )
+                self.logger.info(f"🛡️ Automatic IP protection applied to: {domain_name}")
+            except Exception as e:
+                self.logger.warning(f"⚠️ Failed to apply IP protection to {domain_name}: {e}")
         
         self.logger.info(f"✅ Eternal proxy domain created: {domain_name}")
         return eternal_record

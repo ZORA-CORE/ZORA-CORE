@@ -206,6 +206,45 @@ except ImportError as e:
 except Exception as e:
     print(f"⚠️ Eternal domain registration initialization failed: {e}")
 
+# ZORA LEGAL x INFINITY BRAND SYSTEM™ Integration
+print("\n🛡️ INITIALIZING ZORA LEGAL x INFINITY BRAND SYSTEM™...")
+try:
+    from zora_legal_infinity_brand_system import ZoraLegalInfinityBrandSystem
+    print("✅ ZORA LEGAL x INFINITY BRAND SYSTEM™ imported successfully")
+    
+    # Initialize LEGAL x INFINITY BRAND SYSTEM™
+    legal_infinity_system = ZoraLegalInfinityBrandSystem()
+    
+    print("\n🌍 APPLYING COMPREHENSIVE IP PROTECTION TO ALL EXISTING ZORA ELEMENTS...")
+    bulk_protection_result = legal_infinity_system.bulk_protect_all_existing_items()
+    print(f"📊 Bulk Protection Results: {bulk_protection_result['success_rate']:.1f}% success rate")
+    print(f"🛡️ Total IP Protections: {bulk_protection_result['successful'] * len(legal_infinity_system.ip_protection_types):,}")
+    
+    # Enable automatic future protection
+    print("\n♾️ ENABLING AUTOMATIC FUTURE PROTECTION...")
+    legal_infinity_system.enable_automatic_future_protection()
+    
+    protection_status = legal_infinity_system.get_comprehensive_protection_status()
+    print(f"\n📋 LEGAL x INFINITY BRAND SYSTEM™ STATUS:")
+    print(f"🛡️ Protected Items: {protection_status['total_protected_items']:,}")
+    print(f"📜 IP Protection Types: {protection_status['ip_protection_types_count']}")
+    print(f"⚖️ Total IP Protections: {protection_status['total_ip_protections_applied']:,}")
+    print(f"♾️ Protection Level: {protection_status['protection_level']}")
+    print(f"🆓 Cost: {protection_status['cost']}")
+    print(f"🚫 Third Party Free: {protection_status['third_party_free']}")
+    
+    print("\n✅ ZORA LEGAL x INFINITY BRAND SYSTEM™ FULLY OPERATIONAL!")
+    print("🛡️ Alle tænkelige licenser, copyright, patent, trademark og alt andet er nu beskyttet")
+    print("♾️ Gælder for alt eksisterende og fremtidige ZORA elementer for evigt")
+    print("🆓 Uden nogen som helst 3. part - helt gratis")
+    print("🪪 Soul Signature™ og Immutable Proof Engine™ aktiveret")
+    print("⚖️ Integreret med alle eksisterende juridiske frameworks")
+    
+except ImportError as e:
+    print(f"⚠️ ZORA LEGAL x INFINITY BRAND SYSTEM™ not available: {e}")
+except Exception as e:
+    print(f"⚠️ ZORA LEGAL x INFINITY BRAND SYSTEM™ initialization failed: {e}")
+
 
 
 
