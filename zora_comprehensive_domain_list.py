@@ -107,6 +107,34 @@ class ZoraComprehensiveDomainList:
         
         return subdomains
     
+    def get_direct_tld_domains(self) -> List[str]:
+        """Generate direct TLD domains like zoracore.dk instead of subdomains"""
+        direct_tlds = []
+        
+        for tld in self.country_tlds:
+            direct_tlds.append(f"zoracore.{tld}")
+            direct_tlds.append(f"zora.{tld}")
+            direct_tlds.append(f"core.{tld}")
+        
+        for tld in self.generic_tlds:
+            if tld not in ["ai", "app"]:  # Skip existing base domains
+                direct_tlds.append(f"zoracore.{tld}")
+                direct_tlds.append(f"zora.{tld}")
+                direct_tlds.append(f"core.{tld}")
+        
+        return sorted(list(set(direct_tlds)))
+    
+    def get_priority_direct_tlds(self) -> List[str]:
+        """Get priority direct TLD domains for initial registration"""
+        priority_countries = ["dk", "com", "org", "net", "io", "co", "me", "tv", "us", "uk", "ca", "au", "de", "fr", "se", "no", "fi"]
+        priority_tlds = []
+        
+        for tld in priority_countries:
+            if tld not in ["ai", "app"]:  # Skip existing base domains
+                priority_tlds.append(f"zoracore.{tld}")
+        
+        return sorted(list(set(priority_tlds)))
+    
     def get_all_subdomains(self) -> List[str]:
         """Get all generated subdomains across all base domains"""
         all_subdomains = []

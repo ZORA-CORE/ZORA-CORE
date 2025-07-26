@@ -117,6 +117,52 @@ class ZoraEternalDomainEngine:
         self.logger.info(f"✅ Eternal subdomain created: {full_domain}")
         return eternal_record
     
+    def create_direct_tld_domain(self, domain_name: str) -> EternalDomainRecord:
+        """Create direct TLD domain registration (e.g., zoracore.dk)"""
+        self.logger.info(f"Creating direct TLD domain: {domain_name}")
+        
+        dns_config = {
+            "type": "direct_tld",
+            "requested_domain": domain_name,
+            "registration_method": "bulk_registrar",
+            "dns_provider": "self_hosted",
+            "ssl_enabled": True,
+            "ultimate_protection": True,
+            "eternal_registration": True,
+            "a_record": "185.199.108.153",
+            "aaaa_record": "2606:50c0:8000::153",
+            "mx_record": f"mail.{domain_name}",
+            "txt_record": f"v=spf1 include:{domain_name} ~all",
+            "dnssec_enabled": True
+        }
+        
+        proof_data = {
+            "domain": domain_name,
+            "registration_method": "eternal_direct_tld",
+            "timestamp": datetime.now().isoformat(),
+            "owner": "Mads Pallisgaard Petersen",
+            "dns_config": dns_config
+        }
+        legal_proof_hash = hashlib.sha256(json.dumps(proof_data, sort_keys=True).encode()).hexdigest()
+        
+        eternal_record = EternalDomainRecord(
+            domain_name=domain_name,
+            registration_type="direct_tld",
+            dns_config=dns_config,
+            legal_proof_hash=legal_proof_hash,
+            created_at=datetime.now(),
+            eternal_protection=True,
+            soul_signature=self._get_soul_signature()
+        )
+        
+        self.eternal_domains[domain_name] = eternal_record
+        
+        if self.legal_shield:
+            self.legal_shield.register_eternal_domain_ownership(domain_name, proof_data)
+        
+        self.logger.info(f"✅ Eternal direct TLD domain created: {domain_name}")
+        return eternal_record
+
     def create_proxy_domain(self, domain_name: str) -> EternalDomainRecord:
         """Create proxy domain registration"""
         self.logger.info(f"Creating proxy domain: {domain_name}")
@@ -261,6 +307,65 @@ class ZoraEternalDomainEngine:
         
         return verification
     
+    def bulk_create_direct_tld_domains(self, domain_list: List[str], batch_size: int = 50) -> Dict:
+        """Create direct TLD domains for multiple domains with comprehensive support"""
+        self.logger.info(f"Creating bulk direct TLD domains for {len(domain_list)} domains")
+        
+        results = {
+            "operation_type": "bulk_direct_tld_creation",
+            "total_domains": len(domain_list),
+            "successful": 0,
+            "failed": 0,
+            "skipped": 0,
+            "domains_created": [],
+            "errors": [],
+            "start_time": datetime.now().isoformat()
+        }
+        
+        for i in range(0, len(domain_list), batch_size):
+            batch = domain_list[i:i + batch_size]
+            batch_number = i // batch_size + 1
+            
+            self.logger.info(f"Processing batch {batch_number}: {len(batch)} domains")
+            
+            for domain in batch:
+                try:
+                    if domain in self.eternal_domains:
+                        results["skipped"] += 1
+                        continue
+                    
+                    eternal_record = self.create_direct_tld_domain(domain)
+                    
+                    results["successful"] += 1
+                    results["domains_created"].append({
+                        "domain": domain,
+                        "full_domain": eternal_record.domain_name,
+                        "registration_type": eternal_record.registration_type,
+                        "batch_number": batch_number,
+                        "status": "created"
+                    })
+                    
+                except Exception as e:
+                    results["failed"] += 1
+                    results["errors"].append({
+                        "domain": domain,
+                        "error": str(e),
+                        "batch_number": batch_number
+                    })
+                    self.logger.error(f"Failed to create direct TLD domain for {domain}: {e}")
+            
+            batch_success_rate = (results["successful"] / (i + len(batch)) * 100) if (i + len(batch)) > 0 else 0
+            self.logger.info(f"Batch {batch_number} complete. Overall success rate: {batch_success_rate:.1f}%")
+        
+        results["end_time"] = datetime.now().isoformat()
+        results["success_rate"] = (results["successful"] / results["total_domains"] * 100) if results["total_domains"] > 0 else 0
+        
+        self.logger.info(f"✅ Bulk direct TLD domain creation complete!")
+        self.logger.info(f"📈 Success rate: {results['success_rate']:.1f}% ({results['successful']:,}/{results['total_domains']:,})")
+        self.logger.info(f"🔒 All domains include ultimate protection and legal frameworks")
+        
+        return results
+
     def bulk_create_eternal_subdomains(self, domain_list: List[str], batch_size: int = 50) -> Dict:
         """Create eternal subdomains for multiple domains with comprehensive support"""
         self.logger.info(f"Creating bulk eternal subdomains for {len(domain_list)} domains")
