@@ -123,35 +123,9 @@ class ZoraProxyTLDRouter:
             raise
     
     async def _generate_nginx_config(self, route: ProxyDomainRoute) -> Dict:
-        """Generate nginx configuration for proxy route"""
+        """Generate enhanced nginx configuration for proxy route"""
         try:
-            config = {
-                "server_name": route.requested_domain,
-                "proxy_pass": f"https://{route.target_subdomain}",
-                "ssl_certificate": f"/etc/letsencrypt/live/{route.requested_domain}/fullchain.pem",
-                "ssl_certificate_key": f"/etc/letsencrypt/live/{route.requested_domain}/privkey.pem",
-                "proxy_headers": {
-                    "Host": route.target_subdomain,
-                    "X-Real-IP": "$remote_addr",
-                    "X-Forwarded-For": "$proxy_add_x_forwarded_for",
-                    "X-Forwarded-Proto": "$scheme",
-                    "X-Forwarded-Host": route.requested_domain
-                },
-                "security_headers": {
-                    "X-Frame-Options": "DENY",
-                    "X-Content-Type-Options": "nosniff",
-                    "X-XSS-Protection": "1; mode=block",
-                    "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
-                    "Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
-                },
-                "ultimate_protection": {
-                    "rate_limiting": "10r/s",
-                    "ddos_protection": True,
-                    "geo_blocking": False,
-                    "bot_protection": True
-                }
-            }
-            
+            config = self.enhance_nginx_config_for_comprehensive_routing(route)
             return config
             
         except Exception as e:
@@ -377,44 +351,292 @@ server {{
             self.logger.error(f"❌ Route test failed for {requested_domain}: {e}")
             return {"status": "error", "message": str(e)}
     
-    async def bulk_create_routes(self, domain_list: List[str]) -> Dict:
-        """Create proxy routes for multiple domains"""
+    async def bulk_create_routes(self, domain_list: List[str], batch_size: int = 25) -> Dict:
+        """Create proxy routes for multiple domains with comprehensive support"""
         try:
             self.logger.info(f"Creating bulk proxy routes for {len(domain_list)} domains")
             
             results = {
+                "operation_type": "bulk_comprehensive_proxy_routing",
                 "total_domains": len(domain_list),
                 "successful": 0,
                 "failed": 0,
+                "skipped": 0,
                 "routes_created": [],
-                "errors": []
+                "errors": [],
+                "start_time": datetime.now().isoformat()
             }
             
-            for domain in domain_list:
-                try:
-                    route = await self.create_proxy_route(domain)
-                    results["successful"] += 1
-                    results["routes_created"].append({
-                        "domain": domain,
-                        "target": route.target_subdomain,
-                        "status": "created"
-                    })
-                except Exception as e:
-                    results["failed"] += 1
-                    results["errors"].append({
-                        "domain": domain,
-                        "error": str(e)
-                    })
+            for i in range(0, len(domain_list), batch_size):
+                batch = domain_list[i:i + batch_size]
+                batch_number = i // batch_size + 1
+                
+                self.logger.info(f"Processing proxy routing batch {batch_number}: {len(batch)} domains")
+                
+                for domain in batch:
+                    try:
+                        if domain in self.routes:
+                            results["skipped"] += 1
+                            continue
+                        
+                        route = await self.create_proxy_route(domain)
+                        results["successful"] += 1
+                        results["routes_created"].append({
+                            "domain": domain,
+                            "target": route.target_subdomain,
+                            "routing_method": route.routing_method,
+                            "ssl_enabled": route.ssl_enabled,
+                            "ultimate_protection": route.ultimate_protection,
+                            "batch_number": batch_number,
+                            "status": "created"
+                        })
+                        
+                    except Exception as e:
+                        results["failed"] += 1
+                        results["errors"].append({
+                            "domain": domain,
+                            "error": str(e),
+                            "batch_number": batch_number
+                        })
+                        self.logger.error(f"Failed to create proxy route for {domain}: {e}")
+                
+                batch_success_rate = (results["successful"] / (i + len(batch)) * 100) if (i + len(batch)) > 0 else 0
+                self.logger.info(f"Proxy routing batch {batch_number} complete. Overall success rate: {batch_success_rate:.1f}%")
             
-            self.logger.info(f"✅ Bulk route creation complete: {results['successful']}/{results['total_domains']} successful")
+            results["end_time"] = datetime.now().isoformat()
+            results["success_rate"] = (results["successful"] / results["total_domains"] * 100) if results["total_domains"] > 0 else 0
+            
+            self.logger.info(f"✅ Bulk proxy route creation complete!")
+            self.logger.info(f"📈 Success rate: {results['success_rate']:.1f}% ({results['successful']:,}/{results['total_domains']:,})")
+            self.logger.info(f"🔒 All routes include SSL and ultimate protection")
+            
             return results
             
         except Exception as e:
             self.logger.error(f"❌ Bulk route creation failed: {e}")
             return {"error": str(e)}
     
+    async def create_comprehensive_proxy_routes(self, priority_only: bool = False) -> Dict:
+        """Create comprehensive proxy routes for all conceivable domains"""
+        self.logger.info("Creating comprehensive proxy routes for all conceivable domains")
+        
+        try:
+            from zora_comprehensive_domain_list import ZoraComprehensiveDomainList
+            
+            domain_list = ZoraComprehensiveDomainList()
+            
+            if priority_only:
+                target_domains = domain_list.get_priority_domains()
+                operation_type = "priority_comprehensive_proxy"
+            else:
+                target_domains = domain_list.get_all_subdomains()
+                operation_type = "full_comprehensive_proxy"
+            
+            self.logger.info(f"Starting {operation_type} proxy routing for {len(target_domains):,} domains")
+            
+            results = await self.bulk_create_routes(target_domains)
+            results["operation_type"] = operation_type
+            results["comprehensive_coverage"] = True
+            
+            return results
+            
+        except Exception as e:
+            error_msg = f"❌ Comprehensive proxy routing failed: {e}"
+            self.logger.error(error_msg)
+            return {"error": error_msg}
+    
+    def enhance_nginx_config_for_comprehensive_routing(self, route: ProxyDomainRoute) -> Dict:
+        """Enhanced nginx configuration for comprehensive domain routing"""
+        base_config = {
+            "server_name": route.requested_domain,
+            "proxy_pass": f"https://{route.target_subdomain}",
+            "ssl_certificate": f"/etc/letsencrypt/live/{route.requested_domain}/fullchain.pem",
+            "ssl_certificate_key": f"/etc/letsencrypt/live/{route.requested_domain}/privkey.pem",
+            "proxy_headers": {
+                "Host": route.target_subdomain,
+                "X-Real-IP": "$remote_addr",
+                "X-Forwarded-For": "$proxy_add_x_forwarded_for",
+                "X-Forwarded-Proto": "$scheme",
+                "X-Forwarded-Host": route.requested_domain,
+                "X-ZORA-Eternal-Domain": "true",
+                "X-ZORA-Ultimate-Protection": "active"
+            },
+            "security_headers": {
+                "X-Frame-Options": "DENY",
+                "X-Content-Type-Options": "nosniff",
+                "X-XSS-Protection": "1; mode=block",
+                "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",
+                "Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'",
+                "Referrer-Policy": "strict-origin-when-cross-origin",
+                "Permissions-Policy": "geolocation=(), microphone=(), camera=()"
+            },
+            "ultimate_protection": {
+                "rate_limiting": "20r/s",
+                "ddos_protection": True,
+                "geo_blocking": False,
+                "bot_protection": True,
+                "fail2ban_integration": True,
+                "request_filtering": True
+            },
+            "performance_optimization": {
+                "gzip_compression": True,
+                "brotli_compression": True,
+                "http2_enabled": True,
+                "keepalive_timeout": "65s",
+                "client_max_body_size": "10M"
+            }
+        }
+        
+        domain_lower = route.requested_domain.lower()
+        
+        if any(tld in domain_lower for tld in ["dk", "no", "se", "fi"]):
+            base_config["regional_optimization"] = "nordic"
+            base_config["gdpr_compliance"] = True
+            base_config["data_residency"] = "eu"
+        
+        if "api" in domain_lower:
+            base_config["api_optimization"] = True
+            base_config["cors_enabled"] = True
+            base_config["rate_limiting"] = "100r/s"
+            base_config["json_optimization"] = True
+        
+        if "mail" in domain_lower:
+            base_config["mail_optimization"] = True
+            base_config["smtp_proxy"] = True
+            base_config["email_security"] = "enhanced"
+        
+        if "admin" in domain_lower:
+            base_config["security_enhanced"] = True
+            base_config["access_control"] = "strict"
+            base_config["monitoring_enabled"] = True
+            base_config["rate_limiting"] = "5r/s"
+        
+        if "cdn" in domain_lower or "static" in domain_lower:
+            base_config["cdn_optimization"] = True
+            base_config["cache_control"] = "max-age=31536000"
+            base_config["static_file_serving"] = True
+        
+        return base_config
+    
+    def verify_comprehensive_routing_coverage(self) -> Dict:
+        """Verify comprehensive routing coverage"""
+        try:
+            from zora_comprehensive_domain_list import ZoraComprehensiveDomainList
+            
+            domain_list = ZoraComprehensiveDomainList()
+            all_possible_domains = set(domain_list.get_all_subdomains())
+            routed_domains = set(self.routes.keys())
+            
+            coverage_stats = {
+                "total_possible_domains": len(all_possible_domains),
+                "routed_domains": len(routed_domains),
+                "coverage_percentage": (len(routed_domains) / len(all_possible_domains) * 100) if all_possible_domains else 0,
+                "missing_routes": list(all_possible_domains - routed_domains),
+                "extra_routes": list(routed_domains - all_possible_domains),
+                "priority_coverage": self._check_priority_routing_coverage(domain_list),
+                "ssl_coverage": sum(1 for r in self.routes.values() if r.ssl_enabled),
+                "ultimate_protection_coverage": sum(1 for r in self.routes.values() if r.ultimate_protection),
+                "verification_timestamp": datetime.now().isoformat()
+            }
+            
+            return coverage_stats
+            
+        except Exception as e:
+            self.logger.error(f"❌ Routing coverage verification failed: {e}")
+            return {"error": str(e)}
+    
+    def _check_priority_routing_coverage(self, domain_list) -> Dict:
+        """Check coverage of priority domain routing"""
+        try:
+            priority_domains = set(domain_list.get_priority_domains())
+            routed_priority = set(self.routes.keys()) & priority_domains
+            
+            return {
+                "total_priority_domains": len(priority_domains),
+                "routed_priority_domains": len(routed_priority),
+                "priority_coverage_percentage": (len(routed_priority) / len(priority_domains) * 100) if priority_domains else 0,
+                "missing_priority_routes": list(priority_domains - routed_priority)
+            }
+        except Exception as e:
+            return {"error": str(e)}
+    
+    async def verify_all_routes_functionality(self) -> Dict:
+        """Verify functionality of all proxy routes"""
+        self.logger.info(f"Verifying functionality of {len(self.routes)} proxy routes")
+        
+        verification_results = {
+            "total_routes": len(self.routes),
+            "healthy_routes": 0,
+            "unhealthy_routes": 0,
+            "ssl_enabled_routes": 0,
+            "ultimate_protection_routes": 0,
+            "route_details": [],
+            "verification_timestamp": datetime.now().isoformat()
+        }
+        
+        for domain, route in self.routes.items():
+            try:
+                test_result = await self.test_route(domain)
+                
+                if test_result.get("status") == "healthy":
+                    verification_results["healthy_routes"] += 1
+                else:
+                    verification_results["unhealthy_routes"] += 1
+                
+                if route.ssl_enabled:
+                    verification_results["ssl_enabled_routes"] += 1
+                
+                if route.ultimate_protection:
+                    verification_results["ultimate_protection_routes"] += 1
+                
+                verification_results["route_details"].append({
+                    "domain": domain,
+                    "target": route.target_subdomain,
+                    "status": test_result.get("status", "unknown"),
+                    "ssl_enabled": route.ssl_enabled,
+                    "ultimate_protection": route.ultimate_protection
+                })
+                
+            except Exception as e:
+                verification_results["unhealthy_routes"] += 1
+                verification_results["route_details"].append({
+                    "domain": domain,
+                    "status": "error",
+                    "error": str(e)
+                })
+        
+        verification_results["health_percentage"] = (verification_results["healthy_routes"] / verification_results["total_routes"] * 100) if verification_results["total_routes"] > 0 else 0
+        verification_results["ssl_coverage_percentage"] = (verification_results["ssl_enabled_routes"] / verification_results["total_routes"] * 100) if verification_results["total_routes"] > 0 else 0
+        verification_results["protection_coverage_percentage"] = (verification_results["ultimate_protection_routes"] / verification_results["total_routes"] * 100) if verification_results["total_routes"] > 0 else 0
+        
+        self.logger.info(f"✅ Route verification complete: {verification_results['health_percentage']:.1f}% healthy")
+        return verification_results
+    
+    def export_comprehensive_routing_registry(self, filepath: str = None) -> str:
+        """Export comprehensive routing registry"""
+        if not filepath:
+            filepath = f"/home/ubuntu/repos/ZORA-CORE/zora_comprehensive_routing_registry_{int(datetime.now().timestamp())}.json"
+        
+        registry_data = {
+            "registry_name": "ZORA Comprehensive Proxy Routing Registry™",
+            "export_timestamp": datetime.now().isoformat(),
+            "total_routes": len(self.routes),
+            "router_status": self.get_router_status(),
+            "coverage_verification": self.verify_comprehensive_routing_coverage(),
+            "proxy_routes": {}
+        }
+        
+        for domain, route in self.routes.items():
+            registry_data["proxy_routes"][domain] = route.to_dict()
+        
+        with open(filepath, 'w') as f:
+            json.dump(registry_data, f, indent=2)
+        
+        self.logger.info(f"✅ Comprehensive routing registry exported to: {filepath}")
+        return filepath
+    
     def get_router_status(self) -> Dict:
-        """Get router status and statistics"""
+        """Get comprehensive router status and statistics"""
         try:
             status = {
                 "router_name": "ZORA Proxy TLD Router™",
@@ -426,7 +648,11 @@ server {{
                 "last_updated": datetime.now().isoformat(),
                 "routing_methods": {},
                 "ssl_enabled_count": 0,
-                "ultimate_protection_count": 0
+                "ultimate_protection_count": 0,
+                "comprehensive_support": True,
+                "bulk_routing_enabled": True,
+                "enhanced_nginx_config": True,
+                "coverage_verification": True
             }
             
             for route in self.routes.values():
@@ -438,6 +664,9 @@ server {{
                 
                 if route.ultimate_protection:
                     status["ultimate_protection_count"] += 1
+            
+            status["ssl_coverage_percentage"] = (status["ssl_enabled_count"] / status["total_routes"] * 100) if status["total_routes"] > 0 else 0
+            status["protection_coverage_percentage"] = (status["ultimate_protection_count"] / status["total_routes"] * 100) if status["total_routes"] > 0 else 0
             
             return status
             

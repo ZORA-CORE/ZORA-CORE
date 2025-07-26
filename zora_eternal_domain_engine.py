@@ -76,22 +76,19 @@ class ZoraEternalDomainEngine:
             self.dns_manager = None
             self.proxy_router = None
     
-    def create_eternal_subdomain(self, full_domain: str) -> EternalDomainRecord:
-        """Create eternal subdomain registration"""
+    def create_eternal_subdomain(self, full_domain: str, target_ip: str = "127.0.0.1", config: Dict = None) -> EternalDomainRecord:
+        """Create eternal subdomain registration with enhanced configuration"""
         self.logger.info(f"Creating eternal subdomain: {full_domain}")
         
-        dns_config = {
-            "type": "subdomain",
-            "parent_domain": "zoracore.ai",
-            "full_domain": full_domain,
-            "a_record": "185.199.108.153",  # GitHub Pages IP
-            "aaaa_record": "2606:50c0:8000::153",
-            "cname_record": "zoracore.ai",
-            "mx_record": "mail.zoracore.ai",
-            "txt_record": f"v=spf1 include:zoracore.ai ~all",
-            "ssl_enabled": True,
-            "dnssec_enabled": True
-        }
+        if config is None:
+            config = {}
+        
+        dns_config = self.enhance_subdomain_dns_config(full_domain)
+        dns_config.update({
+            "target_ip": target_ip,
+            "ssl_enabled": config.get("ssl_enabled", True),
+            "ultimate_protection": config.get("ultimate_protection", True)
+        })
         
         proof_data = {
             "domain": full_domain,
@@ -161,7 +158,14 @@ class ZoraEternalDomainEngine:
         self.eternal_domains[domain_name] = eternal_record
         
         if self.proxy_router:
-            asyncio.create_task(self._configure_proxy_routing(eternal_record))
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    asyncio.create_task(self._configure_proxy_routing(eternal_record))
+                else:
+                    loop.run_until_complete(self._configure_proxy_routing(eternal_record))
+            except RuntimeError:
+                asyncio.run(self._configure_proxy_routing(eternal_record))
         
         self.logger.info(f"✅ Eternal proxy domain created: {domain_name}")
         return eternal_record
@@ -257,8 +261,197 @@ class ZoraEternalDomainEngine:
         
         return verification
     
+    def bulk_create_eternal_subdomains(self, domain_list: List[str], batch_size: int = 50) -> Dict:
+        """Create eternal subdomains for multiple domains with comprehensive support"""
+        self.logger.info(f"Creating bulk eternal subdomains for {len(domain_list)} domains")
+        
+        results = {
+            "operation_type": "bulk_eternal_subdomain_creation",
+            "total_domains": len(domain_list),
+            "successful": 0,
+            "failed": 0,
+            "skipped": 0,
+            "domains_created": [],
+            "errors": [],
+            "start_time": datetime.now().isoformat()
+        }
+        
+        for i in range(0, len(domain_list), batch_size):
+            batch = domain_list[i:i + batch_size]
+            batch_number = i // batch_size + 1
+            
+            self.logger.info(f"Processing batch {batch_number}: {len(batch)} domains")
+            
+            for domain in batch:
+                try:
+                    if domain in self.eternal_domains:
+                        results["skipped"] += 1
+                        continue
+                    
+                    eternal_record = self.create_eternal_subdomain(domain)
+                    
+                    results["successful"] += 1
+                    results["domains_created"].append({
+                        "domain": domain,
+                        "full_domain": eternal_record.domain_name,
+                        "registration_type": eternal_record.registration_type,
+                        "batch_number": batch_number,
+                        "status": "created"
+                    })
+                    
+                except Exception as e:
+                    results["failed"] += 1
+                    results["errors"].append({
+                        "domain": domain,
+                        "error": str(e),
+                        "batch_number": batch_number
+                    })
+                    self.logger.error(f"Failed to create eternal subdomain for {domain}: {e}")
+            
+            batch_success_rate = (results["successful"] / (i + len(batch)) * 100) if (i + len(batch)) > 0 else 0
+            self.logger.info(f"Batch {batch_number} complete. Overall success rate: {batch_success_rate:.1f}%")
+        
+        results["end_time"] = datetime.now().isoformat()
+        results["success_rate"] = (results["successful"] / results["total_domains"] * 100) if results["total_domains"] > 0 else 0
+        
+        self.logger.info(f"✅ Bulk eternal subdomain creation complete!")
+        self.logger.info(f"📈 Success rate: {results['success_rate']:.1f}% ({results['successful']:,}/{results['total_domains']:,})")
+        self.logger.info(f"🔒 All subdomains include ultimate protection and legal frameworks")
+        
+        return results
+    
+    def create_comprehensive_subdomains(self, priority_only: bool = False) -> Dict:
+        """Create all conceivable domains as eternal subdomains"""
+        self.logger.info("Creating comprehensive eternal subdomains for all conceivable domains")
+        
+        try:
+            from zora_comprehensive_domain_list import ZoraComprehensiveDomainList
+            
+            domain_list = ZoraComprehensiveDomainList()
+            
+            if priority_only:
+                target_domains = domain_list.get_priority_domains()
+                operation_type = "priority_comprehensive"
+            else:
+                target_domains = domain_list.get_all_subdomains()
+                operation_type = "full_comprehensive"
+            
+            self.logger.info(f"Starting {operation_type} eternal subdomain creation for {len(target_domains):,} domains")
+            
+            results = self.bulk_create_eternal_subdomains(target_domains)
+            results["operation_type"] = operation_type
+            results["comprehensive_coverage"] = True
+            
+            return results
+            
+        except Exception as e:
+            error_msg = f"❌ Comprehensive subdomain creation failed: {e}"
+            self.logger.error(error_msg)
+            return {"error": error_msg}
+    
+    def enhance_subdomain_dns_config(self, domain_name: str) -> Dict:
+        """Enhanced DNS configuration for comprehensive subdomain support"""
+        base_config = {
+            "type": "enhanced_subdomain",
+            "parent_domain": "zoracore.ai",
+            "full_domain": domain_name,
+            "a_record": "185.199.108.153",  # GitHub Pages IP
+            "aaaa_record": "2606:50c0:8000::153",
+            "cname_record": "zoracore.ai",
+            "mx_record": "mail.zoracore.ai",
+            "txt_record": f"v=spf1 include:zoracore.ai ~all",
+            "ssl_enabled": True,
+            "dnssec_enabled": True,
+            "ultimate_protection": True,
+            "eternal_registration": True
+        }
+        
+        if any(tld in domain_name for tld in ["dk", "no", "se", "fi"]):
+            base_config["regional_optimization"] = "nordic"
+            base_config["gdpr_compliance"] = True
+        
+        if "api" in domain_name:
+            base_config["api_optimization"] = True
+            base_config["cors_enabled"] = True
+            base_config["rate_limiting"] = True
+        
+        if "mail" in domain_name:
+            base_config["mail_optimization"] = True
+            base_config["dkim_enabled"] = True
+            base_config["dmarc_policy"] = "quarantine"
+        
+        if "admin" in domain_name:
+            base_config["security_enhanced"] = True
+            base_config["access_control"] = "strict"
+            base_config["monitoring_enabled"] = True
+        
+        return base_config
+    
+    def verify_comprehensive_coverage(self) -> Dict:
+        """Verify comprehensive domain coverage"""
+        try:
+            from zora_comprehensive_domain_list import ZoraComprehensiveDomainList
+            
+            domain_list = ZoraComprehensiveDomainList()
+            all_possible_domains = set(domain_list.get_all_subdomains())
+            registered_domains = set(self.eternal_domains.keys())
+            
+            coverage_stats = {
+                "total_possible_domains": len(all_possible_domains),
+                "registered_domains": len(registered_domains),
+                "coverage_percentage": (len(registered_domains) / len(all_possible_domains) * 100) if all_possible_domains else 0,
+                "missing_domains": list(all_possible_domains - registered_domains),
+                "extra_domains": list(registered_domains - all_possible_domains),
+                "priority_coverage": self._check_priority_coverage(domain_list),
+                "verification_timestamp": datetime.now().isoformat()
+            }
+            
+            return coverage_stats
+            
+        except Exception as e:
+            self.logger.error(f"❌ Coverage verification failed: {e}")
+            return {"error": str(e)}
+    
+    def _check_priority_coverage(self, domain_list) -> Dict:
+        """Check coverage of priority domains"""
+        try:
+            priority_domains = set(domain_list.get_priority_domains())
+            registered_priority = set(self.eternal_domains.keys()) & priority_domains
+            
+            return {
+                "total_priority_domains": len(priority_domains),
+                "registered_priority_domains": len(registered_priority),
+                "priority_coverage_percentage": (len(registered_priority) / len(priority_domains) * 100) if priority_domains else 0,
+                "missing_priority_domains": list(priority_domains - registered_priority)
+            }
+        except Exception as e:
+            return {"error": str(e)}
+    
+    def export_eternal_domains_registry(self, filepath: str = None) -> str:
+        """Export comprehensive eternal domains registry"""
+        if not filepath:
+            filepath = f"/home/ubuntu/repos/ZORA-CORE/zora_eternal_domains_registry_{int(datetime.now().timestamp())}.json"
+        
+        registry_data = {
+            "registry_name": "ZORA Eternal Domains Registry™",
+            "export_timestamp": datetime.now().isoformat(),
+            "total_eternal_domains": len(self.eternal_domains),
+            "engine_status": self.get_engine_status(),
+            "coverage_verification": self.verify_comprehensive_coverage(),
+            "eternal_domains": {}
+        }
+        
+        for domain_name, record in self.eternal_domains.items():
+            registry_data["eternal_domains"][domain_name] = record.to_dict()
+        
+        with open(filepath, 'w') as f:
+            json.dump(registry_data, f, indent=2)
+        
+        self.logger.info(f"✅ Eternal domains registry exported to: {filepath}")
+        return filepath
+    
     def get_engine_status(self) -> Dict:
-        """Get engine status"""
+        """Get comprehensive engine status"""
         return {
             "engine_name": "ZORA Eternal Domain Engine™",
             "status": "active",
@@ -269,6 +462,10 @@ class ZoraEternalDomainEngine:
             "proxy_router_available": bool(self.proxy_router),
             "legal_shield_available": bool(self.legal_shield),
             "base_domains": self.base_domains,
+            "comprehensive_support": True,
+            "bulk_creation_enabled": True,
+            "ultimate_protection": True,
+            "eternal_registration": True,
             "last_updated": datetime.now().isoformat()
         }
 
