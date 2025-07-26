@@ -129,6 +129,109 @@ Content-Type: application/json
 }
 ```
 
+### ZORA Ultimate GitHub/GitLab Sync Engine™ API
+
+**Base Path**: `/api/sync/github-gitlab`
+
+#### Start Ultimate Infinity Sync
+```http
+POST /api/sync/github-gitlab/start
+Content-Type: application/json
+Authorization: Bearer YOUR_API_TOKEN
+
+{
+  "github_repo": "THEZORACORE/ZORA-CORE",
+  "gitlab_repo": "zora-core/zora-core",
+  "sync_mode": "bidirectional",
+  "enable_real_time": true,
+  "eivor_conflict_resolution": true,
+  "cosmic_alignment": true
+}
+```
+
+**Response**:
+```json
+{
+  "sync_id": "zora_sync_1753532107",
+  "status": "ULTIMATE_INFINITY_ACTIVE",
+  "github_repo": "THEZORACORE/ZORA-CORE",
+  "gitlab_repo": "zora-core/zora-core",
+  "sync_mode": "bidirectional",
+  "real_time_enabled": true,
+  "eivor_ai_active": true,
+  "cosmic_alignment": 99.9,
+  "dashboard_url": "http://localhost:5001/dashboard",
+  "webhook_endpoints": {
+    "github": "/webhook/github",
+    "gitlab": "/webhook/gitlab"
+  }
+}
+```
+
+#### Get Sync Status
+```http
+GET /api/sync/github-gitlab/status/{sync_id}
+```
+
+**Response**:
+```json
+{
+  "sync_id": "zora_sync_1753532107",
+  "status": "SYNCHRONIZED",
+  "last_sync": "2025-07-26T12:15:10Z",
+  "sync_metrics": {
+    "commits_synced": 1247,
+    "issues_synced": 89,
+    "prs_synced": 34,
+    "releases_synced": 12,
+    "wiki_pages_synced": 23,
+    "conflicts_resolved": 3
+  },
+  "eivor_interventions": 3,
+  "cosmic_alignment": 99.9,
+  "self_healing_events": 0,
+  "founder_approvals": 1
+}
+```
+
+#### Webhook Endpoints
+```http
+POST /api/sync/github-gitlab/webhook/github
+POST /api/sync/github-gitlab/webhook/gitlab
+Content-Type: application/json
+
+{
+  "event_type": "push|issues|pull_request|release",
+  "repository": "repo_info",
+  "payload": "platform_specific_payload"
+}
+```
+
+#### Sync Dashboard Access
+```http
+GET /api/sync/github-gitlab/dashboard
+```
+
+Returns real-time sync dashboard with:
+- Live sync status and metrics
+- EIVOR AI conflict resolution logs
+- Cosmic alignment monitoring
+- Self-healing protocol status
+- Founder-locked security verification
+
+#### Force Sync Operation
+```http
+POST /api/sync/github-gitlab/force-sync
+Content-Type: application/json
+
+{
+  "sync_id": "zora_sync_1753532107",
+  "sync_type": "full|incremental|specific",
+  "target_components": ["commits", "issues", "prs", "releases", "wiki"],
+  "founder_authorization": "required_for_force_operations"
+}
+```
+
 ### DEVINUS Universal GitHub Command API
 
 **Base Path**: `/api/github/command`

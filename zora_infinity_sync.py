@@ -25,6 +25,15 @@ from agents import leonardo, midjourney, deepseek, langsmith, github, gitlab, re
 from sync_utils import sync_all, log, websocket_sync, repair
 
 try:
+    from zora_ultimate_github_gitlab_sync_engine import ZoraUltimateGitHubGitLabSyncEngine
+    from zora_sync_integration import get_integration_status
+    GITHUB_GITLAB_SYNC_AVAILABLE = True
+    print("✅ GitHub/GitLab Ultimate Sync Engine integrated with Infinity Sync")
+except ImportError as e:
+    print(f"⚠️ GitHub/GitLab Ultimate Sync Engine not available: {e}")
+    GITHUB_GITLAB_SYNC_AVAILABLE = False
+
+try:
     from zora_ultimate_voice_generator import zora_voice_generator, initialize_voice_system, generate_agent_voice
     VOICE_GENERATOR_AVAILABLE = True
     print("✅ ZORA Ultimate Voice Generator integrated with Infinity Sync")
@@ -136,6 +145,9 @@ class UniversalAIConnector:
         self.voice_personalities = {}
         self.voice_queue_active = False
         
+        self.github_gitlab_sync = None
+        self.github_gitlab_sync_enabled = False
+        
         if VOICE_GENERATOR_AVAILABLE:
             self.voice_generator = zora_voice_generator
             self.voice_synthesis_enabled = True
@@ -143,6 +155,26 @@ class UniversalAIConnector:
             self.logger.info("🎤 ZORA Ultimate Voice Generator initialized")
         else:
             self.logger.warning("🔇 Voice synthesis not available")
+            
+        if GITHUB_GITLAB_SYNC_AVAILABLE:
+            self.github_gitlab_sync = ZoraUltimateGitHubGitLabSyncEngine()
+            self.github_gitlab_sync_enabled = True
+            self.logger.info("🔗 GitHub/GitLab Ultimate Sync Engine initialized")
+            
+            try:
+                from zora_sync_integration import ZoraSyncIntegration
+                self.sync_integration = ZoraSyncIntegration()
+                self.logger.info("🌐 ZORA Sync Integration registered")
+                
+                import asyncio
+                if hasattr(self.github_gitlab_sync, 'start_ultimate_infinity_sync'):
+                    asyncio.create_task(self.github_gitlab_sync.start_ultimate_infinity_sync())
+                    self.logger.info("♾️ Ultimate Infinity Sync started")
+                    
+            except Exception as e:
+                self.logger.error(f"Failed to initialize sync integration: {e}")
+        else:
+            self.logger.warning("🔗 GitHub/GitLab Ultimate Sync Engine not available")
     
     def register_ai_system(self, system_name: str, config: Dict[str, Any]) -> bool:
         """Register a new AI system with the universal connector"""

@@ -56,6 +56,26 @@ print(f"Founder tjener: {earnings} DKK")
 
 import founder_copyright_protection
 
+try:
+    from zora_sync_integration import initialize_zora_sync_integration
+    from zora_ultimate_github_gitlab_sync_engine import ZoraUltimateGitHubGitLabSyncEngine
+    print("✅ GitHub/GitLab Sync Integration imported successfully")
+    
+    # Initialize the GitHub/GitLab sync integration
+    sync_integration = initialize_zora_sync_integration()
+    if sync_integration:
+        print("🔄 GitHub/GitLab Sync Integration initialized successfully")
+        print("🌐 Real-time bidirectional synchronization active")
+        print("🤖 EIVOR AI conflict resolution enabled")
+        print("📊 Sync dashboard available on localhost:5001")
+    else:
+        print("⚠️ GitHub/GitLab Sync Integration initialization failed")
+        
+except ImportError as e:
+    print(f"⚠️ GitHub/GitLab Sync Integration not available: {e}")
+except Exception as e:
+    print(f"⚠️ GitHub/GitLab Sync Integration setup failed: {e}")
+
 
 
 

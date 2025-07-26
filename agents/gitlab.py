@@ -10,7 +10,9 @@ import os
 import time
 import json
 import asyncio
+import logging
 from typing import Dict, Any, List, Optional
+from datetime import datetime
 import requests
 from .base_agent import BaseAgent
 
@@ -41,6 +43,7 @@ class GitLabAgent(BaseAgent):
         self.user_phone = "+45 22822450"
         self.user_email = "mrpallis@gmail.com"
         self.organization = "ZORA CORE"
+        self.logger = logging.getLogger("zora.agents.gitlab")
         
         if EIVOR_FAMILY_AVAILABLE:
             asyncio.create_task(self._register_with_eivor_family())
@@ -99,6 +102,319 @@ class GitLabAgent(BaseAgent):
             self.update_performance_metrics(response_time, False)
             return self.handle_error(e, "ping")
     
+    async def get_project_info(self, project_id: str) -> Optional[Dict[str, Any]]:
+        """Get project information from GitLab API"""
+        try:
+            if not self.api_key:
+                self.logger.warning("No GitLab token available for API calls")
+                return None
+            
+            url = f"{self.endpoint}/projects/{project_id.replace('/', '%2F')}"
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json"
+            }
+            
+            response = requests.get(url, headers=headers, timeout=30)
+            
+            if response.status_code == 200:
+                project_data = response.json()
+                self.logger.info(f"Successfully fetched project info: {project_id}")
+                return project_data
+            elif response.status_code == 404:
+                self.logger.warning(f"Project not found: {project_id}")
+                return None
+            else:
+                self.logger.error(f"GitLab API error for {project_id}: {response.status_code}")
+                return None
+                
+        except Exception as e:
+            self.logger.error(f"Error fetching project info for {project_id}: {e}")
+            return None
+    
+    async def get_pipeline_runs(self, project_id: str, limit: int = 10) -> Optional[Dict[str, Any]]:
+        """Get GitLab CI/CD pipeline runs for a project"""
+        try:
+            if not self.api_key:
+                self.logger.warning("No GitLab token available for pipeline API calls")
+                return None
+            
+            url = f"{self.endpoint}/projects/{project_id.replace('/', '%2F')}/pipelines"
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json"
+            }
+            params = {"per_page": limit, "order_by": "updated_at", "sort": "desc"}
+            
+            response = requests.get(url, headers=headers, params=params, timeout=30)
+            
+            if response.status_code == 200:
+                pipeline_data = response.json()
+                self.logger.info(f"Successfully fetched pipeline runs: {project_id}")
+                return {"pipelines": pipeline_data}
+            else:
+                self.logger.error(f"GitLab Pipelines API error for {project_id}: {response.status_code}")
+                return None
+                
+        except Exception as e:
+            self.logger.error(f"Error fetching pipeline runs for {project_id}: {e}")
+            return None
+    
+    async def get_project_issues(self, project_id: str, state: str = "opened") -> Optional[List[Dict[str, Any]]]:
+        """Get project issues from GitLab API"""
+        try:
+            if not self.api_key:
+                self.logger.warning("No GitLab token available for issues API calls")
+                return None
+            
+            url = f"{self.endpoint}/projects/{project_id.replace('/', '%2F')}/issues"
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json"
+            }
+            params = {"state": state, "per_page": 100}
+            
+            response = requests.get(url, headers=headers, params=params, timeout=30)
+            
+            if response.status_code == 200:
+                issues_data = response.json()
+                self.logger.info(f"Successfully fetched issues: {project_id} ({len(issues_data)} issues)")
+                return issues_data
+            else:
+                self.logger.error(f"GitLab Issues API error for {project_id}: {response.status_code}")
+                return None
+                
+        except Exception as e:
+            self.logger.error(f"Error fetching issues for {project_id}: {e}")
+            return None
+    
+    async def get_project_commits(self, project_id: str, limit: int = 10) -> Optional[List[Dict[str, Any]]]:
+        """Get recent commits for a project"""
+        try:
+            if not self.api_key:
+                self.logger.warning("No GitLab token available for commits API calls")
+                return None
+            
+            url = f"{self.endpoint}/projects/{project_id.replace('/', '%2F')}/repository/commits"
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json"
+            }
+            params = {"per_page": limit}
+            
+            response = requests.get(url, headers=headers, params=params, timeout=30)
+            
+            if response.status_code == 200:
+                commits_data = response.json()
+                self.logger.info(f"Successfully fetched commits: {project_id} ({len(commits_data)} commits)")
+                return commits_data
+            else:
+                self.logger.error(f"GitLab Commits API error for {project_id}: {response.status_code}")
+                return None
+                
+        except Exception as e:
+            self.logger.error(f"Error fetching commits for {project_id}: {e}")
+            return None
+    
+    async def get_merge_requests(self, project_id: str, state: str = "opened") -> Optional[List[Dict[str, Any]]]:
+        """Get merge requests for a project"""
+        try:
+            if not self.api_key:
+                self.logger.warning("No GitLab token available for merge requests API calls")
+                return None
+            
+            url = f"{self.endpoint}/projects/{project_id.replace('/', '%2F')}/merge_requests"
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json"
+            }
+            params = {"state": state, "per_page": 100}
+            
+            response = requests.get(url, headers=headers, params=params, timeout=30)
+            
+            if response.status_code == 200:
+                mr_data = response.json()
+                self.logger.info(f"Successfully fetched merge requests: {project_id} ({len(mr_data)} MRs)")
+                return mr_data
+            else:
+                self.logger.error(f"GitLab Merge Requests API error for {project_id}: {response.status_code}")
+                return None
+                
+        except Exception as e:
+            self.logger.error(f"Error fetching merge requests for {project_id}: {e}")
+            return None
+    
+    async def trigger_pipeline(self, project_id: str, ref: str = "main", variables: Dict[str, str] = None) -> bool:
+        """Trigger a GitLab CI/CD pipeline"""
+        try:
+            if not self.api_key:
+                self.logger.warning("No GitLab token available for pipeline trigger")
+                return False
+            
+            url = f"{self.endpoint}/projects/{project_id.replace('/', '%2F')}/pipeline"
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json"
+            }
+            data = {"ref": ref}
+            if variables:
+                data["variables"] = [{"key": k, "value": v} for k, v in variables.items()]
+            
+            response = requests.post(url, headers=headers, json=data, timeout=30)
+            
+            if response.status_code == 201:
+                self.logger.info(f"Successfully triggered pipeline: {project_id} on {ref}")
+                return True
+            else:
+                self.logger.error(f"Failed to trigger pipeline: {response.status_code}")
+                return False
+                
+        except Exception as e:
+            self.logger.error(f"Error triggering pipeline for {project_id}: {e}")
+            return False
+    
+    async def create_issue(self, project_id: str, title: str, description: str, labels: List[str] = None) -> Optional[Dict[str, Any]]:
+        """Create an issue in a GitLab project"""
+        try:
+            if not self.api_key:
+                self.logger.warning("No GitLab token available for issue creation")
+                return None
+            
+            url = f"{self.endpoint}/projects/{project_id.replace('/', '%2F')}/issues"
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json"
+            }
+            data = {
+                "title": title,
+                "description": description,
+                "labels": ",".join(labels) if labels else ""
+            }
+            
+            response = requests.post(url, headers=headers, json=data, timeout=30)
+            
+            if response.status_code == 201:
+                issue_data = response.json()
+                self.logger.info(f"Successfully created issue: {project_id}#{issue_data['iid']}")
+                return issue_data
+            else:
+                self.logger.error(f"Failed to create issue: {response.status_code}")
+                return None
+                
+        except Exception as e:
+            self.logger.error(f"Error creating issue for {project_id}: {e}")
+            return None
+    
+    async def get_project_releases(self, project_id: str, limit: int = 10) -> Optional[List[Dict[str, Any]]]:
+        """Get project releases from GitLab API"""
+        try:
+            if not self.api_key:
+                self.logger.warning("No GitLab token available for releases API calls")
+                return None
+            
+            url = f"{self.endpoint}/projects/{project_id.replace('/', '%2F')}/releases"
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json"
+            }
+            params = {"per_page": limit}
+            
+            response = requests.get(url, headers=headers, params=params, timeout=30)
+            
+            if response.status_code == 200:
+                releases_data = response.json()
+                self.logger.info(f"Successfully fetched releases: {project_id} ({len(releases_data)} releases)")
+                return releases_data
+            else:
+                self.logger.error(f"GitLab Releases API error for {project_id}: {response.status_code}")
+                return None
+                
+        except Exception as e:
+            self.logger.error(f"Error fetching releases for {project_id}: {e}")
+            return None
+    
+    async def get_project_health(self, project_id: str) -> Dict[str, Any]:
+        """Get comprehensive project health metrics"""
+        try:
+            project_info = await self.get_project_info(project_id)
+            if not project_info:
+                return {"status": "error", "message": "Failed to fetch project info"}
+            
+            pipeline_runs = await self.get_pipeline_runs(project_id, 5)
+            
+            issues = await self.get_project_issues(project_id)
+            
+            commits = await self.get_project_commits(project_id, 5)
+            
+            merge_requests = await self.get_merge_requests(project_id)
+            
+            health_score = 100.0
+            
+            if issues:
+                issue_count = len(issues)
+                health_score -= min(30, issue_count * 2)
+            
+            pipeline_status = "unknown"
+            if pipeline_runs and pipeline_runs.get("pipelines"):
+                latest_pipeline = pipeline_runs["pipelines"][0]
+                pipeline_status = latest_pipeline.get("status", "unknown")
+                if pipeline_status == "failed":
+                    health_score -= 25
+                elif pipeline_status == "canceled":
+                    health_score -= 15
+            
+            last_activity = project_info.get("last_activity_at")
+            if last_activity:
+                from datetime import datetime
+                last_activity_date = datetime.fromisoformat(last_activity.replace('Z', '+00:00'))
+                days_since_activity = (datetime.now(last_activity_date.tzinfo) - last_activity_date).days
+                if days_since_activity > 30:
+                    health_score -= min(20, days_since_activity)
+            
+            health_score = max(0.0, health_score)
+            
+            return {
+                "status": "healthy" if health_score > 70 else "warning" if health_score > 40 else "critical",
+                "health_score": health_score,
+                "project_info": {
+                    "name": project_info.get("name"),
+                    "path_with_namespace": project_info.get("path_with_namespace"),
+                    "visibility": project_info.get("visibility"),
+                    "stars": project_info.get("star_count", 0),
+                    "forks": project_info.get("forks_count", 0),
+                    "open_issues": project_info.get("open_issues_count", 0),
+                    "last_activity": last_activity,
+                    "default_branch": project_info.get("default_branch")
+                },
+                "pipeline_status": pipeline_status,
+                "recent_activity": {
+                    "commits_count": len(commits) if commits else 0,
+                    "issues_count": len(issues) if issues else 0,
+                    "merge_requests_count": len(merge_requests) if merge_requests else 0
+                },
+                "timestamp": datetime.utcnow().isoformat()
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error getting project health for {project_id}: {e}")
+            return {"status": "error", "message": str(e)}
+    
+    def get_monitoring_capabilities(self) -> Dict[str, Any]:
+        """Get GitLab monitoring capabilities"""
+        return {
+            "project_monitoring": True,
+            "pipeline_monitoring": True,
+            "issue_tracking": True,
+            "merge_request_tracking": True,
+            "commit_tracking": True,
+            "release_tracking": True,
+            "health_scoring": True,
+            "auto_issue_creation": True,
+            "pipeline_triggering": True,
+            "api_rate_limit": "2000/minute" if self.api_key else "300/hour",
+            "authenticated": bool(self.api_key)
+        }
+
     async def process_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
         """Process strategic request from ZORA INFINITY ENGINE™ with GitLab capabilities"""
         start_time = time.time()
@@ -116,6 +432,17 @@ class GitLabAgent(BaseAgent):
             task_type = request.get("task_type", "devops")
             context = request.get("context", {})
             
+            if task_type == "project_health":
+                project_id = context.get("project", "THEZORACORE/ZORA-CORE")
+                health_data = await self.get_project_health(project_id)
+                content = f"GitLab project health analysis complete for {project_id}"
+            elif task_type == "pipeline_monitoring":
+                project_id = context.get("project", "THEZORACORE/ZORA-CORE")
+                pipeline_data = await self.get_pipeline_runs(project_id)
+                content = f"GitLab pipeline monitoring complete for {project_id}"
+            else:
+                content = f"GitLab DevOps processing: {task_type} - Advanced project management and CI/CD automation complete"
+            
             response_time = time.time() - start_time
             
             result = {
@@ -123,7 +450,7 @@ class GitLabAgent(BaseAgent):
                 "task_type": task_type,
                 "status": "completed",
                 "response": {
-                    "content": f"GitLab DevOps processing: {task_type} - Advanced project management and CI/CD automation complete",
+                    "content": content,
                     "role": "assistant"
                 },
                 "model": self.model,

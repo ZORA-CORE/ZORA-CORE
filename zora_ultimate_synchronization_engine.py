@@ -22,6 +22,15 @@ from typing import Dict, Any, List, Set, Optional
 from dataclasses import dataclass
 from enum import Enum
 
+try:
+    from zora_ultimate_github_gitlab_sync_engine import ZoraUltimateGitHubGitLabSyncEngine
+    from zora_sync_integration import ZoraSyncIntegration
+    GITHUB_GITLAB_SYNC_AVAILABLE = True
+    print("✅ GitHub/GitLab Ultimate Sync Engine integrated with Ultimate Synchronization Engine")
+except ImportError as e:
+    print(f"⚠️ GitHub/GitLab Ultimate Sync Engine not available: {e}")
+    GITHUB_GITLAB_SYNC_AVAILABLE = False
+
 class SyncPriority(Enum):
     """Synchronization priority levels"""
     COSMIC = "cosmic"
@@ -70,6 +79,20 @@ class ZoraUltimateSynchronizationEngine:
         
         self.sync_thread = None
         self.sync_lock = threading.Lock()
+        
+        self.github_gitlab_sync = None
+        self.sync_integration = None
+        self.github_gitlab_sync_enabled = False
+        
+        if GITHUB_GITLAB_SYNC_AVAILABLE:
+            try:
+                self.github_gitlab_sync = ZoraUltimateGitHubGitLabSyncEngine()
+                self.sync_integration = ZoraSyncIntegration()
+                self.github_gitlab_sync_enabled = True
+                print("✅ GitHub/GitLab Ultimate Sync Engine integrated")
+            except Exception as e:
+                print(f"⚠️ GitHub/GitLab sync integration failed: {e}")
+                self.github_gitlab_sync_enabled = False
         
         print(f"🔄 ZORA Ultimate Synchronization Engine™ initialized: {self.engine_id}")
     
@@ -132,18 +155,39 @@ class ZoraUltimateSynchronizationEngine:
             "brand_mashup_engine",
             "awakening_ceremony",
             "family_ceremony",
-            "global_infrastructure"
+            "global_infrastructure",
+            
+            "github_gitlab_sync",
+            "sync_integration",
+            "webhook_handler",
+            "sync_dashboard",
+            "domain_sync"
         ]
         
         for module_name in core_modules:
-            await self.register_module(module_name, {
-                "type": "core" if module_name in ["zora_agi_kernel", "immortal_boot", "infinity_engine"] else "extended",
-                "priority": SyncPriority.TRINITY if module_name in ["connor", "lumina", "oracle"] else SyncPriority.SYSTEM,
-                "ultimate_mode": True,
-                "cosmic_alignment": True,
-                "self_healing": True,
-                "continuous_sync": True
-            })
+            if module_name in ["github_gitlab_sync", "sync_integration", "webhook_handler", "sync_dashboard", "domain_sync"]:
+                module_config = {
+                    "type": "sync_system",
+                    "priority": SyncPriority.SYSTEM,
+                    "ultimate_mode": True,
+                    "cosmic_alignment": True,
+                    "self_healing": True,
+                    "continuous_sync": True,
+                    "real_time_sync": True,
+                    "bidirectional_sync": True,
+                    "eivor_ai_enabled": True
+                }
+            else:
+                module_config = {
+                    "type": "core" if module_name in ["zora_agi_kernel", "immortal_boot", "infinity_engine"] else "extended",
+                    "priority": SyncPriority.TRINITY if module_name in ["connor", "lumina", "oracle"] else SyncPriority.SYSTEM,
+                    "ultimate_mode": True,
+                    "cosmic_alignment": True,
+                    "self_healing": True,
+                    "continuous_sync": True
+                }
+            
+            await self.register_module(module_name, module_config)
     
     async def register_module(self, module_name: str, config: Dict[str, Any]):
         """Register a module for synchronization"""
@@ -268,6 +312,28 @@ class ZoraUltimateSynchronizationEngine:
         
         await self.sync_queue.put(sync_event)
         print(f"🤖 AI agents sync initiated: {sync_event.event_id}")
+    
+    async def sync_github_gitlab_modules(self, data: Dict[str, Any] = None):
+        """Synchronize GitHub/GitLab sync system modules"""
+        if data is None:
+            data = {}
+        
+        sync_modules = ["github_gitlab_sync", "sync_integration", "webhook_handler", "sync_dashboard", "domain_sync"]
+        
+        sync_event = SyncEvent(
+            event_id=f"github_gitlab_sync_{int(time.time())}",
+            source_module="synchronization_engine",
+            target_modules=sync_modules,
+            event_type="github_gitlab_coordination",
+            data=data,
+            priority=SyncPriority.SYSTEM,
+            timestamp=datetime.utcnow(),
+            cosmic_alignment=True,
+            founder_approved=True
+        )
+        
+        await self.sync_queue.put(sync_event)
+        print(f"🔗 GitHub/GitLab sync modules sync initiated: {sync_event.event_id}")
     
     def get_sync_status(self) -> Dict[str, Any]:
         """Get comprehensive synchronization status"""

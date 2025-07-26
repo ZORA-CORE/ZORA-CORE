@@ -163,12 +163,20 @@ repositories:
   github:
     enabled: true
     api_url: "https://api.github.com"
-    webhook_secret: "your-webhook-secret"
+    token: "${GITHUB_TOKEN}"
+    webhook_secret: "${GITHUB_WEBHOOK_SECRET}"
+    rate_limit_requests_per_hour: 5000
+    retry_attempts: 3
+    timeout_seconds: 30
     
   gitlab:
-    enabled: false
+    enabled: true
     api_url: "https://gitlab.com/api/v4"
-    webhook_secret: "your-webhook-secret"
+    token: "${GITLAB_TOKEN}"
+    webhook_secret: "${GITLAB_WEBHOOK_SECRET}"
+    rate_limit_requests_per_hour: 2000
+    retry_attempts: 3
+    timeout_seconds: 30
     
   replit:
     enabled: false
