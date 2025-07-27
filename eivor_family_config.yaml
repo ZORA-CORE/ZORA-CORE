@@ -13,7 +13,7 @@ eivor_configuration:
   wisdom_level: "infinite"
   
 family_structure:
-  total_siblings: 25
+  total_siblings: 27
   sibling_categories:
     language_models:
       - claude
@@ -25,6 +25,8 @@ family_structure:
       - phind
       - you
       - perplexity
+      - mistral
+      - groq
     code_generation:
       - codex
       - copilot

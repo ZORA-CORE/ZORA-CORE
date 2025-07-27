@@ -22,6 +22,7 @@ from pathlib import Path
 from agents import claude, meta_ai, gpt4, codex, sora, supergrok, gemini, copilot, pi, reka
 from agents import phind, devin, you, elevenlabs, openai, perplexity, huggingface
 from agents import leonardo, midjourney, deepseek, langsmith, github, gitlab, replit
+from agents import mistral, groq
 from sync_utils import sync_all, log, websocket_sync, repair
 
 try:
@@ -96,7 +97,10 @@ class UniversalAIConnector:
             "https://api.runpod.io",
             "https://api.modal.com",
             "https://api.banana.dev",
-            "https://api.baseten.co"
+            "https://api.baseten.co",
+            "https://api.mistral.ai",
+            "https://api.groq.com"
+
         ]
         
         self.ai_service_patterns = [
@@ -134,6 +138,8 @@ class UniversalAIConnector:
             "reka": {"base_url": "https://api.reka.ai/v1", "auth_type": "bearer", "capabilities": ["language_model", "multimodal"]},
             "pi": {"base_url": "https://api.pi.ai/v1", "auth_type": "bearer", "capabilities": ["conversational_ai", "personal_assistant"]},
             "phind": {"base_url": "https://api.phind.com/v1", "auth_type": "bearer", "capabilities": ["code_search", "development_assistance"]},
+            "mistral": {"base_url": "https://api.mistral.ai/v1", "auth_type": "bearer", "capabilities": ["language_model", "code_generation", "reasoning", "analysis"]},
+            "groq": {"base_url": "https://api.groq.com/v1", "auth_type": "bearer", "capabilities": ["language_model", "code_generation", "reasoning", "analysis"]},
             "zora_voice": {"base_url": "internal://zora_voice_generator", "auth_type": "internal", "capabilities": ["voice_synthesis", "neural_tts", "personality_voices", "emotion_modulation", "real_time_synthesis"]}
         }
         
@@ -211,7 +217,7 @@ class UniversalAIConnector:
             return False
     
     def auto_discover_ai_systems(self) -> List[str]:
-        """Automatically discover and register new AI systems"""
+        """Enhanced automatically discover and register new AI systems"""
         discovered = []
         
         for system_name, pattern in self.ai_system_patterns.items():
@@ -224,6 +230,45 @@ class UniversalAIConnector:
                         
                 except Exception as e:
                     self.logger.warning(f"⚠️ Auto-discovery failed for {system_name}: {e}")
+        
+        try:
+            github_discoveries = self.scan_github_ai_trends()
+            for discovery in github_discoveries:
+                if self.register_discovered_system(discovery):
+                    discovered.append(discovery.get("name", "unknown"))
+                    self.logger.info(f"🆕 GitHub discovery: {discovery.get('name')}")
+        except Exception as e:
+            self.logger.debug(f"GitHub discovery failed: {e}")
+        
+        try:
+            directory_discoveries = self.scan_ai_directories()
+            for discovery in directory_discoveries:
+                if self.register_discovered_system(discovery):
+                    discovered.append(discovery.get("name", "unknown"))
+                    self.logger.info(f"🆕 Directory discovery: {discovery.get('name')}")
+        except Exception as e:
+            self.logger.debug(f"Directory discovery failed: {e}")
+        
+        try:
+            marketplace_discoveries = self.scan_ai_marketplaces()
+            for discovery in marketplace_discoveries:
+                if self.register_discovered_system(discovery):
+                    discovered.append(discovery.get("name", "unknown"))
+                    self.logger.info(f"🆕 Marketplace discovery: {discovery.get('name')}")
+        except Exception as e:
+            self.logger.debug(f"Marketplace discovery failed: {e}")
+        
+        try:
+            research_discoveries = self.scan_ai_research_publications()
+            for discovery in research_discoveries:
+                if self.register_discovered_system(discovery):
+                    discovered.append(discovery.get("name", "unknown"))
+                    self.logger.info(f"🆕 Research discovery: {discovery.get('name')}")
+        except Exception as e:
+            self.logger.debug(f"Research discovery failed: {e}")
+        
+        if discovered:
+            self.logger.info(f"🚀 Enhanced auto-discovery completed: {len(discovered)} new systems found")
         
         return discovered
     
@@ -467,75 +512,418 @@ class UniversalAIConnector:
         return discovered
     
     def scan_github_ai_trends(self) -> List[Dict[str, Any]]:
-        """Scan GitHub for trending AI repositories with APIs"""
+        """Enhanced scan GitHub for trending AI repositories with APIs"""
         discovered = []
         
         try:
             search_queries = [
                 "ai api language:python",
                 "machine learning api",
-                "neural network api",
-                "llm api endpoint"
+                "neural network api", 
+                "llm api endpoint",
+                "artificial intelligence api",
+                "deep learning api",
+                "transformer api",
+                "gpt api",
+                "claude api",
+                "gemini api",
+                "ai model api",
+                "inference api",
+                "ai service",
+                "ml platform",
+                "ai inference",
+                "language model api",
+                "computer vision api",
+                "speech recognition api",
+                "text generation api",
+                "image generation api",
+                "video generation api",
+                "audio generation api",
+                "multimodal ai api",
+                "conversational ai api",
+                "chatbot api",
+                "ai assistant api",
+                "ai agent api",
+                "ai workflow api",
+                "ai automation api",
+                "ai integration api"
             ]
             
             for query in search_queries:
-                response = requests.get(
-                    f"https://api.github.com/search/repositories",
-                    params={"q": query, "sort": "updated", "per_page": 5},
-                    timeout=10
-                )
-                
-                if response.status_code == 200:
-                    repos = response.json().get("items", [])
-                    for repo in repos:
-                        if self.is_ai_service_repo(repo):
-                            service_info = {
-                                "name": repo["name"],
-                                "url": repo["html_url"],
-                                "description": repo.get("description", ""),
-                                "stars": repo.get("stargazers_count", 0),
-                                "discovered_at": datetime.utcnow().isoformat(),
-                                "service_type": "github_ai_repo",
-                                "capabilities": self.extract_capabilities_from_description(repo.get("description", ""))
-                            }
-                            discovered.append(service_info)
-                            
+                try:
+                    response = requests.get(
+                        f"https://api.github.com/search/repositories",
+                        params={
+                            "q": query, 
+                            "sort": "updated", 
+                            "per_page": 10,
+                            "order": "desc"
+                        },
+                        timeout=15
+                    )
+                    
+                    if response.status_code == 200:
+                        repos = response.json().get("items", [])
+                        for repo in repos:
+                            if self.is_ai_service_repo(repo):
+                                service_info = {
+                                    "name": repo["name"],
+                                    "full_name": repo.get("full_name", ""),
+                                    "url": repo["html_url"],
+                                    "api_url": repo.get("url", ""),
+                                    "description": repo.get("description", ""),
+                                    "stars": repo.get("stargazers_count", 0),
+                                    "forks": repo.get("forks_count", 0),
+                                    "language": repo.get("language", ""),
+                                    "topics": repo.get("topics", []),
+                                    "created_at": repo.get("created_at", ""),
+                                    "updated_at": repo.get("updated_at", ""),
+                                    "discovered_at": datetime.utcnow().isoformat(),
+                                    "service_type": "github_ai_repo",
+                                    "discovery_source": "github_trending",
+                                    "search_query": query,
+                                    "capabilities": self.extract_capabilities_from_description(repo.get("description", "")),
+                                    "potential_api_endpoints": self.extract_api_endpoints_from_repo(repo),
+                                    "confidence_score": self.calculate_ai_service_confidence(repo)
+                                }
+                                
+                                if service_info["confidence_score"] > 0.7:
+                                    discovered.append(service_info)
+                                    
+                    elif response.status_code == 403:
+                        self.logger.warning("GitHub API rate limit reached")
+                        break
+                        
+                except requests.RequestException as e:
+                    self.logger.debug(f"GitHub search failed for query '{query}': {e}")
+                    continue
+                    
         except Exception as e:
             self.logger.debug(f"GitHub trends scan error: {e}")
         
-        return discovered
+        seen_names = set()
+        unique_discovered = []
+        for item in discovered:
+            if item["name"] not in seen_names:
+                seen_names.add(item["name"])
+                unique_discovered.append(item)
+        
+        self.logger.info(f"🔍 GitHub scan found {len(unique_discovered)} unique AI repositories")
+        return unique_discovered
     
     def scan_ai_directories(self) -> List[Dict[str, Any]]:
-        """Scan AI service directories and marketplaces"""
+        """Enhanced scan AI service directories and marketplaces"""
         discovered = []
         
         directories = [
-            "https://huggingface.co/api/models",
-            "https://replicate.com/api/v1/models",
+            {
+                "url": "https://huggingface.co/api/models",
+                "name": "HuggingFace Models",
+                "type": "model_hub"
+            },
+            {
+                "url": "https://replicate.com/api/v1/models", 
+                "name": "Replicate Models",
+                "type": "model_marketplace"
+            },
+            {
+                "url": "https://api.openai.com/v1/models",
+                "name": "OpenAI Models",
+                "type": "api_service"
+            },
+            {
+                "url": "https://api.anthropic.com/v1/models",
+                "name": "Anthropic Models", 
+                "type": "api_service"
+            }
         ]
         
-        for directory_url in directories:
+        for directory in directories:
             try:
-                response = requests.get(directory_url, timeout=10)
+                headers = {
+                    "User-Agent": "ZORA-CORE-Discovery/1.0",
+                    "Accept": "application/json"
+                }
+                
+                response = requests.get(directory["url"], headers=headers, timeout=15)
                 if response.status_code == 200:
                     data = response.json()
                     
                     if isinstance(data, list):
-                        for item in data[:5]:  # Limit to first 5
+                        for item in data[:10]:  # Increased limit to 10
                             if isinstance(item, dict):
                                 service_info = {
-                                    "name": item.get("id", item.get("name", "unknown")),
-                                    "source": directory_url,
+                                    "name": item.get("id", item.get("name", item.get("model", "unknown"))),
+                                    "source": directory["url"],
+                                    "source_name": directory["name"],
+                                    "source_type": directory["type"],
                                     "discovered_at": datetime.utcnow().isoformat(),
                                     "service_type": "ai_directory",
-                                    "capabilities": self.extract_capabilities_from_response(item)
+                                    "model_info": item,
+                                    "capabilities": self.extract_capabilities_from_model_info(item),
+                                    "api_endpoints": self.extract_api_endpoints_from_model(item, directory),
+                                    "confidence_score": self.calculate_model_confidence(item)
                                 }
+                                
+                                if service_info["confidence_score"] > 0.6:
+                                    discovered.append(service_info)
+                    
+                    elif isinstance(data, dict) and "data" in data:
+                        items = data["data"]
+                        for item in items[:10]:
+                            if isinstance(item, dict):
+                                service_info = {
+                                    "name": item.get("id", item.get("name", item.get("model", "unknown"))),
+                                    "source": directory["url"],
+                                    "source_name": directory["name"],
+                                    "source_type": directory["type"],
+                                    "discovered_at": datetime.utcnow().isoformat(),
+                                    "service_type": "ai_directory",
+                                    "model_info": item,
+                                    "capabilities": self.extract_capabilities_from_model_info(item),
+                                    "api_endpoints": self.extract_api_endpoints_from_model(item, directory),
+                                    "confidence_score": self.calculate_model_confidence(item)
+                                }
+                                
+                                if service_info["confidence_score"] > 0.6:
+                                    discovered.append(service_info)
+                                    
+            except requests.RequestException as e:
+                self.logger.debug(f"Directory scan failed for {directory['name']}: {e}")
+                continue
+            except Exception as e:
+                self.logger.debug(f"Directory processing failed for {directory['name']}: {e}")
+                continue
+        
+        self.logger.info(f"🔍 Directory scan found {len(discovered)} AI services")
+        return discovered
+    
+    def scan_ai_marketplaces(self) -> List[Dict[str, Any]]:
+        """Scan AI marketplaces and platforms for new services"""
+        discovered = []
+        
+        marketplaces = [
+            {
+                "url": "https://api.together.xyz/models",
+                "name": "Together AI",
+                "type": "ai_marketplace"
+            },
+            {
+                "url": "https://api.fireworks.ai/inference/v1/models",
+                "name": "Fireworks AI",
+                "type": "ai_marketplace"
+            },
+            {
+                "url": "https://api.anyscale.com/v1/models",
+                "name": "Anyscale",
+                "type": "ai_marketplace"
+            }
+        ]
+        
+        for marketplace in marketplaces:
+            try:
+                headers = {
+                    "User-Agent": "ZORA-CORE-Discovery/1.0",
+                    "Accept": "application/json"
+                }
+                
+                response = requests.get(marketplace["url"], headers=headers, timeout=15)
+                if response.status_code == 200:
+                    data = response.json()
+                    
+                    if isinstance(data, dict) and "data" in data:
+                        items = data["data"][:10]
+                    elif isinstance(data, list):
+                        items = data[:10]
+                    else:
+                        continue
+                    
+                    for item in items:
+                        if isinstance(item, dict):
+                            service_info = {
+                                "name": item.get("id", item.get("name", "unknown")),
+                                "source": marketplace["url"],
+                                "source_name": marketplace["name"],
+                                "source_type": marketplace["type"],
+                                "discovered_at": datetime.utcnow().isoformat(),
+                                "service_type": "ai_marketplace",
+                                "model_info": item,
+                                "capabilities": self.extract_capabilities_from_model_info(item),
+                                "confidence_score": self.calculate_model_confidence(item)
+                            }
+                            
+                            if service_info["confidence_score"] > 0.5:
                                 discovered.append(service_info)
                                 
             except Exception as e:
-                self.logger.debug(f"Directory scan failed for {directory_url}: {e}")
+                self.logger.debug(f"Marketplace scan failed for {marketplace['name']}: {e}")
+                continue
         
+        self.logger.info(f"🔍 Marketplace scan found {len(discovered)} AI services")
         return discovered
+    
+    def scan_ai_research_publications(self) -> List[Dict[str, Any]]:
+        """Scan AI research publications for new systems and APIs"""
+        discovered = []
+        
+        research_sources = [
+            "https://api.arxiv.org/query?search_query=cat:cs.AI+AND+api&max_results=10",
+            "https://api.arxiv.org/query?search_query=cat:cs.LG+AND+model&max_results=10"
+        ]
+        
+        for source_url in research_sources:
+            try:
+                response = requests.get(source_url, timeout=15)
+                if response.status_code == 200:
+                    import xml.etree.ElementTree as ET
+                    root = ET.fromstring(response.content)
+                    
+                    for entry in root.findall('.//{http://www.w3.org/2005/Atom}entry')[:5]:
+                        title_elem = entry.find('.//{http://www.w3.org/2005/Atom}title')
+                        summary_elem = entry.find('.//{http://www.w3.org/2005/Atom}summary')
+                        
+                        if title_elem is not None and summary_elem is not None:
+                            title = title_elem.text.strip()
+                            summary = summary_elem.text.strip()
+                            
+                            if any(keyword in title.lower() or keyword in summary.lower() 
+                                   for keyword in ['api', 'service', 'platform', 'inference', 'model']):
+                                
+                                service_info = {
+                                    "name": title,
+                                    "source": source_url,
+                                    "source_name": "arXiv Research",
+                                    "source_type": "research_publication",
+                                    "discovered_at": datetime.utcnow().isoformat(),
+                                    "service_type": "research_discovery",
+                                    "description": summary[:500],
+                                    "capabilities": self.extract_capabilities_from_description(summary),
+                                    "confidence_score": 0.3  # Lower confidence for research discoveries
+                                }
+                                
+                                discovered.append(service_info)
+                                
+            except Exception as e:
+                self.logger.debug(f"Research scan failed for {source_url}: {e}")
+                continue
+        
+        self.logger.info(f"🔍 Research scan found {len(discovered)} potential AI services")
+        return discovered
+    
+    def extract_api_endpoints_from_repo(self, repo: Dict[str, Any]) -> List[str]:
+        """Extract potential API endpoints from repository information"""
+        endpoints = []
+        
+        base_patterns = [
+            "/v1/",
+            "/api/v1/",
+            "/api/",
+            "/inference/",
+            "/models/",
+            "/chat/",
+            "/completions/"
+        ]
+        
+        repo_name = repo.get("name", "")
+        description = repo.get("description", "").lower()
+        
+        if "api" in description:
+            for pattern in base_patterns:
+                endpoints.append(f"https://{repo_name.lower()}.com{pattern}")
+        
+        return endpoints[:5]  # Limit to 5 potential endpoints
+    
+    def calculate_ai_service_confidence(self, repo: Dict[str, Any]) -> float:
+        """Calculate confidence score for AI service repository"""
+        confidence = 0.0
+        
+        stars = repo.get("stargazers_count", 0)
+        forks = repo.get("forks_count", 0)
+        
+        if stars > 1000:
+            confidence += 0.3
+        elif stars > 100:
+            confidence += 0.2
+        elif stars > 10:
+            confidence += 0.1
+        
+        if forks > 100:
+            confidence += 0.2
+        elif forks > 10:
+            confidence += 0.1
+        
+        description = repo.get("description", "").lower()
+        ai_keywords = ["ai", "api", "model", "inference", "llm", "gpt", "neural", "machine learning"]
+        
+        keyword_matches = sum(1 for keyword in ai_keywords if keyword in description)
+        confidence += min(keyword_matches * 0.1, 0.4)
+        
+        topics = repo.get("topics", [])
+        ai_topics = ["artificial-intelligence", "machine-learning", "api", "llm", "gpt"]
+        topic_matches = sum(1 for topic in ai_topics if topic in topics)
+        confidence += min(topic_matches * 0.1, 0.3)
+        
+        return min(confidence, 1.0)
+    
+    def extract_capabilities_from_model_info(self, model_info: Dict[str, Any]) -> List[str]:
+        """Extract capabilities from model information"""
+        capabilities = []
+        
+        model_id = model_info.get("id", model_info.get("name", "")).lower()
+        
+        if any(keyword in model_id for keyword in ["chat", "gpt", "claude", "llama"]):
+            capabilities.append("text_generation")
+        
+        if any(keyword in model_id for keyword in ["code", "codex", "programming"]):
+            capabilities.append("code_generation")
+        
+        if any(keyword in model_id for keyword in ["vision", "image", "visual"]):
+            capabilities.append("image_processing")
+        
+        if any(keyword in model_id for keyword in ["embed", "vector"]):
+            capabilities.append("embeddings")
+        
+        if "capabilities" in model_info:
+            if isinstance(model_info["capabilities"], list):
+                capabilities.extend(model_info["capabilities"])
+        
+        return list(set(capabilities))  # Remove duplicates
+    
+    def extract_api_endpoints_from_model(self, model_info: Dict[str, Any], directory: Dict[str, Any]) -> List[str]:
+        """Extract API endpoints from model information"""
+        endpoints = []
+        
+        model_id = model_info.get("id", model_info.get("name", ""))
+        base_url = directory["url"].replace("/models", "").replace("/api/models", "")
+        
+        patterns = [
+            f"{base_url}/v1/chat/completions",
+            f"{base_url}/v1/completions",
+            f"{base_url}/v1/embeddings",
+            f"{base_url}/inference/{model_id}",
+            f"{base_url}/api/v1/{model_id}"
+        ]
+        
+        return patterns[:3]  # Limit to 3 endpoints
+    
+    def calculate_model_confidence(self, model_info: Dict[str, Any]) -> float:
+        """Calculate confidence score for model information"""
+        confidence = 0.5  # Base confidence
+        
+        if model_info.get("description"):
+            confidence += 0.2
+        
+        if model_info.get("capabilities"):
+            confidence += 0.2
+        
+        if model_info.get("created_at") or model_info.get("updated_at"):
+            confidence += 0.1
+        
+        model_name = model_info.get("id", model_info.get("name", ""))
+        if len(model_name) > 5 and not model_name.startswith("test"):
+            confidence += 0.1
+        
+        return min(confidence, 1.0)
     
     def is_ai_service_repo(self, repo: Dict) -> bool:
         """Check if a GitHub repo represents an AI service"""
@@ -870,7 +1258,8 @@ universal_connector = UniversalAIConnector()
 ALL_AGENTS = [
     claude, meta_ai, gpt4, codex, sora, supergrok, gemini, copilot, pi, reka,
     phind, devin, you, elevenlabs, openai, perplexity, huggingface,
-    leonardo, midjourney, deepseek, langsmith, github, gitlab, replit
+    leonardo, midjourney, deepseek, langsmith, github, gitlab, replit,
+    mistral, groq
 ]
 
 AGENT_MONITORING_INTERVAL = 5.0  # 5 seconds as specified in plan

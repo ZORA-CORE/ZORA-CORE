@@ -131,6 +131,8 @@ tool_bridge = ZORAUniversalToolBridge()
 known_ai_systems = [
     ("OPENAI", "https://api.openai.com/v1", ["language_model", "code_generation", "image_generation"]),
     ("ANTHROPIC", "https://api.anthropic.com/v1", ["language_model", "reasoning", "analysis"]),
+    ("MISTRAL", "https://api.mistral.ai/v1", ["language_model", "code_generation", "reasoning", "analysis"]),
+    ("GROQ", "https://api.groq.com/v1", ["language_model", "code_generation", "reasoning", "analysis"]),
     ("GOOGLE_AI", "https://generativelanguage.googleapis.com/v1", ["language_model", "multimodal"]),
     ("NVIDIA", "https://api.nvidia.com/v1", ["gpu_acceleration", "inference", "training"]),
     ("HUGGINGFACE", "https://api-inference.huggingface.co", ["model_hosting", "transformers"]),

@@ -30,6 +30,8 @@ from .langsmith import langsmith
 from .github import github
 from .gitlab import gitlab
 from .replit import replit
+from .mistral import mistral
+from .groq import groq
 
 from .voice_integration import (
     zora_agent_voice_integration,
@@ -42,7 +44,7 @@ __all__ = [
     'claude', 'meta_ai', 'gpt4', 'codex', 'sora', 'supergrok', 'gemini', 
     'copilot', 'pi', 'reka', 'phind', 'devin', 'you', 'elevenlabs', 
     'openai', 'perplexity', 'huggingface', 'leonardo', 'midjourney', 
-    'deepseek', 'langsmith', 'github', 'gitlab', 'replit',
+    'deepseek', 'langsmith', 'github', 'gitlab', 'replit', 'mistral', 'groq',
     'zora_agent_voice_integration', 'integrate_agent_voice', 
     'batch_integrate_agent_voices', 'get_agent_voice_integration_status'
 ]
@@ -73,7 +75,9 @@ async def initialize_agent_voice_integration():
         ('langsmith', langsmith),
         ('github', github),
         ('gitlab', gitlab),
-        ('replit', replit)
+        ('replit', replit),
+        ('mistral', mistral),
+        ('groq', groq)
     ]
     
     results = await batch_integrate_agent_voices(agents_to_integrate)
