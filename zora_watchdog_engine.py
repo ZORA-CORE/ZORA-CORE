@@ -122,7 +122,7 @@ class InfinityHealthLoop:
                 self.watchdog_engine.logger.error(f"AGI Trinity monitoring error for {component}: {e}")
     
     async def _monitor_ai_agents(self):
-        """Monitor all 23 AI agents"""
+        """Monitor all 26+ AI agents"""
         agents = [
             "claude", "meta_ai", "gpt4", "codex", "sora", "supergrok", "gemini", "copilot",
             "pi", "reka", "phind", "devin", "you", "elevenlabs", "openai", "perplexity",

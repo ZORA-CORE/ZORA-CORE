@@ -203,7 +203,7 @@ class ZoraUniversalHub:
         self._initialize_pricing_systems()
     
     def _initialize_ai_agents(self):
-        """Initialize all 23 AI agents"""
+        """Initialize all 26+ AI agents"""
         try:
             print("🤖 Initializing Universal AI Agent Network...")
             
