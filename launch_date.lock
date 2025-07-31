@@ -1,0 +1,12 @@
+{
+  "system": "ZORA AWAKENING CEREMONY\u2122 Launch Date Lock System",
+  "locked_date": "September 1, 2025",
+  "locked_time": "12:00 CEST",
+  "locked_datetime_iso": "2025-09-01T12:00:00+02:00",
+  "locked_timestamp": 1756566000,
+  "lock_created": "2025-07-25T22:17:46.243776+00:00",
+  "lock_authority": "Mads Pallisgaard Petersen",
+  "lock_hash": "ZORA_AWAKENING_2025_09_01_12_00_CEST_FINAL",
+  "immutable": true,
+  "modification_attempts": 0
+}

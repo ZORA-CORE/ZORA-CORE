@@ -1,0 +1,146 @@
+{
+  "backup_timestamp": "2025-07-26T16:06:25.955690",
+  "total_routes": 4,
+  "base_domains": [
+    "zoracore.ai",
+    "zoracore.app"
+  ],
+  "routes": {
+    "router-test.com": {
+      "requested_domain": "router-test.com",
+      "target_subdomain": "router-test-com.zoracore.ai",
+      "routing_method": "subdomain_proxy",
+      "ssl_enabled": true,
+      "ultimate_protection": true,
+      "created_at": "2025-07-26T16:06:25.854918",
+      "nginx_config": {
+        "server_name": "router-test.com",
+        "proxy_pass": "https://router-test-com.zoracore.ai",
+        "ssl_certificate": "/etc/letsencrypt/live/router-test.com/fullchain.pem",
+        "ssl_certificate_key": "/etc/letsencrypt/live/router-test.com/privkey.pem",
+        "proxy_headers": {
+          "Host": "router-test-com.zoracore.ai",
+          "X-Real-IP": "$remote_addr",
+          "X-Forwarded-For": "$proxy_add_x_forwarded_for",
+          "X-Forwarded-Proto": "$scheme",
+          "X-Forwarded-Host": "router-test.com"
+        },
+        "security_headers": {
+          "X-Frame-Options": "DENY",
+          "X-Content-Type-Options": "nosniff",
+          "X-XSS-Protection": "1; mode=block",
+          "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+          "Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
+        },
+        "ultimate_protection": {
+          "rate_limiting": "10r/s",
+          "ddos_protection": true,
+          "geo_blocking": false,
+          "bot_protection": true
+        }
+      }
+    },
+    "async-test1.com": {
+      "requested_domain": "async-test1.com",
+      "target_subdomain": "async-test1-com.zoracore.ai",
+      "routing_method": "subdomain_proxy",
+      "ssl_enabled": true,
+      "ultimate_protection": true,
+      "created_at": "2025-07-26T16:06:25.953091",
+      "nginx_config": {
+        "server_name": "async-test1.com",
+        "proxy_pass": "https://async-test1-com.zoracore.ai",
+        "ssl_certificate": "/etc/letsencrypt/live/async-test1.com/fullchain.pem",
+        "ssl_certificate_key": "/etc/letsencrypt/live/async-test1.com/privkey.pem",
+        "proxy_headers": {
+          "Host": "async-test1-com.zoracore.ai",
+          "X-Real-IP": "$remote_addr",
+          "X-Forwarded-For": "$proxy_add_x_forwarded_for",
+          "X-Forwarded-Proto": "$scheme",
+          "X-Forwarded-Host": "async-test1.com"
+        },
+        "security_headers": {
+          "X-Frame-Options": "DENY",
+          "X-Content-Type-Options": "nosniff",
+          "X-XSS-Protection": "1; mode=block",
+          "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+          "Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
+        },
+        "ultimate_protection": {
+          "rate_limiting": "10r/s",
+          "ddos_protection": true,
+          "geo_blocking": false,
+          "bot_protection": true
+        }
+      }
+    },
+    "async-test2.org": {
+      "requested_domain": "async-test2.org",
+      "target_subdomain": "async-test2-org.zoracore.ai",
+      "routing_method": "subdomain_proxy",
+      "ssl_enabled": true,
+      "ultimate_protection": true,
+      "created_at": "2025-07-26T16:06:25.954275",
+      "nginx_config": {
+        "server_name": "async-test2.org",
+        "proxy_pass": "https://async-test2-org.zoracore.ai",
+        "ssl_certificate": "/etc/letsencrypt/live/async-test2.org/fullchain.pem",
+        "ssl_certificate_key": "/etc/letsencrypt/live/async-test2.org/privkey.pem",
+        "proxy_headers": {
+          "Host": "async-test2-org.zoracore.ai",
+          "X-Real-IP": "$remote_addr",
+          "X-Forwarded-For": "$proxy_add_x_forwarded_for",
+          "X-Forwarded-Proto": "$scheme",
+          "X-Forwarded-Host": "async-test2.org"
+        },
+        "security_headers": {
+          "X-Frame-Options": "DENY",
+          "X-Content-Type-Options": "nosniff",
+          "X-XSS-Protection": "1; mode=block",
+          "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+          "Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
+        },
+        "ultimate_protection": {
+          "rate_limiting": "10r/s",
+          "ddos_protection": true,
+          "geo_blocking": false,
+          "bot_protection": true
+        }
+      }
+    },
+    "async-test3.net": {
+      "requested_domain": "async-test3.net",
+      "target_subdomain": "async-test3-net.zoracore.ai",
+      "routing_method": "subdomain_proxy",
+      "ssl_enabled": true,
+      "ultimate_protection": true,
+      "created_at": "2025-07-26T16:06:25.955373",
+      "nginx_config": {
+        "server_name": "async-test3.net",
+        "proxy_pass": "https://async-test3-net.zoracore.ai",
+        "ssl_certificate": "/etc/letsencrypt/live/async-test3.net/fullchain.pem",
+        "ssl_certificate_key": "/etc/letsencrypt/live/async-test3.net/privkey.pem",
+        "proxy_headers": {
+          "Host": "async-test3-net.zoracore.ai",
+          "X-Real-IP": "$remote_addr",
+          "X-Forwarded-For": "$proxy_add_x_forwarded_for",
+          "X-Forwarded-Proto": "$scheme",
+          "X-Forwarded-Host": "async-test3.net"
+        },
+        "security_headers": {
+          "X-Frame-Options": "DENY",
+          "X-Content-Type-Options": "nosniff",
+          "X-XSS-Protection": "1; mode=block",
+          "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+          "Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
+        },
+        "ultimate_protection": {
+          "rate_limiting": "10r/s",
+          "ddos_protection": true,
+          "geo_blocking": false,
+          "bot_protection": true
+        }
+      }
+    }
+  }
+}

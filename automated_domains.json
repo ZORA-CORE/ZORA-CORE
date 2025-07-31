@@ -1,0 +1,26 @@
+[
+  {
+    "domain": "zoracore.dk",
+    "registrar": "namecheap",
+    "dns_password": "test_dns_password_123",
+    "ultimate_protection": true,
+    "added_at": "2025-07-26T16:05:58.176947",
+    "auto_renewal": true
+  },
+  {
+    "domain": "zoracore.dk",
+    "registrar": "namecheap",
+    "dns_password": "test_dns_password_123",
+    "ultimate_protection": true,
+    "added_at": "2025-07-26T16:05:58.178142",
+    "auto_renewal": true
+  },
+  {
+    "domain": "zoracore.dk",
+    "registrar": "namecheap",
+    "dns_password": "test_dns_password_123",
+    "ultimate_protection": true,
+    "added_at": "2025-07-26T16:05:58.179188",
+    "auto_renewal": true
+  }
+]

@@ -17,6 +17,9 @@ import json
 class ZoraIncomeNoticeSystem:
     def __init__(self):
         self.module_confirmations = {}
+        self.product_royalties = {}
+        self.pricing_engine_royalties = {}
+        self.distribution_savings_royalties = {}
 
     def _timestamp(self):
         return datetime.datetime.utcnow().isoformat(timespec='seconds') + 'Z'
@@ -31,12 +34,9 @@ class ZoraIncomeNoticeSystem:
             return f"✅ Bruger {user_id} har allerede accepteret royalty-meddelelsen for {module_name}."
 
         notice = (
-            f"🧾 VIGTIG MEDDELELSE:
-"
-            f"For at bruge {module_name} og generere indtægter, accepterer du automatisk at 15% tilfalder Founder.
-"
-            f"Dette gælder kun én gang per modul.
-"
+            f"🧾 VIGTIG MEDDELELSE:\n"
+            f"For at bruge {module_name} og generere indtægter, accepterer du automatisk at 15% tilfalder Founder.\n"
+            f"Dette gælder kun én gang per modul.\n"
             f"Bekræft for at fortsætte."
         )
         return notice
@@ -50,6 +50,66 @@ class ZoraIncomeNoticeSystem:
 
     def export_confirmations(self):
         return json.dumps(self.module_confirmations, indent=2)
+
+    def register_pricing_royalty(self, product_id, price, royalty_percentage=15):
+        """Register royalty for pricing engine optimized products"""
+        if product_id not in self.product_royalties:
+            self.product_royalties[product_id] = {}
+        
+        self.product_royalties[product_id] = {
+            'price': price,
+            'royalty_percentage': royalty_percentage,
+            'founder_royalty': price * (royalty_percentage / 100),
+            'timestamp': self._timestamp(),
+            'source': 'ZORA_INFINITY_PRICING'
+        }
+        
+        return f"✅ Royalty registered for product {product_id}: {royalty_percentage}% = {price * (royalty_percentage / 100)} ZORA_KRONE"
+
+    def register_distribution_savings_royalty(self, order_id, savings_amount, royalty_percentage=15):
+        """Register royalty from distribution cost savings"""
+        if order_id not in self.distribution_savings_royalties:
+            self.distribution_savings_royalties[order_id] = {}
+        
+        self.distribution_savings_royalties[order_id] = {
+            'savings_amount': savings_amount,
+            'royalty_percentage': royalty_percentage,
+            'founder_royalty': savings_amount * (royalty_percentage / 100),
+            'timestamp': self._timestamp(),
+            'source': 'ZORA_DIRECT_DISTRIBUTION'
+        }
+        
+        return f"✅ Distribution savings royalty registered for order {order_id}: {royalty_percentage}% of {savings_amount} = {savings_amount * (royalty_percentage / 100)} ZORA_KRONE"
+
+    def calculate_total_founder_royalties(self):
+        """Calculate total founder royalties from all sources"""
+        total_product_royalties = sum(
+            royalty['founder_royalty'] 
+            for royalty in self.product_royalties.values()
+        )
+        
+        total_distribution_royalties = sum(
+            royalty['founder_royalty'] 
+            for royalty in self.distribution_savings_royalties.values()
+        )
+        
+        return {
+            'product_royalties': total_product_royalties,
+            'distribution_savings_royalties': total_distribution_royalties,
+            'total_founder_royalties': total_product_royalties + total_distribution_royalties,
+            'currency': 'ZORA_KRONE',
+            'calculation_timestamp': self._timestamp()
+        }
+
+    def get_infinity_royalty_status(self):
+        """Get comprehensive royalty status for infinity systems"""
+        return {
+            'total_products_with_royalties': len(self.product_royalties),
+            'total_distribution_orders_with_royalties': len(self.distribution_savings_royalties),
+            'total_module_confirmations': len(self.module_confirmations),
+            'royalty_calculations': self.calculate_total_founder_royalties(),
+            'infinity_systems_integrated': True
+        }
 
 # === EKSEMPEL ===
 if __name__ == "__main__":

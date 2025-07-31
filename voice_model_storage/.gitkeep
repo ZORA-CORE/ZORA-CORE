@@ -1,0 +1,10 @@
+Voice model storage directory for ZORA Ultimate Voice Generator™
+
+This directory stores:
+- Neural TTS model weights
+- Voice personality embeddings  
+- Audio sample cache
+- Training checkpoints
+- Voice synthesis artifacts
+
+All voice models are proprietary to ZORA CORE and use ethical AI synthesis.

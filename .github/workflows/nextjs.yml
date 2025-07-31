@@ -1,8 +1,9 @@
-# Sample workflow for building and deploying a Next.js site to GitHub Pages
+# ZORA CORE Next.js Deployment with INFINITY INJEKTION™ Integration
 #
-# To get started with Next.js see: https://nextjs.org/docs/getting-started
+# Enhanced workflow for building and deploying a Next.js site to GitHub Pages
+# Includes INFINITY INJEKTION™ contact system validation and integration
 #
-name: Deploy Next.js site to Pages
+name: Deploy Next.js site to Pages with INFINITY INJEKTION™
 
 on:
   # Runs on pushes targeting the default branch
@@ -24,13 +25,94 @@ concurrency:
   group: "pages"
   cancel-in-progress: false
 
+# INFINITY INJEKTION™ Environment Variables
+env:
+  ZORA_HQ_ADDRESS: "Fjordbakken 50, Dyves Bro, 4700 Næstved"
+  ZORA_CVR: "37750514"
+  ZORA_EMAIL: "kontakt@zoracore.dk"
+  ZORA_P_ENHEDER: "KOBBERHJØRNET x ORINGE"
+  INFINITY_MODE: "true"
+
 jobs:
-  # Build job
+  # Build job with INFINITY INJEKTION™
   build:
+    name: Build with INFINITY INJEKTION™
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        
+      - name: ♾️ Validate INFINITY INJEKTION™ Contact System
+        run: |
+          echo "🔍 Validating ZORA CORE INFINITY INJEKTION™ Contact System..."
+          
+          # Check if contact configuration exists
+          if [ -f "zora_contact_config.py" ]; then
+            echo "✅ Contact configuration found"
+          else
+            echo "❌ Contact configuration missing"
+            exit 1
+          fi
+          
+          # Check if footer component exists
+          if [ -f "components/zora_footer.py" ]; then
+            echo "✅ Footer component found"
+          else
+            echo "❌ Footer component missing"
+            exit 1
+          fi
+          
+          # Check if CSS exists
+          if [ -f "static/css/zora_contact.css" ]; then
+            echo "✅ Contact CSS found"
+          else
+            echo "❌ Contact CSS missing"
+            exit 1
+          fi
+          
+          # Check if legal templates exist
+          if [ -f "legal_templates/zora_legal_footer.py" ]; then
+            echo "✅ Legal templates found"
+          else
+            echo "❌ Legal templates missing"
+            exit 1
+          fi
+          
+          echo "🏢 ZORA HQ: ${{ env.ZORA_HQ_ADDRESS }}"
+          echo "🏛️ CVR: ${{ env.ZORA_CVR }}"
+          echo "📧 Email: ${{ env.ZORA_EMAIL }}"
+          echo "📍 P-enheder: ${{ env.ZORA_P_ENHEDER }}"
+          echo "♾️ INFINITY MODE: ${{ env.INFINITY_MODE }}"
+          echo "✅ INFINITY INJEKTION™ validation completed successfully"
+          
+      - name: Setup Python for Contact Validation
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+          
+      - name: 🧪 Test Contact System Integration
+        run: |
+          echo "🧪 Testing ZORA CORE contact system integration..."
+          python3 -c "
+          try:
+              from zora_contact_config import ZORA_CONTACT_INFO, get_full_contact_data, validate_contact_info
+              print('✅ Contact configuration imports successfully')
+              
+              validation = validate_contact_info()
+              if validation['all_requirements_met']:
+                  print('✅ Contact validation passed')
+              else:
+                  print('❌ Contact validation failed')
+                  exit(1)
+                  
+              contact_data = get_full_contact_data('en')
+              print(f'✅ Contact data generated: {len(str(contact_data))} characters')
+              print('♾️ INFINITY INJEKTION™ contact system operational')
+          except Exception as e:
+              print(f'❌ Contact system test failed: {e}')
+              exit(1)
+          "
+          
       - name: Detect package manager
         id: detect-package-manager
         run: |
@@ -48,11 +130,13 @@ jobs:
             echo "Unable to determine package manager"
             exit 1
           fi
+          
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: ${{ steps.detect-package-manager.outputs.manager }}
+          
       - name: Setup Pages
         uses: actions/configure-pages@v5
         with:
@@ -61,6 +145,7 @@ jobs:
           #
           # You may remove this line if you want to manage the configuration yourself.
           static_site_generator: next
+          
       - name: Restore cache
         uses: actions/cache@v4
         with:
@@ -71,23 +156,87 @@ jobs:
           # If source files changed but packages didn't, rebuild from a prior cache.
           restore-keys: |
             ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json', '**/yarn.lock') }}-
+            
       - name: Install dependencies
         run: ${{ steps.detect-package-manager.outputs.manager }} ${{ steps.detect-package-manager.outputs.command }}
-      - name: Build with Next.js
-        run: ${{ steps.detect-package-manager.outputs.runner }} next build
+        
+      - name: 🌐 Pre-build Contact Integration Check
+        run: |
+          echo "🌐 Verifying contact integration before build..."
+          
+          # Check HTML files for contact footer integration
+          if grep -q "INFINITY INJEKTION" index.html; then
+            echo "✅ index.html has INFINITY INJEKTION™ integration"
+          else
+            echo "⚠️ index.html missing INFINITY INJEKTION™ integration"
+          fi
+          
+          if grep -q "zora-infinity-footer" index.html; then
+            echo "✅ index.html has footer classes"
+          else
+            echo "⚠️ index.html missing footer classes"
+          fi
+          
+          echo "♾️ Pre-build validation completed"
+          
+      - name: Build with Next.js + INFINITY INJEKTION™
+        run: |
+          echo "🚀 Building Next.js site with INFINITY INJEKTION™ integration..."
+          ${{ steps.detect-package-manager.outputs.runner }} next build
+          echo "✅ Next.js build completed with INFINITY INJEKTION™"
+          
+      - name: 🔍 Post-build Contact Verification
+        run: |
+          echo "🔍 Verifying INFINITY INJEKTION™ integration in build output..."
+          
+          # Check if contact information is present in built files
+          if find ./out -name "*.html" -exec grep -l "kontakt@zoracore.dk" {} \; | head -1; then
+            echo "✅ Contact email found in build output"
+          else
+            echo "❌ Contact email missing from build output"
+            exit 1
+          fi
+          
+          if find ./out -name "*.html" -exec grep -l "37750514" {} \; | head -1; then
+            echo "✅ CVR found in build output"
+          else
+            echo "❌ CVR missing from build output"
+            exit 1
+          fi
+          
+          if find ./out -name "*.html" -exec grep -l "KOBBERHJØRNET x ORINGE" {} \; | head -1; then
+            echo "✅ P-enheder structure found in build output"
+          else
+            echo "❌ P-enheder structure missing from build output"
+            exit 1
+          fi
+          
+          echo "♾️ INFINITY INJEKTION™ post-build verification completed successfully"
+          
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: ./out
 
-  # Deployment job
+  # Deployment job with INFINITY INJEKTION™
   deploy:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     needs: build
+    name: Deploy with INFINITY INJEKTION™
     steps:
-      - name: Deploy to GitHub Pages
+      - name: 🚀 Deploy to GitHub Pages with INFINITY INJEKTION™
         id: deployment
         uses: actions/deploy-pages@v4
+        
+      - name: ♾️ Post-deployment INFINITY Notification
+        run: |
+          echo "🎉 ZORA CORE Next.js site deployed successfully!"
+          echo "🌐 Site URL: ${{ steps.deployment.outputs.page_url }}"
+          echo "♾️ INFINITY INJEKTION™ contact system is now live"
+          echo "📧 Contact: kontakt@zoracore.dk"
+          echo "🏛️ CVR: 37750514"
+          echo "📍 P-enheder: KOBBERHJØRNET x ORINGE"
+          echo "✅ Deployment completed with full INFINITY INJEKTION™ integration"

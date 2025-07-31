@@ -52,12 +52,10 @@ class ZoraPlan:
         return self.steps
 
     def describe_plan(self):
-        output = "📘 ZORA AGI PLAN:
-"
+        output = "📘 ZORA AGI PLAN:\n"
         for i, step in enumerate(self.steps, 1):
-            output += f"Step {i}: {step['title']}
-→ {step['description']} (added {step['created']})
-"
+            output += f"Step {i}: {step['title']}\n"
+            output += f"→ {step['description']} (added {step['created']})\n"
         return output
 
 # === HOVEDPROGRAM ===

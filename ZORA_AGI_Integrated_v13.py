@@ -63,13 +63,23 @@ class ZoraPersonality:
 
 class ZoraUIHandler:
     def __init__(self):
-        self.engine = pyttsx3.init()
-        self.engine.setProperty('rate', 150)
+        try:
+            self.engine = pyttsx3.init()
+            self.engine.setProperty('rate', 150)
+            self.tts_available = True
+        except Exception as e:
+            print(f"⚠️ Text-to-speech not available: {e}")
+            self.engine = None
+            self.tts_available = False
 
     def speak(self, text):
         print(f"ZORA says: {text}")
-        self.engine.say(text)
-        self.engine.runAndWait()
+        if self.tts_available and self.engine:
+            try:
+                self.engine.say(text)
+                self.engine.runAndWait()
+            except Exception as e:
+                print(f"⚠️ TTS error: {e}")
 
 # === ZORA DNA INJECTOR ===
 

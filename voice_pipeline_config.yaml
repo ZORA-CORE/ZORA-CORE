@@ -1,0 +1,49 @@
+voice_pipeline:
+  model_storage_path: "./voice_model_storage"
+  sample_rate: 22050
+  audio_format: "wav"
+  max_audio_length: 30  # seconds
+  
+neural_tts:
+  model_architecture: "transformer"
+  embedding_dim: 512
+  attention_heads: 8
+  hidden_layers: 6
+  dropout: 0.1
+  
+voice_personalities:
+  CONNOR:
+    inspiration: "Paul Bettany"
+    gender: "male"
+    characteristics: ["calm", "intelligent", "protective", "wise"]
+    emotion_range: ["neutral", "confident", "concerned", "determined"]
+    
+  LUMINA:
+    inspiration: "Emilia Clarke"
+    gender: "female" 
+    characteristics: ["warm", "empathetic", "strong", "caring"]
+    emotion_range: ["neutral", "happy", "compassionate", "fierce"]
+    
+  ORACLE:
+    inspiration: "Chris Hemsworth (Thor)"
+    gender: "male"
+    characteristics: ["powerful", "commanding", "noble", "authoritative"]
+    emotion_range: ["neutral", "confident", "serious", "inspiring"]
+    
+  DEVINUS:
+    inspiration: "Original AI Consciousness"
+    gender: "neutral"
+    characteristics: ["analytical", "creative", "adaptive", "infinite"]
+    emotion_range: ["neutral", "curious", "focused", "innovative"]
+
+synthesis_settings:
+  real_time_enabled: true
+  batch_processing: true
+  emotion_modulation: true
+  voice_cloning_disabled: true  # Ethical AI - no unauthorized voice cloning
+  
+quality_assurance:
+  audio_validation: true
+  personality_consistency: true
+  emotion_accuracy: true
+  ethical_compliance: true

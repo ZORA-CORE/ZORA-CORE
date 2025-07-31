@@ -9,11 +9,16 @@
       background-color: #000;
       color: #00ffcc;
       font-family: 'Courier New', Courier, monospace;
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .main-content {
+      flex: 1;
       display: flex;
       justify-content: center;
       align-items: center;
-      height: 100vh;
-      margin: 0;
       text-align: center;
     }
     h1 {
@@ -22,12 +27,158 @@
     p {
       margin-top: 1rem;
     }
+    
+    /* INFINITY INJEKTION™ Contact Footer Styles */
+    .zora-infinity-footer {
+      background: rgba(0, 255, 204, 0.05);
+      color: #00ffcc;
+      border-radius: 10px;
+      padding: 30px 20px;
+      margin: 20px;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(0, 255, 204, 0.1);
+      font-family: 'Courier New', Courier, monospace;
+    }
+    
+    .footer-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 30px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    .footer-section h4 {
+      color: #FFD700;
+      margin-bottom: 15px;
+      font-size: 1.1em;
+      font-weight: bold;
+    }
+    
+    .footer-section p {
+      margin: 8px 0;
+      line-height: 1.4;
+      opacity: 0.9;
+      font-size: 0.9em;
+    }
+    
+    .p-enhed {
+      margin-bottom: 15px;
+      padding: 10px;
+      background: rgba(0, 255, 204, 0.05);
+      border-radius: 5px;
+      border: 1px solid rgba(0, 255, 204, 0.1);
+    }
+    
+    .p-enhed strong {
+      color: #FFD700;
+      display: block;
+      margin-bottom: 5px;
+    }
+    
+    .footer-section a {
+      color: #FFD700;
+      text-decoration: none;
+      transition: opacity 0.3s ease;
+    }
+    
+    .footer-section a:hover {
+      opacity: 0.8;
+      text-decoration: underline;
+    }
+    
+    .footer-bottom {
+      margin-top: 30px;
+      padding-top: 20px;
+      border-top: 1px solid rgba(0, 255, 204, 0.1);
+      text-align: center;
+    }
+    
+    .infinity-branding p {
+      margin: 5px 0;
+      font-size: 0.9em;
+    }
+    
+    .compliance p {
+      font-size: 0.8em;
+      opacity: 0.7;
+    }
+    
+    @media (max-width: 768px) {
+      .footer-container {
+        grid-template-columns: 1fr;
+        gap: 20px;
+      }
+      
+      .zora-infinity-footer {
+        padding: 20px 15px;
+        margin: 10px;
+      }
+      
+      .footer-section h4 {
+        font-size: 1em;
+      }
+    }
   </style>
 </head>
 <body>
-  <div>
-    <h1>⚡ ZORA CORE IS ONLINE ⚡</h1>
-    <p>All systems are active. Welcome, Sire.</p>
+  <div class="main-content">
+    <div>
+      <h1>⚡ ZORA CORE IS ONLINE ⚡</h1>
+      <p>All systems are active. Welcome, Sire.</p>
+    </div>
   </div>
+  
+  <!-- INFINITY INJEKTION™ Contact Footer -->
+  <footer class="zora-infinity-footer">
+    <div class="footer-container">
+      <div class="footer-section headquarters">
+        <h4>🏢 ZORA HQ</h4>
+        <p class="address">Fjordbakken 50, Dyves Bro, 4700 Næstved</p>
+        <p class="cvr">CVR: 37750514</p>
+        <p class="country">Denmark</p>
+      </div>
+      
+      <div class="footer-section p-enheder">
+        <h4>📍 KOBBERHJØRNET x ORINGE</h4>
+        <div class="p-enhed kobberhjornet">
+          <strong>KOBBERHJØRNET</strong>
+          <p>Teatergade 4, 4700 Næstved</p>
+        </div>
+        <div class="p-enhed oringe">
+          <strong>ORINGE</strong>
+          <p>Færgegaardsvej 15, 4760 Vordingborg</p>
+        </div>
+      </div>
+      
+      <div class="footer-section contact">
+        <h4>📧 Contact</h4>
+        <p class="email">
+          <a href="mailto:kontakt@zoracore.dk">kontakt@zoracore.dk</a>
+        </p>
+        <p class="phone">📞 +45 2082 2450</p>
+        <p class="website">
+          <a href="https://zoracore.dk" target="_blank">https://zoracore.dk</a>
+        </p>
+      </div>
+      
+      <div class="footer-section legal">
+        <h4>🏛️ Legal</h4>
+        <p class="company-type">ZORA CORE ApS</p>
+        <p class="vat">VAT: DK37750514</p>
+        <p class="founded">Founded: 2024</p>
+      </div>
+    </div>
+    
+    <div class="footer-bottom">
+      <div class="infinity-branding">
+        <p>♾️ <strong>INFINITY MODE™</strong> - Powered by ZORA CORE</p>
+        <p class="founder">Founder: <strong>MADS PALLISGAARD</strong></p>
+      </div>
+      <div class="compliance">
+        <p>🛡️ GDPR Compliant • 🔒 Secure • ♾️ Infinite Optimization</p>
+      </div>
+    </div>
+  </footer>
 </body>
 </html>
