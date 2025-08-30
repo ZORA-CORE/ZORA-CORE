@@ -1,0 +1,27 @@
+{
+  "record_id": "record_mutation_1756549465_mashup_1756549459_zora_explanation_engine_zora_sync_integration",
+  "mashup_name": "ZoraExplanationSyncInfinityEngine",
+  "original_modules": [
+    "zora_explanation_engine",
+    "zora_sync_integration"
+  ],
+  "mashup_type": "brand_synthesis",
+  "success_metrics": {
+    "generation_success": 0.7999999999999999,
+    "capability_synthesis": 0.3,
+    "code_quality": 0.2768,
+    "complexity_achievement": 0.4
+  },
+  "generated_artifacts": [
+    "zoraexplanationsyncinfinityengine.py"
+  ],
+  "lessons_learned": [
+    "Successfully combined zora_explanation_engine and zora_sync_integration",
+    "Generated 3 hybrid capabilities",
+    "Achieved moderate complexity level",
+    "Mutation type brand_synthesis proved effective"
+  ],
+  "future_potential": "MODERATE - Requires minor refinements before deployment",
+  "documentation_links": [],
+  "creation_timestamp": "2025-08-30 10:24:25.769585"
+}

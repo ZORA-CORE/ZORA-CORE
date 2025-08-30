@@ -1,0 +1,41 @@
+{
+  "entry_id": "mutation_mutation_1756549512_mashup_1756549506_zora_explanation_engine_zora_sync_integration",
+  "entry_type": "mutation_result",
+  "title": "Mutation Result: ZoraExplanationSyncInfinityEngine",
+  "description": "brand_synthesis mutation with 0.80 success score",
+  "data": {
+    "mutation_id": "mutation_1756549512_mashup_1756549506_zora_explanation_engine_zora_sync_integration",
+    "original_modules": [
+      "zora_explanation_engine",
+      "zora_sync_integration"
+    ],
+    "hybrid_name": "ZoraExplanationSyncInfinityEngine",
+    "mutation_type": "brand_synthesis",
+    "complexity": "moderate",
+    "success_score": 0.7999999999999999,
+    "generated_capabilities": [
+      "engine",
+      "hybrid_fusion",
+      "cross_domain_integration"
+    ],
+    "code_length": 1384,
+    "metadata": {
+      "opportunity_score": 1.0,
+      "brand_synergy": 0.3769230769230769,
+      "estimated_value": "PLATINUM",
+      "generation_time": "2025-08-30T10:25:12.891240"
+    },
+    "creation_timestamp": "2025-08-30T10:25:12.891262",
+    "code_file_path": "/home/ubuntu/repos/ZORA-CORE/brand_ledger_data/generated_hybrids/zoraexplanationsyncinfinityengine.py"
+  },
+  "tags": [
+    "mutation",
+    "hybrid",
+    "moderate"
+  ],
+  "success_score": 0.7999999999999999,
+  "verification_status": "generated",
+  "eivor_approved": false,
+  "creation_timestamp": "2025-08-30 10:25:12.891884",
+  "last_updated": "2025-08-30 10:25:12.891887"
+}
