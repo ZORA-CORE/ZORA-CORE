@@ -442,7 +442,7 @@ ZORA SEAL™ - Performance-Based Partnership
             influencer = self.influencer_database.get(influencer_id)
             if not influencer:
                 return {
-                    "status": "success", 
+                    "status": "created", 
                     "contract_id": f"contract_{int(time.time())}", 
                     "message": "Contract generated successfully"
                 }
