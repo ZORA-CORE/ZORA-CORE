@@ -175,9 +175,9 @@ class InfinityEngine:
         function: Callable, 
         priority: TaskPriority = TaskPriority.MEDIUM,
         args: tuple = (),
-        kwargs: dict = None,
+        kwargs: Optional[dict] = None,
         timeout: Optional[float] = None,
-        dependencies: List[str] = None
+        dependencies: Optional[List[str]] = None
     ) -> str:
         """Create and add a new task"""
         task_id = f"task_{int(time.time() * 1000000)}"
@@ -396,7 +396,7 @@ class InfinityEngine:
         except Exception as e:
             self.logger.error(f"Memory cleanup error: {e}")
     
-    async def infinity_cycle(self, agents: List[Any] = None):
+    async def infinity_cycle(self, agents: Optional[List[Any]] = None):
         """Execute one complete infinity cycle"""
         cycle_start = time.time()
         cycle_success = True
@@ -451,7 +451,7 @@ class InfinityEngine:
         
         return cycle_success
     
-    async def start_infinity_mode(self, agents: List[Any] = None):
+    async def start_infinity_mode(self, agents: Optional[List[Any]] = None):
         """Start the Infinity Engine in continuous mode"""
         if self.is_running:
             self.logger.warning("Infinity Engine already running")
@@ -564,7 +564,7 @@ def infinity_loop():
     except KeyboardInterrupt:
         print("🛑 Legacy infinity loop interrupted")
 
-async def start_infinity_engine(agents: List[Any] = None):
+async def start_infinity_engine(agents: Optional[List[Any]] = None):
     """Start the modern Infinity Engine"""
     await infinity_engine.start_infinity_mode(agents)
 
