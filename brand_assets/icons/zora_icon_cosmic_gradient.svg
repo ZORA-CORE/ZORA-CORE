@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="iconGlow">
+      <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+      <feMerge> 
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <linearGradient id="cosmicGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:hsl(220, 27%, 8%);stop-opacity:1" />
+      <stop offset="50%" style="stop-color:hsl(260, 50%, 20%);stop-opacity:1" />
+      <stop offset="100%" style="stop-color:hsl(180, 100%, 10%);stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Z Symbol with Infinity Integration -->
+  <path d="M 12 16 L 52 16 L 32 32 L 52 48 L 12 48 L 12 42 L 38 42 L 18 26 L 12 26 Z" 
+        fill="url(#cosmicGradient)" filter="url(#iconGlow)"/>
+  
+  <!-- Infinity Symbol Overlay -->
+  <path d="M 20 32 C 24 28, 28 28, 32 32 C 36 36, 40 36, 44 32 C 40 28, 36 28, 32 24 C 28 20, 24 20, 20 24 C 16 28, 12 28, 8 32 C 12 36, 16 36, 20 32 Z" 
+        fill="none" stroke="hsl(180, 100%, 70%)" stroke-width="1.5" opacity="0.7"/>
+</svg>

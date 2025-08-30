@@ -1,0 +1,48 @@
+{
+  "name": "ZORA CORE Typography System",
+  "version": "1.0.0-ULTIMATE-INFINITY",
+  "created": "2025-08-30T11:04:16.289248",
+  "font_families": {
+    "primary": "Inter, system-ui, sans-serif",
+    "display": "Space Grotesk, monospace",
+    "code": "JetBrains Mono, monospace"
+  },
+  "font_weights": {
+    "light": 300,
+    "regular": 400,
+    "medium": 500,
+    "semibold": 600,
+    "bold": 700
+  },
+  "font_sizes": {
+    "xs": "0.75rem",
+    "sm": "0.875rem",
+    "base": "1rem",
+    "lg": "1.125rem",
+    "xl": "1.25rem",
+    "2xl": "1.5rem",
+    "3xl": "1.875rem",
+    "4xl": "2.25rem",
+    "5xl": "3rem",
+    "6xl": "3.75rem"
+  },
+  "line_heights": {
+    "tight": 1.25,
+    "normal": 1.5,
+    "relaxed": 1.75
+  },
+  "context_adaptations": {
+    "digital_terminal": {
+      "primary_font": "JetBrains Mono, monospace",
+      "note": "Monospace emphasis for terminal interfaces"
+    },
+    "voice_ui": {
+      "speech_pattern": "clear_articulated",
+      "tone": "confident_friendly"
+    },
+    "physical_product": {
+      "print_optimization": true,
+      "minimum_size": "8pt"
+    }
+  }
+}

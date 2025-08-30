@@ -1,0 +1,62 @@
+{
+  "name": "ZORA CORE Brand Palette",
+  "version": "1.0.0-ULTIMATE-INFINITY",
+  "created": "2025-08-30T11:04:16.289013",
+  "primary_colors": {
+    "electric_cyan": "hsl(180, 100%, 50%)",
+    "cyan_glow": "hsl(180, 100%, 70%)",
+    "deep_purple": "hsl(260, 50%, 20%)",
+    "neon_pink": "hsl(320, 100%, 60%)",
+    "cosmic_dark": "hsl(220, 27%, 8%)",
+    "foreground_light": "hsl(180, 100%, 90%)",
+    "white": "hsl(0, 0%, 100%)",
+    "black": "hsl(0, 0%, 0%)"
+  },
+  "gradients": {
+    "primary": "linear-gradient(135deg, hsl(180, 100%, 50%), hsl(180, 100%, 70%))",
+    "secondary": "linear-gradient(135deg, hsl(320, 100%, 60%), hsl(180, 100%, 50%))",
+    "cosmic": "linear-gradient(135deg, hsl(220, 27%, 8%), hsl(260, 50%, 20%), hsl(180, 100%, 10%))"
+  },
+  "module_colors": {
+    "ZORA_STUDIO": "hsl(320, 100%, 60%)",
+    "ZORA_MIND": "hsl(260, 50%, 20%)",
+    "ZORA_CANNABIS": "hsl(120, 60%, 40%)",
+    "ZORA_UNIVERSE": "hsl(280, 80%, 60%)",
+    "ZORA_HEALTH": "hsl(210, 100%, 50%)",
+    "ZORA_METAVERSE": "hsl(280, 80%, 60%)",
+    "ZORA_VOICE": "hsl(60, 100%, 50%)",
+    "ZORA_VISUAL": "hsl(300, 100%, 50%)",
+    "ZORA_GAMING": "hsl(30, 100%, 50%)",
+    "ZORA_PAY": "hsl(45, 100%, 50%)",
+    "ZORA_LEGAL": "hsl(220, 80%, 40%)",
+    "ZORA_SHIELD": "hsl(0, 80%, 50%)",
+    "ZORA_TIME": "hsl(270, 70%, 50%)",
+    "ZORA_SPACE": "hsl(0, 0%, 95%)"
+  },
+  "context_adaptations": {
+    "physical_product": {
+      "electric_cyan": "hsl(180, 85%, 45%)",
+      "note": "Slightly muted for print compatibility"
+    },
+    "ar_vr_metaverse": {
+      "neon_pink": "hsl(320, 100%, 70%)",
+      "note": "Enhanced saturation for VR displays"
+    },
+    "voice_ui": {
+      "tone": "confident_friendly",
+      "note": "Audio branding personality"
+    }
+  },
+  "accessibility": {
+    "high_contrast": {
+      "foreground": "hsl(0, 0%, 100%)",
+      "background": "hsl(0, 0%, 0%)",
+      "accent": "hsl(180, 100%, 60%)"
+    },
+    "color_blind_safe": {
+      "primary": "hsl(210, 100%, 50%)",
+      "secondary": "hsl(45, 100%, 50%)",
+      "accent": "hsl(0, 80%, 50%)"
+    }
+  }
+}
