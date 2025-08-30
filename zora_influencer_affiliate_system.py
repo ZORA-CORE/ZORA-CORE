@@ -444,6 +444,8 @@ ZORA SEAL™ - Performance-Based Partnership
                 return {
                     "status": "created", 
                     "contract_id": f"contract_{int(time.time())}", 
+                    "collaboration_type": collaboration_details.get("type", "sponsored_post"),
+                    "compensation": collaboration_details.get("compensation", {}),
                     "message": "Contract generated successfully"
                 }
             
