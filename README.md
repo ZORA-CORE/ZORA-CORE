@@ -25,6 +25,19 @@ Docs/           # ADRs, runbooks
 4. Execute tests: `pnpm test`.
 5. Terraform plan: `cd infra/terraform/envs/staging && ./plan.sh`.
 
+## Deploying to staging & production
+
+1. Configure GitHub environment secrets for `staging` and `prod`:
+   - `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_ZONE_ID_*`, `CLOUDFLARE_DNS_*`
+   - `VERCEL_TOKEN`, `VERCEL_TEAM`, `VERCEL_ORG_ID`, `VERCEL_WEB_PROJECT_ID`, `VERCEL_ADMIN_PROJECT_ID`
+   - `PLANETSCALE_ORG` (or Neon equivalent) and any additional provider credentials referenced in Terraform.
+2. Trigger the reusable deployment workflow directly via **Actions → Deploy Web** for ad-hoc environment deploys.
+3. For coordinated multi-market releases, run **Actions → Global Launch**, which:
+   - Deploys staging with infrastructure changes and Vercel preview builds.
+   - Pauses for manual approval before promoting to production.
+   - Applies Terraform and redeploys the web/admin apps to production.
+4. Follow the detailed checklist in `docs/runbooks/global-launch.md` for verification and rollback procedures.
+
 ## Security baseline
 
 - CSP, HSTS, TLS 1.3, HTTP/3 enforced in Cloudflare modules and Worker.
