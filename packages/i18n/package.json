@@ -1,0 +1,12 @@
+{
+  "name": "@zoracore/i18n",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "dependencies": {
+    "@formatjs/intl-localematcher": "0.4.3",
+    "accept-language-parser": "1.5.0",
+    "tslib": "2.6.2"
+  }
+}

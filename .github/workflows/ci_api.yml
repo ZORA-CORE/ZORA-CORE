@@ -1,0 +1,32 @@
+name: API CI
+
+on:
+  push:
+    paths:
+      - 'apps/api/**'
+      - 'packages/content/**'
+  pull_request:
+    paths:
+      - 'apps/api/**'
+      - 'packages/content/**'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 8
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @zoracore/api lint
+      - run: pnpm --filter @zoracore/api test
+      - name: Publish OpenAPI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapi
+          path: apps/api/openapi/openapi.yaml

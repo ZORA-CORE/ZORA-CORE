@@ -1,0 +1,15 @@
+{
+  "name": "@zoracore/studio",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "sanity dev",
+    "build": "sanity build",
+    "deploy": "sanity deploy"
+  },
+  "dependencies": {
+    "@sanity/cli": "3.38.0",
+    "sanity": "3.38.0"
+  }
+}

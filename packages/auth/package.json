@@ -1,0 +1,12 @@
+{
+  "name": "@zoracore/auth",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "dependencies": {
+    "@simplewebauthn/server": "7.4.0",
+    "oauth4webapi": "2.14.0",
+    "zod": "3.22.4"
+  }
+}

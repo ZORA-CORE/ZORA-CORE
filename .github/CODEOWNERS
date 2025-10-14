@@ -1,0 +1,5 @@
+* @zoracore/platform-team
+apps/api/ @zoracore/backend
+apps/web/ @zoracore/frontend
+apps/admin/ @zoracore/admins
+infra/ @zoracore/devops
