@@ -1,0 +1,125 @@
+name: Deploy Web
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: choice
+        description: Deployment environment
+        required: true
+        options:
+          - staging
+          - prod
+      ref:
+        description: Git ref to deploy
+        required: false
+        default: main
+      require_apply_approval:
+        type: choice
+        description: Require manual approval before Terraform apply
+        required: false
+        default: "true"
+        options:
+          - "true"
+          - "false"
+  workflow_call:
+    inputs:
+      environment:
+        type: string
+        required: true
+      ref:
+        type: string
+        required: false
+        default: main
+      require_apply_approval:
+        type: boolean
+        required: false
+        default: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 8
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - name: Build web
+        run: pnpm --filter @zoracore/web build
+      - name: Build admin
+        run: pnpm --filter @zoracore/admin build
+      - name: Terraform plan
+        working-directory: infra/terraform/envs/${{ inputs.environment }}
+        env:
+          TF_VAR_cloudflare_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          TF_VAR_cloudflare_zone_id: ${{ secrets[format('CLOUDFLARE_ZONE_ID_%s', toUpper(inputs.environment))] }}
+          TF_VAR_cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          TF_VAR_vercel_token: ${{ secrets.VERCEL_TOKEN }}
+          TF_VAR_vercel_team: ${{ secrets.VERCEL_TEAM }}
+          TF_VAR_planetscale_org: ${{ secrets.PLANETSCALE_ORG }}
+          TF_VAR_dns_records: ${{ secrets[format('CLOUDFLARE_DNS_%s', toUpper(inputs.environment))] }}
+        run: ./plan.sh
+      - name: Terraform apply approval
+        if: inputs.require_apply_approval == true || inputs.require_apply_approval == 'true'
+        uses: trstringer/manual-approval@v1
+        with:
+          approvers: ${{ github.actor }}
+      - name: Terraform apply
+        working-directory: infra/terraform/envs/${{ inputs.environment }}
+        env:
+          TF_VAR_cloudflare_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          TF_VAR_cloudflare_zone_id: ${{ secrets[format('CLOUDFLARE_ZONE_ID_%s', toUpper(inputs.environment))] }}
+          TF_VAR_cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          TF_VAR_vercel_token: ${{ secrets.VERCEL_TOKEN }}
+          TF_VAR_vercel_team: ${{ secrets.VERCEL_TEAM }}
+          TF_VAR_planetscale_org: ${{ secrets.PLANETSCALE_ORG }}
+          TF_VAR_dns_records: ${{ secrets[format('CLOUDFLARE_DNS_%s', toUpper(inputs.environment))] }}
+        run: ./apply.sh
+      - name: Deploy web (staging)
+        if: inputs.environment != 'prod'
+        working-directory: apps/web
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_WEB_PROJECT_ID }}
+        run: |
+          pnpm dlx vercel pull --yes --environment=preview --token "$VERCEL_TOKEN"
+          pnpm dlx vercel deploy --token "$VERCEL_TOKEN" --yes
+      - name: Deploy web (production)
+        if: inputs.environment == 'prod'
+        working-directory: apps/web
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_WEB_PROJECT_ID }}
+        run: |
+          pnpm dlx vercel pull --yes --environment=production --token "$VERCEL_TOKEN"
+          pnpm dlx vercel deploy --token "$VERCEL_TOKEN" --yes --prod
+      - name: Deploy admin (staging)
+        if: inputs.environment != 'prod'
+        working-directory: apps/admin
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_ADMIN_PROJECT_ID }}
+        run: |
+          pnpm dlx vercel pull --yes --environment=preview --token "$VERCEL_TOKEN"
+          pnpm dlx vercel deploy --token "$VERCEL_TOKEN" --yes
+      - name: Deploy admin (production)
+        if: inputs.environment == 'prod'
+        working-directory: apps/admin
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_ADMIN_PROJECT_ID }}
+        run: |
+          pnpm dlx vercel pull --yes --environment=production --token "$VERCEL_TOKEN"
+          pnpm dlx vercel deploy --token "$VERCEL_TOKEN" --yes --prod

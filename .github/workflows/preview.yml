@@ -1,0 +1,26 @@
+name: Preview Deployments
+
+on:
+  pull_request:
+    branches:
+      - develop
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 8
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @zoracore/web build
+      - name: Publish preview URLs
+        run: |
+          echo "dk -> https://preview-dk.zoracore.dev" >> $GITHUB_STEP_SUMMARY
+          echo "se -> https://preview-se.zoracore.dev" >> $GITHUB_STEP_SUMMARY
+          echo "fi -> https://preview-fi.zoracore.dev" >> $GITHUB_STEP_SUMMARY

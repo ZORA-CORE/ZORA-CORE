@@ -1,0 +1,77 @@
+openapi: 3.1.0
+info:
+  title: ZORA CORE API
+  version: 0.1.0
+  description: Multi-tenant API for content, users, payments, locale, and search.
+servers:
+  - url: https://api.zoracore.ai
+paths:
+  /v1/content:
+    get:
+      summary: List content collections
+      parameters:
+        - in: header
+          name: x-tenant
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Content summary
+  /v1/users:
+    get:
+      summary: List users for tenant
+      parameters:
+        - in: header
+          name: x-tenant
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Users
+  /v1/payments:
+    get:
+      summary: Payment overview
+      parameters:
+        - in: header
+          name: x-tenant
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Payment summary
+  /v1/locale/{code}:
+    get:
+      summary: Locale configuration
+      parameters:
+        - in: header
+          name: x-tenant
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: code
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Locale data
+  /v1/search:
+    get:
+      summary: Search localized content
+      parameters:
+        - in: header
+          name: x-tenant
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: q
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Search results

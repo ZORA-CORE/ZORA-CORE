@@ -1,0 +1,27 @@
+{
+  "name": "zoracore",
+  "private": true,
+  "packageManager": "pnpm@8.15.8",
+  "scripts": {
+    "dev": "turbo run dev --parallel",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "format": "pnpm prettier --write .",
+    "typecheck": "turbo run typecheck"
+  },
+  "dependencies": {
+    "@zoracore/config": "workspace:*",
+    "@zoracore/i18n": "workspace:*",
+    "@zoracore/ui": "workspace:*",
+    "@zoracore/design": "workspace:*",
+    "@zoracore/content": "workspace:*",
+    "@zoracore/auth": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "20.11.30",
+    "turbo": "^1.13.4",
+    "typescript": "5.4.5",
+    "prettier": "3.2.5"
+  }
+}
