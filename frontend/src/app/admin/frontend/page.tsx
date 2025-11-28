@@ -6,23 +6,10 @@ import { useAuth } from "@/lib/AuthContext";
 import { canWrite } from "@/lib/auth";
 import { getFrontendConfig, updateFrontendConfig } from "@/lib/api";
 import type { HomePageConfig, ClimatePageConfig } from "@/lib/types";
-
-const DEFAULT_HOME_CONFIG: HomePageConfig = {
-  hero_title: "ZORA CORE",
-  hero_subtitle: "Climate-first AI Operating System.",
-  primary_cta_label: "Open Climate OS",
-  primary_cta_link: "/climate",
-  show_climate_dashboard: true,
-  show_missions_section: true,
-};
-
-const DEFAULT_CLIMATE_CONFIG: ClimatePageConfig = {
-  hero_title: "Climate OS",
-  hero_subtitle: "Track your climate impact and complete missions to reduce your footprint. Every action counts in the fight against climate change.",
-  show_profile_section: true,
-  show_dashboard_section: true,
-  show_missions_section: true,
-};
+import {
+  DEFAULT_HOME_PAGE_CONFIG,
+  DEFAULT_CLIMATE_PAGE_CONFIG,
+} from "@/lib/frontendConfig";
 
 type PageKey = "home" | "climate";
 
@@ -205,8 +192,8 @@ function ClimateConfigForm({
 export default function FrontendConfigPage() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const [selectedPage, setSelectedPage] = useState<PageKey>("home");
-  const [homeConfig, setHomeConfig] = useState<HomePageConfig>(DEFAULT_HOME_CONFIG);
-  const [climateConfig, setClimateConfig] = useState<ClimatePageConfig>(DEFAULT_CLIMATE_CONFIG);
+  const [homeConfig, setHomeConfig] = useState<HomePageConfig>(DEFAULT_HOME_PAGE_CONFIG);
+  const [climateConfig, setClimateConfig] = useState<ClimatePageConfig>(DEFAULT_CLIMATE_PAGE_CONFIG);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -225,8 +212,8 @@ export default function FrontendConfigPage() {
           getFrontendConfig("climate"),
         ]);
 
-        setHomeConfig({ ...DEFAULT_HOME_CONFIG, ...(homeResponse.config as HomePageConfig) });
-        setClimateConfig({ ...DEFAULT_CLIMATE_CONFIG, ...(climateResponse.config as ClimatePageConfig) });
+        setHomeConfig({ ...DEFAULT_HOME_PAGE_CONFIG, ...(homeResponse.config as HomePageConfig) });
+        setClimateConfig({ ...DEFAULT_CLIMATE_PAGE_CONFIG, ...(climateResponse.config as ClimatePageConfig) });
       } catch (error) {
         console.error("Failed to load configs:", error);
         setMessage({ type: "error", text: "Failed to load configurations" });
