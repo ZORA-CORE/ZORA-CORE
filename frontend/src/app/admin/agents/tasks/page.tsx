@@ -412,11 +412,17 @@ function TaskStatusCounts({
         </div>
       </div>
       <div className="mt-3 p-2 bg-zinc-900/50 rounded text-xs text-gray-500">
-        Agent Runtime is external (CLI / cron). See{" "}
-        <Link href="/docs/AGENT_RUNTIME_V1.md" className="text-emerald-500 hover:underline">
-          AGENT_RUNTIME_V1.md
-        </Link>{" "}
-        for how to run it.
+        <div className="flex items-center gap-2 mb-1">
+          <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+          <span className="text-emerald-400 font-medium">Agent Automation: enabled via GitHub Actions</span>
+        </div>
+        <div>
+          Tasks are processed automatically every 15 minutes. See{" "}
+          <Link href="https://github.com/ZORA-CORE/ZORA-CORE/blob/main/docs/AGENT_AUTOMATION_V1.md" className="text-emerald-500 hover:underline">
+            AGENT_AUTOMATION_V1.md
+          </Link>{" "}
+          for configuration details.
+        </div>
       </div>
     </div>
   );

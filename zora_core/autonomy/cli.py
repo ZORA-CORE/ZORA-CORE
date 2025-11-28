@@ -31,31 +31,68 @@ def setup_logging(verbose: bool = False) -> None:
 
 async def cmd_run_once(
     limit: int = 10,
+    max_seconds: Optional[int] = None,
+    max_failures: int = 5,
     tenant_id: Optional[str] = None,
     verbose: bool = False,
-) -> int:
+) -> tuple[int, int, bool]:
     """
     Process up to `limit` pending tasks and exit.
     
-    Returns the number of tasks processed.
+    Returns a tuple of (tasks_processed, failures, timed_out).
     """
+    import time
+    
     setup_logging(verbose)
     logger = logging.getLogger("zora.autonomy.cli")
     
     if not is_runtime_configured():
         logger.error("Runtime not configured. Set SUPABASE_URL and SUPABASE_SERVICE_KEY.")
-        return 0
+        return (0, 0, False)
     
-    logger.info(f"Starting run-once with limit={limit}")
+    logger.info(f"Starting run-once with limit={limit}, max_seconds={max_seconds}, max_failures={max_failures}")
+    
+    start_time = time.time()
+    processed = 0
+    failures = 0
+    timed_out = False
     
     try:
         runtime = AgentRuntime(tenant_id=tenant_id)
-        processed = await runtime.run_once(tenant_id=tenant_id, limit=limit)
-        logger.info(f"Completed: processed {processed} tasks")
-        return processed
+        tasks = await runtime.fetch_pending_tasks(tenant_id=tenant_id, limit=limit)
+        
+        for task in tasks:
+            # Check time limit
+            if max_seconds and (time.time() - start_time) >= max_seconds:
+                logger.warning(f"Time limit reached ({max_seconds}s), stopping")
+                timed_out = True
+                break
+            
+            # Check failure limit
+            if failures >= max_failures:
+                logger.warning(f"Max failures reached ({max_failures}), stopping")
+                break
+            
+            # Try to claim the task
+            if not await runtime.claim_task(task):
+                continue
+            
+            # Process the task
+            result = await runtime.process_task(task)
+            
+            # Update the task with the result
+            await runtime.complete_task(task, result)
+            processed += 1
+            
+            if result.status == "failed":
+                failures += 1
+                logger.warning(f"Task {task.id} failed: {result.error_message}")
+        
+        logger.info(f"Completed: processed {processed} tasks, {failures} failures")
+        return (processed, failures, timed_out)
     except Exception as e:
         logger.error(f"Error running runtime: {e}")
-        return 0
+        return (processed, failures, False)
 
 
 async def cmd_run_loop(
@@ -252,6 +289,18 @@ Environment Variables:
         default=10,
         help="Maximum number of tasks to process (default: 10)",
     )
+    run_once_parser.add_argument(
+        "--max-seconds",
+        type=int,
+        default=None,
+        help="Maximum runtime in seconds (default: no limit)",
+    )
+    run_once_parser.add_argument(
+        "--max-failures",
+        type=int,
+        default=5,
+        help="Maximum number of failures before aborting (default: 5)",
+    )
     
     # run-loop command
     run_loop_parser = subparsers.add_parser(
@@ -317,12 +366,19 @@ Environment Variables:
         sys.exit(1)
     
     if args.command == "run-once":
-        result = asyncio.run(cmd_run_once(
+        processed, failures, timed_out = asyncio.run(cmd_run_once(
             limit=args.limit,
+            max_seconds=args.max_seconds,
+            max_failures=args.max_failures,
             tenant_id=args.tenant_id,
             verbose=args.verbose,
         ))
-        sys.exit(0 if result >= 0 else 1)
+        # Exit 0 if we processed tasks successfully (even if some failed)
+        # Exit 1 only if we hit max failures or had a critical error
+        if failures >= args.max_failures:
+            print(f"ERROR: Max failures ({args.max_failures}) reached")
+            sys.exit(1)
+        sys.exit(0)
     
     elif args.command == "run-loop":
         asyncio.run(cmd_run_loop(

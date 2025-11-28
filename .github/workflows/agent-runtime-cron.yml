@@ -1,0 +1,126 @@
+name: ZORA Agent Runtime (Scheduled)
+
+# This workflow runs the ZORA Agent Runtime on a schedule to process
+# pending tasks from the agent_tasks queue automatically.
+#
+# Required GitHub Secrets:
+#   SUPABASE_URL          - Supabase project URL
+#   SUPABASE_SERVICE_KEY  - Supabase service role key
+#   ZORA_TENANT_ID        - Tenant ID for task processing
+#   OPENAI_API_KEY        - OpenAI API key for LLM reasoning (optional)
+#
+# See docs/AGENT_AUTOMATION_V1.md for setup instructions.
+
+on:
+  # Run every 15 minutes
+  schedule:
+    - cron: '*/15 * * * *'
+  
+  # Allow manual trigger from GitHub Actions UI
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: 'Maximum number of tasks to process'
+        required: false
+        default: '20'
+        type: string
+      max_seconds:
+        description: 'Maximum runtime in seconds'
+        required: false
+        default: '300'
+        type: string
+      max_failures:
+        description: 'Maximum failures before aborting'
+        required: false
+        default: '5'
+        type: string
+      verbose:
+        description: 'Enable verbose logging'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+# Prevent concurrent runs to avoid task conflicts
+concurrency:
+  group: agent-runtime
+  cancel-in-progress: false
+
+jobs:
+  run-agents:
+    name: Process Agent Tasks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    # Only run if secrets are configured
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      ZORA_TENANT_ID: ${{ secrets.ZORA_TENANT_ID }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      # Optional: Add other LLM provider keys as needed
+      # ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      # GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+        working-directory: .
+
+      - name: Check runtime configuration
+        id: check-config
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_SERVICE_KEY" ] || [ -z "$ZORA_TENANT_ID" ]; then
+            echo "::warning::Missing required secrets. Please configure SUPABASE_URL, SUPABASE_SERVICE_KEY, and ZORA_TENANT_ID."
+            echo "configured=false" >> $GITHUB_OUTPUT
+          else
+            echo "configured=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run Agent Runtime
+        if: steps.check-config.outputs.configured == 'true'
+        run: |
+          # Set defaults for scheduled runs
+          LIMIT="${{ github.event.inputs.limit || '20' }}"
+          MAX_SECONDS="${{ github.event.inputs.max_seconds || '300' }}"
+          MAX_FAILURES="${{ github.event.inputs.max_failures || '5' }}"
+          VERBOSE="${{ github.event.inputs.verbose || 'false' }}"
+          
+          # Build command
+          CMD="python -m zora_core.autonomy.cli run-once --limit=$LIMIT --max-seconds=$MAX_SECONDS --max-failures=$MAX_FAILURES"
+          
+          if [ "$VERBOSE" = "true" ]; then
+            CMD="$CMD --verbose"
+          fi
+          
+          echo "Running: $CMD"
+          echo "---"
+          
+          # Run the agent runtime
+          $CMD
+          
+          echo "---"
+          echo "Agent runtime completed successfully"
+
+      - name: Skip notification (not configured)
+        if: steps.check-config.outputs.configured != 'true'
+        run: |
+          echo "Skipping agent runtime - secrets not configured"
+          echo "Please set the following GitHub secrets:"
+          echo "  - SUPABASE_URL"
+          echo "  - SUPABASE_SERVICE_KEY"
+          echo "  - ZORA_TENANT_ID"
+          echo "  - OPENAI_API_KEY (optional, for LLM reasoning)"
