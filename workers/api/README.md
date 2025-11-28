@@ -375,33 +375,98 @@ Common error codes:
 npm run typecheck
 ```
 
-### Deploy to Cloudflare
+### Running Tests
 
 ```bash
-# Set secrets first
-npx wrangler secret put SUPABASE_URL
-npx wrangler secret put SUPABASE_SERVICE_KEY
-
-# Deploy
-npm run deploy
+npm test
 ```
+
+## Production Deployment
+
+### Prerequisites
+
+1. Cloudflare account with Workers enabled
+2. Wrangler CLI installed: `npm install -g wrangler`
+3. Authenticated with Cloudflare: `wrangler login`
+
+### Step 1: Set Production Secrets
+
+```bash
+# Supabase credentials
+wrangler secret put SUPABASE_URL --env production
+wrangler secret put SUPABASE_SERVICE_KEY --env production
+
+# OpenAI for semantic search
+wrangler secret put OPENAI_API_KEY --env production
+
+# JWT authentication secret (min 32 characters)
+wrangler secret put ZORA_JWT_SECRET --env production
+```
+
+### Step 2: Configure Custom Domain (Optional)
+
+Edit `wrangler.toml` and uncomment the routes section:
+
+```toml
+[env.production]
+routes = [
+  { pattern = "api.your-domain.com/*", zone_name = "your-domain.com" }
+]
+```
+
+### Step 3: Deploy
+
+```bash
+npm run deploy
+# Or: wrangler deploy --env production
+```
+
+### Step 4: Verify
+
+```bash
+curl https://your-workers-url/api/status
+```
+
+### Production Deployment Checklist
+
+- [ ] All secrets set via `wrangler secret put --env production`
+- [ ] Custom domain configured (if using)
+- [ ] `/api/status` returns healthy response
+- [ ] JWT authentication working
+- [ ] Semantic search returning results
+
+## Authentication
+
+All endpoints except `/api/status` require JWT authentication.
+
+Include the token in the Authorization header:
+
+```bash
+curl -H "Authorization: Bearer <your-jwt-token>" \
+  https://your-api-url/api/climate/profiles
+```
+
+Generate tokens using the Python CLI:
+
+```bash
+PYTHONPATH=. python -m zora_core.auth.cli issue-token -v
+```
+
+See [JWT Authentication Setup](../../docs/DEVELOPER_SETUP.md#jwt-authentication-setup) for details.
 
 ## Security Notes
 
-**Current State: Development Mode**
+**Authentication:** JWT-based authentication is enabled on all stateful endpoints. Tokens include tenant_id for multi-tenant data isolation.
 
-- All endpoints are publicly accessible (no authentication)
-- Using service role key for database access
-- Suitable for development and testing only
+**Secrets:** Never commit secrets to version control. Use `wrangler secret put` for production.
 
-**Production Recommendations:**
-- Implement JWT-based authentication
-- Add rate limiting
-- Use user-scoped RLS policies
-- Rotate service keys regularly
+**CORS:** Currently allows all origins. For production, consider restricting to your frontend domain.
+
+**Rate Limiting:** Not implemented. Consider adding Cloudflare rate limiting rules.
 
 ## Related Documentation
 
+- [Deployment Overview](../../docs/DEPLOYMENT_OVERVIEW.md)
 - [Database Schema](../../docs/DATABASE_SCHEMA_v0_1.md)
 - [Developer Setup](../../docs/DEVELOPER_SETUP.md)
-- [Status Report - Iteration 0003](../../docs/STATUS_REPORT_ITERATION_0003.md)
+- [JWT Authentication](../../docs/STATUS_REPORT_ITERATION_0008.md)

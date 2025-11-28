@@ -8,11 +8,44 @@ compatibility_date = "2024-01-01"
 port = 8787
 local_protocol = "http"
 
-# Environment variables (secrets should be set via wrangler secret)
+# Default environment variables (development)
 [vars]
 ENVIRONMENT = "dev"
 
+# =============================================================================
+# PRODUCTION ENVIRONMENT
+# =============================================================================
+# To deploy to production:
+# 1. Set secrets: wrangler secret put SUPABASE_URL --env production
+# 2. Set secrets: wrangler secret put SUPABASE_SERVICE_KEY --env production
+# 3. Set secrets: wrangler secret put OPENAI_API_KEY --env production
+# 4. Set secrets: wrangler secret put ZORA_JWT_SECRET --env production
+# 5. Deploy: npm run deploy (or wrangler deploy --env production)
+
+[env.production]
+name = "zora-core-api"
+# Uncomment and update with your custom domain:
+# routes = [
+#   { pattern = "api.zora-core.example.com/*", zone_name = "zora-core.example.com" }
+# ]
+
+[env.production.vars]
+ENVIRONMENT = "production"
+
+# =============================================================================
+# LOCAL DEVELOPMENT
+# =============================================================================
 # For local development, create a .dev.vars file with:
 # SUPABASE_URL=https://your-project.supabase.co
 # SUPABASE_SERVICE_KEY=your-service-role-key
-# OPENAI_API_KEY=sk-your-openai-api-key (required for semantic search)
+# OPENAI_API_KEY=sk-your-openai-api-key
+# ZORA_JWT_SECRET=your-jwt-secret-at-least-32-characters
+
+# =============================================================================
+# SECRETS REFERENCE
+# =============================================================================
+# Required secrets (set via wrangler secret put):
+# - SUPABASE_URL: Your Supabase project URL
+# - SUPABASE_SERVICE_KEY: Supabase service role key (full access)
+# - OPENAI_API_KEY: OpenAI API key for semantic search embeddings
+# - ZORA_JWT_SECRET: JWT signing secret (min 32 characters)

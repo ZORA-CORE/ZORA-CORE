@@ -658,6 +658,14 @@ PYTHONPATH=. python -m zora_core.memory.cli demo
 2. Clear Next.js cache: `rm -rf .next`
 3. Check Node.js version: `node --version` (should be 18+)
 
+## Production Deployment
+
+For deploying ZORA CORE to production, see the [Deployment Overview](./DEPLOYMENT_OVERVIEW.md).
+
+Quick links:
+- [Workers API Deployment](../workers/api/README.md#production-deployment)
+- [Frontend Deployment (Vercel)](../frontend/README.md#production-deployment-vercel)
+
 ## Getting Help
 
 - Check the documentation in `docs/`
@@ -674,4 +682,4 @@ PYTHONPATH=. python -m zora_core.memory.cli demo
 
 ---
 
-*ZORA CORE Developer Setup Guide - Iteration 0005*
+*ZORA CORE Developer Setup Guide - Iteration 0008*
