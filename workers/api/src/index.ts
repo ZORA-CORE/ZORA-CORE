@@ -21,6 +21,7 @@ import agentCommandsHandler from './handlers/agent-commands';
 import materialsHandler from './handlers/materials';
 import shopProductsHandler from './handlers/shop-products';
 import zoraShopProjectsHandler from './handlers/zora-shop-projects';
+import autonomySchedulesHandler from './handlers/autonomy-schedules';
 
 const app = new Hono<AuthAppEnv>();
 
@@ -88,6 +89,13 @@ app.get('/', (c) => {
       'GET /api/autonomy/frontend/suggestions',
       'GET /api/autonomy/frontend/suggestions/:id',
       'POST /api/autonomy/frontend/suggestions/:id/decision',
+      'GET /api/autonomy/schedules',
+      'GET /api/autonomy/schedules/:id',
+      'POST /api/autonomy/schedules',
+      'PATCH /api/autonomy/schedules/:id',
+      'DELETE /api/autonomy/schedules/:id',
+      'GET /api/agents/tasks/pending-approval',
+      'POST /api/agents/tasks/:id/decision',
       'GET /api/mashups/brands',
       'GET /api/mashups/brands/:id',
       'POST /api/mashups/brands',
@@ -154,6 +162,9 @@ app.route('/api/shop/brands', brandsHandler);
 app.route('/api/shop/materials', materialsHandler);
 app.route('/api/shop/products', shopProductsHandler);
 app.route('/api/zora-shop/projects', zoraShopProjectsHandler);
+
+// Safety + Scheduling v1 routes (Iteration 00B5)
+app.route('/api/autonomy/schedules', autonomySchedulesHandler);
 
 app.notFound((c) => {
   return c.json({

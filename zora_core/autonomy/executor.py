@@ -59,6 +59,41 @@ SUPPORTED_TASK_TYPES = {t.value for t in TaskType}
 # =============================================================================
 
 @dataclass
+class AgentTaskPolicy:
+    """Represents a task execution policy from agent_task_policies."""
+    id: Optional[str]
+    tenant_id: Optional[str]  # None = global policy
+    task_type: str
+    auto_execute: bool
+    max_risk_level: Optional[int]
+    description: Optional[str]
+    
+    @classmethod
+    def from_db_row(cls, row: Dict[str, Any]) -> "AgentTaskPolicy":
+        """Create an AgentTaskPolicy from a database row."""
+        return cls(
+            id=row.get("id"),
+            tenant_id=row.get("tenant_id"),
+            task_type=row["task_type"],
+            auto_execute=row.get("auto_execute", False),
+            max_risk_level=row.get("max_risk_level"),
+            description=row.get("description"),
+        )
+    
+    @classmethod
+    def default_policy(cls, task_type: str) -> "AgentTaskPolicy":
+        """Create a default policy (auto_execute=False) when no policy exists."""
+        return cls(
+            id=None,
+            tenant_id=None,
+            task_type=task_type,
+            auto_execute=False,
+            max_risk_level=None,
+            description="Default policy - requires manual approval",
+        )
+
+
+@dataclass
 class ExecutorTask:
     """Represents a task from the agent_tasks queue for execution."""
     id: str
@@ -79,6 +114,13 @@ class ExecutorTask:
     created_by_user_id: Optional[str]
     created_at: str
     updated_at: Optional[str]
+    # Safety Layer v1 fields
+    requires_approval: bool = False
+    approved_by_user_id: Optional[str] = None
+    approved_at: Optional[str] = None
+    rejected_by_user_id: Optional[str] = None
+    rejected_at: Optional[str] = None
+    decision_reason: Optional[str] = None
 
     @classmethod
     def from_db_row(cls, row: Dict[str, Any]) -> "ExecutorTask":
@@ -102,7 +144,42 @@ class ExecutorTask:
             created_by_user_id=row.get("created_by_user_id"),
             created_at=row["created_at"],
             updated_at=row.get("updated_at"),
+            # Safety Layer v1 fields
+            requires_approval=row.get("requires_approval", False),
+            approved_by_user_id=row.get("approved_by_user_id"),
+            approved_at=row.get("approved_at"),
+            rejected_by_user_id=row.get("rejected_by_user_id"),
+            rejected_at=row.get("rejected_at"),
+            decision_reason=row.get("decision_reason"),
         )
+    
+    @property
+    def is_approved(self) -> bool:
+        """Check if the task has been manually approved."""
+        return self.approved_by_user_id is not None and self.approved_at is not None
+    
+    @property
+    def is_rejected(self) -> bool:
+        """Check if the task has been rejected."""
+        return self.rejected_by_user_id is not None and self.rejected_at is not None
+    
+    @property
+    def can_auto_execute(self) -> bool:
+        """
+        Check if the task can be auto-executed.
+        
+        A task can auto-execute if:
+        - It doesn't require approval, OR
+        - It has been manually approved
+        
+        A task cannot auto-execute if:
+        - It has been rejected
+        """
+        if self.is_rejected:
+            return False
+        if not self.requires_approval:
+            return True
+        return self.is_approved
 
 
 @dataclass
@@ -631,6 +708,132 @@ class TaskExecutor:
         self.logger = logging.getLogger("zora.autonomy.executor")
         
         self.logger.info(f"TaskExecutor initialized for {self.supabase_url}")
+        
+        # Cache for policies to avoid repeated DB lookups
+        self._policy_cache: Dict[str, AgentTaskPolicy] = {}
+    
+    async def get_task_policy(
+        self,
+        task_type: str,
+        tenant_id: str,
+    ) -> AgentTaskPolicy:
+        """
+        Resolve the execution policy for a given task_type and tenant.
+        
+        Policy resolution order:
+        1. Tenant-specific policy (if exists)
+        2. Global policy (tenant_id IS NULL)
+        3. Default policy (auto_execute=False)
+        
+        Args:
+            task_type: The task type to get policy for
+            tenant_id: The tenant ID
+            
+        Returns:
+            AgentTaskPolicy with resolved settings
+        """
+        # Check cache first
+        cache_key = f"{tenant_id}:{task_type}"
+        if cache_key in self._policy_cache:
+            return self._policy_cache[cache_key]
+        
+        try:
+            # First, try to find tenant-specific policy
+            tenant_policy_result = (
+                self.supabase.table("agent_task_policies")
+                .select("*")
+                .eq("tenant_id", tenant_id)
+                .eq("task_type", task_type)
+                .execute()
+            )
+            
+            if tenant_policy_result.data and len(tenant_policy_result.data) > 0:
+                policy = AgentTaskPolicy.from_db_row(tenant_policy_result.data[0])
+                self._policy_cache[cache_key] = policy
+                self.logger.debug(f"Found tenant-specific policy for {task_type}: auto_execute={policy.auto_execute}")
+                return policy
+            
+            # Fall back to global policy (tenant_id IS NULL)
+            global_policy_result = (
+                self.supabase.table("agent_task_policies")
+                .select("*")
+                .is_("tenant_id", "null")
+                .eq("task_type", task_type)
+                .execute()
+            )
+            
+            if global_policy_result.data and len(global_policy_result.data) > 0:
+                policy = AgentTaskPolicy.from_db_row(global_policy_result.data[0])
+                self._policy_cache[cache_key] = policy
+                self.logger.debug(f"Found global policy for {task_type}: auto_execute={policy.auto_execute}")
+                return policy
+            
+            # No policy found - return default (auto_execute=False)
+            policy = AgentTaskPolicy.default_policy(task_type)
+            self._policy_cache[cache_key] = policy
+            self.logger.debug(f"No policy found for {task_type}, using default: auto_execute=False")
+            return policy
+            
+        except Exception as e:
+            self.logger.error(f"Error fetching policy for {task_type}: {e}")
+            # On error, return default policy (safe default)
+            return AgentTaskPolicy.default_policy(task_type)
+    
+    async def should_task_execute(
+        self,
+        task: ExecutorTask,
+    ) -> tuple[bool, str]:
+        """
+        Determine if a task should be executed based on policy and approval status.
+        
+        Args:
+            task: The task to check
+            
+        Returns:
+            Tuple of (should_execute, reason)
+        """
+        # Check if task has been rejected
+        if task.is_rejected:
+            return False, "task_rejected"
+        
+        # Check if task has been manually approved
+        if task.is_approved:
+            return True, "manually_approved"
+        
+        # Get the policy for this task type
+        policy = await self.get_task_policy(task.task_type, task.tenant_id)
+        
+        # If auto_execute is enabled, task can run
+        if policy.auto_execute:
+            return True, "auto_execute_enabled"
+        
+        # Task requires approval but hasn't been approved yet
+        return False, "requires_approval"
+    
+    async def mark_task_requires_approval(
+        self,
+        task: ExecutorTask,
+    ) -> bool:
+        """
+        Mark a task as requiring approval (set requires_approval=true).
+        
+        Args:
+            task: The task to mark
+            
+        Returns:
+            True if successfully updated, False otherwise
+        """
+        try:
+            self.supabase.table("agent_tasks").update({
+                "requires_approval": True,
+                "result_summary": "Awaiting manual approval",
+            }).eq("id", task.id).execute()
+            
+            self.logger.info(f"Marked task {task.id} as requiring approval")
+            return True
+        except Exception as e:
+            self.logger.error(f"Error marking task {task.id} as requiring approval: {e}")
+            return False
     
     async def fetch_pending_tasks(
         self,
@@ -886,6 +1089,40 @@ class TaskExecutor:
                 })
                 continue
             
+            # Safety Layer v1: Check if task should execute based on policy
+            should_execute, reason = await self.should_task_execute(task)
+            
+            if not should_execute:
+                if reason == "task_rejected":
+                    self.logger.info(f"Skipping rejected task {task.id}")
+                    summary.skipped += 1
+                    summary.task_results.append({
+                        "task_id": task.id,
+                        "task_type": task.task_type,
+                        "status": "skipped",
+                        "reason": "task_rejected",
+                    })
+                elif reason == "requires_approval":
+                    # Mark task as requiring approval and skip
+                    self.logger.info(f"Task {task.id} requires approval, marking and skipping")
+                    await self.mark_task_requires_approval(task)
+                    summary.skipped += 1
+                    summary.task_results.append({
+                        "task_id": task.id,
+                        "task_type": task.task_type,
+                        "status": "skipped",
+                        "reason": "requires_approval",
+                    })
+                else:
+                    summary.skipped += 1
+                    summary.task_results.append({
+                        "task_id": task.id,
+                        "task_type": task.task_type,
+                        "status": "skipped",
+                        "reason": reason,
+                    })
+                continue
+            
             # Try to claim the task
             if not await self.claim_task(task):
                 summary.skipped += 1
@@ -915,6 +1152,7 @@ class TaskExecutor:
                 "status": result.status,
                 "result_summary": result.result_summary,
                 "error_message": result.error_message,
+                "execution_reason": reason,  # Include why task was allowed to execute
             })
         
         self.logger.info(

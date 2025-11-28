@@ -300,6 +300,200 @@ async def cmd_list_task_types(verbose: bool = False) -> None:
     print("or directly via the API.")
 
 
+async def cmd_run_due_schedules(
+    limit: int = 10,
+    schedule_type: Optional[str] = None,
+    dry_run: bool = False,
+    tenant_id: Optional[str] = None,
+    verbose: bool = False,
+) -> tuple[int, int]:
+    """
+    Find and execute due autonomy schedules.
+    
+    For each due schedule:
+    1. Create appropriate agent_tasks based on schedule_type
+    2. Update next_run_at based on frequency
+    3. Update last_run_at
+    
+    Returns a tuple of (schedules_processed, tasks_created).
+    """
+    from datetime import datetime, timedelta
+    
+    setup_logging(verbose)
+    logger = logging.getLogger("zora.autonomy.cli")
+    
+    if not is_executor_configured():
+        logger.error("Executor not configured. Set SUPABASE_URL and SUPABASE_SERVICE_KEY.")
+        print("ERROR: Executor not configured")
+        print("  Set SUPABASE_URL and SUPABASE_SERVICE_KEY environment variables.")
+        return (0, 0)
+    
+    logger.info(f"Starting run-due-schedules with limit={limit}, schedule_type={schedule_type}, dry_run={dry_run}")
+    
+    try:
+        executor = TaskExecutor(tenant_id=tenant_id)
+        tenant = tenant_id or executor.default_tenant_id
+        now = datetime.utcnow()
+        
+        # Fetch due schedules
+        query = (
+            executor.supabase.table("autonomy_schedules")
+            .select("*")
+            .eq("tenant_id", tenant)
+            .eq("enabled", True)
+            .lte("next_run_at", now.isoformat())
+            .order("next_run_at", desc=False)
+            .limit(limit)
+        )
+        
+        if schedule_type:
+            query = query.eq("schedule_type", schedule_type)
+        
+        result = query.execute()
+        schedules = result.data or []
+        
+        if not schedules:
+            print("No due schedules found")
+            return (0, 0)
+        
+        print(f"Found {len(schedules)} due schedule(s)")
+        
+        schedules_processed = 0
+        tasks_created = 0
+        
+        for schedule in schedules:
+            schedule_id = schedule["id"]
+            sched_type = schedule["schedule_type"]
+            frequency = schedule["frequency"]
+            profile_id = schedule.get("profile_id")
+            config = schedule.get("config", {})
+            
+            print(f"\nProcessing schedule {schedule_id}: {sched_type} ({frequency})")
+            
+            if dry_run:
+                print(f"  [DRY RUN] Would create task for {sched_type}")
+                schedules_processed += 1
+                continue
+            
+            # Create agent task based on schedule type
+            task_data = None
+            
+            if sched_type == "climate.weekly_plan_suggest":
+                # Create a task to suggest a weekly plan
+                task_data = {
+                    "tenant_id": tenant,
+                    "agent_id": "ORACLE",
+                    "task_type": "climate.create_missions_from_plan",
+                    "title": f"Weekly plan suggestion (scheduled)",
+                    "description": f"Automatically scheduled weekly plan suggestion",
+                    "payload": {
+                        "profile_id": profile_id,
+                        "scheduled": True,
+                        "schedule_id": schedule_id,
+                        **config,
+                    },
+                    "priority": 0,
+                    "status": "pending",
+                }
+            elif sched_type == "climate.mission_reminder":
+                # Create a task to send mission reminders
+                task_data = {
+                    "tenant_id": tenant,
+                    "agent_id": "LUMINA",
+                    "task_type": "climate.create_single_mission",
+                    "title": f"Mission reminder (scheduled)",
+                    "description": f"Automatically scheduled mission reminder",
+                    "payload": {
+                        "profile_id": profile_id,
+                        "scheduled": True,
+                        "schedule_id": schedule_id,
+                        **config,
+                    },
+                    "priority": 0,
+                    "status": "pending",
+                }
+            elif sched_type == "zora_shop.project_status_check":
+                # Create a task to check project statuses
+                task_data = {
+                    "tenant_id": tenant,
+                    "agent_id": "CONNOR",
+                    "task_type": "zora_shop.create_project",
+                    "title": f"Project status check (scheduled)",
+                    "description": f"Automatically scheduled project status check",
+                    "payload": {
+                        "scheduled": True,
+                        "schedule_id": schedule_id,
+                        **config,
+                    },
+                    "priority": 0,
+                    "status": "pending",
+                }
+            else:
+                logger.warning(f"Unknown schedule type: {sched_type}")
+                print(f"  [SKIP] Unknown schedule type: {sched_type}")
+                continue
+            
+            # Insert the task
+            task_result = executor.supabase.table("agent_tasks").insert(task_data).execute()
+            
+            if task_result.data and len(task_result.data) > 0:
+                task_id = task_result.data[0]["id"]
+                print(f"  Created task: {task_id}")
+                tasks_created += 1
+            else:
+                logger.error(f"Failed to create task for schedule {schedule_id}")
+                print(f"  [ERROR] Failed to create task")
+                continue
+            
+            # Calculate next_run_at based on frequency
+            if frequency == "daily":
+                next_run = now + timedelta(days=1)
+            elif frequency == "weekly":
+                next_run = now + timedelta(days=7)
+            elif frequency == "monthly":
+                next_run = now + timedelta(days=30)
+            else:
+                next_run = now + timedelta(days=7)  # Default to weekly
+            
+            # Update the schedule
+            executor.supabase.table("autonomy_schedules").update({
+                "last_run_at": now.isoformat(),
+                "next_run_at": next_run.isoformat(),
+                "updated_at": now.isoformat(),
+            }).eq("id", schedule_id).execute()
+            
+            print(f"  Updated schedule: next_run_at = {next_run.isoformat()}")
+            schedules_processed += 1
+            
+            # Create journal entry
+            executor.supabase.table("journal_entries").insert({
+                "tenant_id": tenant,
+                "category": "autonomy",
+                "title": f"Schedule executed: {sched_type}",
+                "body": f"Autonomy schedule {schedule_id} executed, created task {task_id}",
+                "details": {
+                    "event_type": "schedule_executed",
+                    "schedule_id": schedule_id,
+                    "schedule_type": sched_type,
+                    "task_id": task_id,
+                    "frequency": frequency,
+                    "next_run_at": next_run.isoformat(),
+                },
+                "author": "system",
+            }).execute()
+        
+        print(f"\n=== Schedule Execution Summary ===")
+        print(f"Schedules processed: {schedules_processed}")
+        print(f"Tasks created:       {tasks_created}")
+        
+        return (schedules_processed, tasks_created)
+        
+    except Exception as e:
+        logger.error(f"Error running due schedules: {e}")
+        print(f"ERROR: {e}")
+        return (0, 0)
+
+
 async def cmd_create_task(
     agent_id: str,
     task_type: str,
@@ -491,6 +685,29 @@ Environment Variables:
         help="List supported task types for Task Executor v1.0",
     )
     
+    # run-due-schedules command (Safety + Scheduling v1)
+    run_schedules_parser = subparsers.add_parser(
+        "run-due-schedules",
+        help="Find and execute due autonomy schedules",
+    )
+    run_schedules_parser.add_argument(
+        "--limit",
+        type=int,
+        default=10,
+        help="Maximum number of schedules to process (default: 10)",
+    )
+    run_schedules_parser.add_argument(
+        "--schedule-type",
+        type=str,
+        default=None,
+        help="Filter by schedule type (e.g., climate.weekly_plan_suggest)",
+    )
+    run_schedules_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show what would be done without actually creating tasks",
+    )
+    
     # create-task command
     create_task_parser = subparsers.add_parser(
         "create-task",
@@ -596,6 +813,17 @@ Environment Variables:
         asyncio.run(cmd_list_task_types(
             verbose=args.verbose,
         ))
+        sys.exit(0)
+    
+    elif args.command == "run-due-schedules":
+        schedules_processed, tasks_created = asyncio.run(cmd_run_due_schedules(
+            limit=args.limit,
+            schedule_type=args.schedule_type,
+            dry_run=args.dry_run,
+            tenant_id=args.tenant_id,
+            verbose=args.verbose,
+        ))
+        # Exit 0 if we processed schedules or had nothing to do
         sys.exit(0)
 
 
