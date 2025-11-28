@@ -8,7 +8,9 @@ import {
   createClimateProfile,
   createClimateMission,
   updateMissionStatus,
+  updateClimateProfile,
   bootstrapMissions,
+  setProfileAsPrimary,
   getFrontendConfig,
   ZoraApiError,
 } from "@/lib/api";
@@ -18,8 +20,10 @@ import type {
   MissionStatus,
   CreateMissionInput,
   CreateProfileInput,
+  UpdateProfileInput,
   DashboardSummary,
   ClimatePageConfig,
+  ProfileScope,
 } from "@/lib/types";
 
 const DEFAULT_CLIMATE_CONFIG: ClimatePageConfig = {
@@ -28,6 +32,20 @@ const DEFAULT_CLIMATE_CONFIG: ClimatePageConfig = {
   show_profile_section: true,
   show_dashboard_section: true,
   show_missions_section: true,
+};
+
+const SCOPE_COLORS: Record<ProfileScope, string> = {
+  individual: "bg-blue-500",
+  household: "bg-purple-500",
+  organization: "bg-amber-500",
+  brand: "bg-emerald-500",
+};
+
+const SCOPE_LABELS: Record<ProfileScope, string> = {
+  individual: "Individual",
+  household: "Household",
+  organization: "Organization",
+  brand: "Brand",
 };
 
 function LoadingSpinner() {
@@ -49,6 +67,96 @@ function ErrorMessage({ message, onRetry }: { message: string; onRetry?: () => v
         >
           Retry
         </button>
+      )}
+    </div>
+  );
+}
+
+function ScopeBadge({ scope }: { scope: ProfileScope }) {
+  return (
+    <span className={`px-2 py-0.5 rounded text-xs text-white \${SCOPE_COLORS[scope]}`}>
+      {SCOPE_LABELS[scope]}
+    </span>
+  );
+}
+
+function PrimaryBadge() {
+  return (
+    <span className="px-2 py-0.5 rounded text-xs bg-emerald-600 text-white">
+      Primary
+    </span>
+  );
+}
+
+function ProfileSelector({
+  profiles,
+  selectedProfile,
+  onSelect,
+  onCreateNew,
+}: {
+  profiles: ClimateProfile[];
+  selectedProfile: ClimateProfile | null;
+  onSelect: (profile: ClimateProfile) => void;
+  onCreateNew: () => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-2 px-4 py-2 bg-zinc-800 border border-zinc-700 rounded hover:border-emerald-500 transition-colors min-w-[200px]"
+      >
+        {selectedProfile ? (
+          <>
+            <span className="flex-1 text-left truncate">{selectedProfile.name}</span>
+            <ScopeBadge scope={selectedProfile.scope} />
+            {selectedProfile.is_primary && <PrimaryBadge />}
+          </>
+        ) : (
+          <span className="text-gray-400">Select a profile...</span>
+        )}
+        <svg
+          className={`w-4 h-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {isOpen && (
+        <div className="absolute z-10 mt-1 w-full bg-zinc-800 border border-zinc-700 rounded shadow-lg max-h-60 overflow-auto">
+          {profiles.map((profile) => (
+            <button
+              key={profile.id}
+              onClick={() => {
+                onSelect(profile);
+                setIsOpen(false);
+              }}
+              className={`w-full flex items-center gap-2 px-4 py-2 hover:bg-zinc-700 transition-colors text-left ${
+                selectedProfile?.id === profile.id ? "bg-zinc-700" : ""
+              }`}
+            >
+              <span className="flex-1 truncate">{profile.name}</span>
+              <ScopeBadge scope={profile.scope} />
+              {profile.is_primary && <PrimaryBadge />}
+            </button>
+          ))}
+          <button
+            onClick={() => {
+              onCreateNew();
+              setIsOpen(false);
+            }}
+            className="w-full flex items-center gap-2 px-4 py-2 hover:bg-zinc-700 transition-colors text-left border-t border-zinc-700 text-emerald-500"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            <span>Create New Profile</span>
+          </button>
+        </div>
       )}
     </div>
   );
@@ -226,34 +334,52 @@ function CreateMissionForm({
 
 function CreateProfileForm({
   onSubmit,
+  onCancel,
+  isModal = false,
 }: {
   onSubmit: (input: CreateProfileInput) => void;
+  onCancel?: () => void;
+  isModal?: boolean;
 }) {
   const [name, setName] = useState("");
   const [profileType, setProfileType] = useState<"person" | "brand" | "organization">("person");
+  const [scope, setScope] = useState<ProfileScope>("individual");
   const [country, setCountry] = useState("");
   const [cityOrRegion, setCityOrRegion] = useState("");
   const [householdSize, setHouseholdSize] = useState("");
   const [primaryEnergySource, setPrimaryEnergySource] = useState("");
+  const [organizationName, setOrganizationName] = useState("");
+  const [sector, setSector] = useState("");
+  const [websiteUrl, setWebsiteUrl] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit({
       name,
       profile_type: profileType,
+      scope,
       country: country || undefined,
       city_or_region: cityOrRegion || undefined,
       household_size: householdSize ? parseInt(householdSize) : undefined,
       primary_energy_source: primaryEnergySource || undefined,
+      organization_name: organizationName || undefined,
+      sector: sector || undefined,
+      website_url: websiteUrl || undefined,
     });
   };
 
+  const showOrgFields = scope === "organization" || scope === "brand";
+
   return (
-    <div className="agent-card">
-      <h2 className="text-xl font-semibold mb-4">Create Your Climate Profile</h2>
-      <p className="text-gray-400 mb-4">
-        Get started by creating your climate profile to track your environmental impact.
-      </p>
+    <div className={isModal ? "" : "agent-card"}>
+      <h2 className="text-xl font-semibold mb-4">
+        {isModal ? "Create New Profile" : "Create Your Climate Profile"}
+      </h2>
+      {!isModal && (
+        <p className="text-gray-400 mb-4">
+          Get started by creating your climate profile to track your environmental impact.
+        </p>
+      )}
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
@@ -268,19 +394,32 @@ function CreateProfileForm({
             />
           </div>
           <div>
+            <label className="block text-sm text-gray-400 mb-1">Scope</label>
+            <select
+              value={scope}
+              onChange={(e) => setScope(e.target.value as ProfileScope)}
+              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded focus:border-emerald-500 focus:outline-none"
+            >
+              <option value="individual">Individual</option>
+              <option value="household">Household</option>
+              <option value="organization">Organization</option>
+              <option value="brand">Brand</option>
+            </select>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
             <label className="block text-sm text-gray-400 mb-1">Profile Type</label>
             <select
               value={profileType}
               onChange={(e) => setProfileType(e.target.value as "person" | "brand" | "organization")}
               className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded focus:border-emerald-500 focus:outline-none"
             >
-              <option value="person">Individual / Household</option>
+              <option value="person">Person</option>
               <option value="brand">Brand</option>
               <option value="organization">Organization</option>
             </select>
           </div>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm text-gray-400 mb-1">Country</label>
             <input
@@ -291,6 +430,51 @@ function CreateProfileForm({
               placeholder="e.g., Denmark"
             />
           </div>
+        </div>
+        {showOrgFields && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">Organization Name</label>
+              <input
+                type="text"
+                value={organizationName}
+                onChange={(e) => setOrganizationName(e.target.value)}
+                className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded focus:border-emerald-500 focus:outline-none"
+                placeholder="Formal organization name"
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">Sector</label>
+              <select
+                value={sector}
+                onChange={(e) => setSector(e.target.value)}
+                className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded focus:border-emerald-500 focus:outline-none"
+              >
+                <option value="">Select...</option>
+                <option value="fashion">Fashion</option>
+                <option value="tech">Technology</option>
+                <option value="food">Food & Beverage</option>
+                <option value="retail">Retail</option>
+                <option value="manufacturing">Manufacturing</option>
+                <option value="services">Services</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+          </div>
+        )}
+        {showOrgFields && (
+          <div>
+            <label className="block text-sm text-gray-400 mb-1">Website URL</label>
+            <input
+              type="url"
+              value={websiteUrl}
+              onChange={(e) => setWebsiteUrl(e.target.value)}
+              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded focus:border-emerald-500 focus:outline-none"
+              placeholder="https://example.com"
+            />
+          </div>
+        )}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm text-gray-400 mb-1">City / Region</label>
             <input
@@ -301,10 +485,10 @@ function CreateProfileForm({
               placeholder="e.g., Copenhagen"
             />
           </div>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm text-gray-400 mb-1">Household Size</label>
+            <label className="block text-sm text-gray-400 mb-1">
+              {scope === "household" ? "Household Size" : "Team Size"}
+            </label>
             <input
               type="number"
               min="1"
@@ -314,26 +498,35 @@ function CreateProfileForm({
               placeholder="Number of people"
             />
           </div>
-          <div>
-            <label className="block text-sm text-gray-400 mb-1">Primary Energy Source</label>
-            <select
-              value={primaryEnergySource}
-              onChange={(e) => setPrimaryEnergySource(e.target.value)}
-              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded focus:border-emerald-500 focus:outline-none"
-            >
-              <option value="">Select...</option>
-              <option value="grid_mixed">Grid (Mixed)</option>
-              <option value="grid_renewable">Grid (Renewable)</option>
-              <option value="solar">Solar</option>
-              <option value="wind">Wind</option>
-              <option value="natural_gas">Natural Gas</option>
-              <option value="oil">Oil</option>
-              <option value="coal">Coal</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
         </div>
-        <div className="flex justify-end">
+        <div>
+          <label className="block text-sm text-gray-400 mb-1">Primary Energy Source</label>
+          <select
+            value={primaryEnergySource}
+            onChange={(e) => setPrimaryEnergySource(e.target.value)}
+            className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded focus:border-emerald-500 focus:outline-none"
+          >
+            <option value="">Select...</option>
+            <option value="grid_mixed">Grid (Mixed)</option>
+            <option value="grid_renewable">Grid (Renewable)</option>
+            <option value="solar">Solar</option>
+            <option value="wind">Wind</option>
+            <option value="natural_gas">Natural Gas</option>
+            <option value="oil">Oil</option>
+            <option value="coal">Coal</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div className="flex justify-end gap-2">
+          {onCancel && (
+            <button
+              type="button"
+              onClick={onCancel}
+              className="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 rounded text-white transition-colors"
+            >
+              Cancel
+            </button>
+          )}
           <button
             type="submit"
             disabled={!name}
@@ -347,15 +540,331 @@ function CreateProfileForm({
   );
 }
 
+function ProfileDetailPane({
+  profile,
+  onSetPrimary,
+  onEdit,
+  settingPrimary,
+}: {
+  profile: ClimateProfile;
+  onSetPrimary: () => void;
+  onEdit: () => void;
+  settingPrimary: boolean;
+}) {
+  const showOrgFields = profile.scope === "organization" || profile.scope === "brand";
+
+  return (
+    <div className="agent-card">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <h2 className="text-xl font-semibold">Climate Profile</h2>
+          <ScopeBadge scope={profile.scope} />
+          {profile.is_primary && <PrimaryBadge />}
+        </div>
+        <div className="flex gap-2">
+          {!profile.is_primary && (
+            <button
+              onClick={onSetPrimary}
+              disabled={settingPrimary}
+              className="px-3 py-1 bg-zinc-700 hover:bg-zinc-600 disabled:bg-gray-600 rounded text-white text-sm transition-colors"
+            >
+              {settingPrimary ? "Setting..." : "Set as Primary"}
+            </button>
+          )}
+          <button
+            onClick={onEdit}
+            className="px-3 py-1 bg-zinc-700 hover:bg-zinc-600 rounded text-white text-sm transition-colors"
+          >
+            Edit
+          </button>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+        <div>
+          <p className="text-gray-400 text-sm">Name</p>
+          <p className="font-medium">{profile.name}</p>
+        </div>
+        <div>
+          <p className="text-gray-400 text-sm">Type</p>
+          <p className="font-medium capitalize">{profile.profile_type}</p>
+        </div>
+        <div>
+          <p className="text-gray-400 text-sm">Country</p>
+          <p className="font-medium">{profile.country || "Not set"}</p>
+        </div>
+        <div>
+          <p className="text-gray-400 text-sm">City / Region</p>
+          <p className="font-medium">{profile.city_or_region || "Not set"}</p>
+        </div>
+      </div>
+      {showOrgFields && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+          <div>
+            <p className="text-gray-400 text-sm">Organization Name</p>
+            <p className="font-medium">{profile.organization_name || "Not set"}</p>
+          </div>
+          <div>
+            <p className="text-gray-400 text-sm">Sector</p>
+            <p className="font-medium capitalize">{profile.sector || "Not set"}</p>
+          </div>
+          <div className="col-span-2">
+            <p className="text-gray-400 text-sm">Website</p>
+            {profile.website_url ? (
+              <a
+                href={profile.website_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-emerald-500 hover:text-emerald-400"
+              >
+                {profile.website_url}
+              </a>
+            ) : (
+              <p className="font-medium">Not set</p>
+            )}
+          </div>
+        </div>
+      )}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div>
+          <p className="text-gray-400 text-sm">
+            {profile.scope === "household" ? "Household Size" : "Team Size"}
+          </p>
+          <p className="font-medium">
+            {profile.household_size ? `${profile.household_size} people` : "Not set"}
+          </p>
+        </div>
+        <div>
+          <p className="text-gray-400 text-sm">Primary Energy</p>
+          <p className="font-medium">
+            {profile.primary_energy_source?.replace(/_/g, " ") || "Not set"}
+          </p>
+        </div>
+        <div>
+          <p className="text-gray-400 text-sm">Transport Mode</p>
+          <p className="font-medium">{profile.transport_mode || "Not set"}</p>
+        </div>
+        <div>
+          <p className="text-gray-400 text-sm">Diet Type</p>
+          <p className="font-medium">{profile.diet_type || "Not set"}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EditProfileModal({
+  profile,
+  onSave,
+  onCancel,
+  saving,
+}: {
+  profile: ClimateProfile;
+  onSave: (input: UpdateProfileInput) => void;
+  onCancel: () => void;
+  saving: boolean;
+}) {
+  const [name, setName] = useState(profile.name);
+  const [scope, setScope] = useState<ProfileScope>(profile.scope);
+  const [country, setCountry] = useState(profile.country || "");
+  const [cityOrRegion, setCityOrRegion] = useState(profile.city_or_region || "");
+  const [householdSize, setHouseholdSize] = useState(profile.household_size?.toString() || "");
+  const [primaryEnergySource, setPrimaryEnergySource] = useState(profile.primary_energy_source || "");
+  const [organizationName, setOrganizationName] = useState(profile.organization_name || "");
+  const [sector, setSector] = useState(profile.sector || "");
+  const [websiteUrl, setWebsiteUrl] = useState(profile.website_url || "");
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSave({
+      name,
+      scope,
+      country: country || undefined,
+      city_or_region: cityOrRegion || undefined,
+      household_size: householdSize ? parseInt(householdSize) : undefined,
+      primary_energy_source: primaryEnergySource || undefined,
+      organization_name: organizationName || undefined,
+      sector: sector || undefined,
+      website_url: websiteUrl || undefined,
+    });
+  };
+
+  const showOrgFields = scope === "organization" || scope === "brand";
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-zinc-900 border border-zinc-700 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-auto p-6">
+        <h2 className="text-xl font-semibold mb-4">Edit Profile</h2>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">Name *</label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded focus:border-emerald-500 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">Scope</label>
+              <select
+                value={scope}
+                onChange={(e) => setScope(e.target.value as ProfileScope)}
+                className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded focus:border-emerald-500 focus:outline-none"
+              >
+                <option value="individual">Individual</option>
+                <option value="household">Household</option>
+                <option value="organization">Organization</option>
+                <option value="brand">Brand</option>
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">Country</label>
+              <input
+                type="text"
+                value={country}
+                onChange={(e) => setCountry(e.target.value)}
+                className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded focus:border-emerald-500 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">City / Region</label>
+              <input
+                type="text"
+                value={cityOrRegion}
+                onChange={(e) => setCityOrRegion(e.target.value)}
+                className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded focus:border-emerald-500 focus:outline-none"
+              />
+            </div>
+          </div>
+          {showOrgFields && (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Organization Name</label>
+                  <input
+                    type="text"
+                    value={organizationName}
+                    onChange={(e) => setOrganizationName(e.target.value)}
+                    className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded focus:border-emerald-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">Sector</label>
+                  <select
+                    value={sector}
+                    onChange={(e) => setSector(e.target.value)}
+                    className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded focus:border-emerald-500 focus:outline-none"
+                  >
+                    <option value="">Select...</option>
+                    <option value="fashion">Fashion</option>
+                    <option value="tech">Technology</option>
+                    <option value="food">Food & Beverage</option>
+                    <option value="retail">Retail</option>
+                    <option value="manufacturing">Manufacturing</option>
+                    <option value="services">Services</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Website URL</label>
+                <input
+                  type="url"
+                  value={websiteUrl}
+                  onChange={(e) => setWebsiteUrl(e.target.value)}
+                  className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded focus:border-emerald-500 focus:outline-none"
+                />
+              </div>
+            </>
+          )}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">
+                {scope === "household" ? "Household Size" : "Team Size"}
+              </label>
+              <input
+                type="number"
+                min="1"
+                value={householdSize}
+                onChange={(e) => setHouseholdSize(e.target.value)}
+                className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded focus:border-emerald-500 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">Primary Energy Source</label>
+              <select
+                value={primaryEnergySource}
+                onChange={(e) => setPrimaryEnergySource(e.target.value)}
+                className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded focus:border-emerald-500 focus:outline-none"
+              >
+                <option value="">Select...</option>
+                <option value="grid_mixed">Grid (Mixed)</option>
+                <option value="grid_renewable">Grid (Renewable)</option>
+                <option value="solar">Solar</option>
+                <option value="wind">Wind</option>
+                <option value="natural_gas">Natural Gas</option>
+                <option value="oil">Oil</option>
+                <option value="coal">Coal</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 pt-4">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 rounded text-white transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={!name || saving}
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded text-white transition-colors"
+            >
+              {saving ? "Saving..." : "Save Changes"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function CreateProfileModal({
+  onSubmit,
+  onCancel,
+}: {
+  onSubmit: (input: CreateProfileInput) => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-zinc-900 border border-zinc-700 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-auto p-6">
+        <CreateProfileForm onSubmit={onSubmit} onCancel={onCancel} isModal />
+      </div>
+    </div>
+  );
+}
+
 export default function ClimatePage() {
-  const [profile, setProfile] = useState<ClimateProfile | null>(null);
+  const [profiles, setProfiles] = useState<ClimateProfile[]>([]);
+  const [selectedProfile, setSelectedProfile] = useState<ClimateProfile | null>(null);
   const [missions, setMissions] = useState<ClimateMission[]>([]);
   const [loading, setLoading] = useState(true);
   const [missionsLoading, setMissionsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showCreateMission, setShowCreateMission] = useState(false);
+  const [showCreateProfile, setShowCreateProfile] = useState(false);
+  const [showEditProfile, setShowEditProfile] = useState(false);
   const [config, setConfig] = useState<ClimatePageConfig>(DEFAULT_CLIMATE_CONFIG);
   const [isDefaultConfig, setIsDefaultConfig] = useState(true);
+  const [settingPrimary, setSettingPrimary] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
 
   useEffect(() => {
     async function loadConfig() {
@@ -370,18 +879,20 @@ export default function ClimatePage() {
     loadConfig();
   }, []);
 
-  const loadProfile = useCallback(async () => {
+  const loadProfiles = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await getClimateProfiles({ limit: 1 });
+      const response = await getClimateProfiles({ limit: 100 });
+      setProfiles(response.data);
       if (response.data.length > 0) {
-        setProfile(response.data[0]);
+        const primary = response.data.find((p) => p.is_primary);
+        setSelectedProfile(primary || response.data[0]);
       } else {
-        setProfile(null);
+        setSelectedProfile(null);
       }
     } catch (err) {
-      const message = err instanceof ZoraApiError ? err.message : "Failed to load profile";
+      const message = err instanceof ZoraApiError ? err.message : "Failed to load profiles";
       setError(message);
     } finally {
       setLoading(false);
@@ -401,20 +912,24 @@ export default function ClimatePage() {
   }, []);
 
   useEffect(() => {
-    loadProfile();
-  }, [loadProfile]);
+    loadProfiles();
+  }, [loadProfiles]);
 
   useEffect(() => {
-    if (profile) {
-      loadMissions(profile.id);
+    if (selectedProfile) {
+      loadMissions(selectedProfile.id);
+    } else {
+      setMissions([]);
     }
-  }, [profile, loadMissions]);
+  }, [selectedProfile, loadMissions]);
 
   const handleCreateProfile = async (input: CreateProfileInput) => {
     try {
       setLoading(true);
       const newProfile = await createClimateProfile(input);
-      setProfile(newProfile);
+      setProfiles((prev) => [newProfile, ...prev]);
+      setSelectedProfile(newProfile);
+      setShowCreateProfile(false);
     } catch (err) {
       const message = err instanceof ZoraApiError ? err.message : "Failed to create profile";
       setError(message);
@@ -423,10 +938,44 @@ export default function ClimatePage() {
     }
   };
 
-  const handleCreateMission = async (input: CreateMissionInput) => {
-    if (!profile) return;
+  const handleUpdateProfile = async (input: UpdateProfileInput) => {
+    if (!selectedProfile) return;
     try {
-      const newMission = await createClimateMission(profile.id, input);
+      setSavingProfile(true);
+      const updated = await updateClimateProfile(selectedProfile.id, input);
+      setProfiles((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+      setSelectedProfile(updated);
+      setShowEditProfile(false);
+    } catch (err) {
+      console.error("Failed to update profile:", err);
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  const handleSetPrimary = async () => {
+    if (!selectedProfile) return;
+    try {
+      setSettingPrimary(true);
+      const updated = await setProfileAsPrimary(selectedProfile.id);
+      setProfiles((prev) =>
+        prev.map((p) => ({
+          ...p,
+          is_primary: p.id === updated.id,
+        }))
+      );
+      setSelectedProfile(updated);
+    } catch (err) {
+      console.error("Failed to set primary profile:", err);
+    } finally {
+      setSettingPrimary(false);
+    }
+  };
+
+  const handleCreateMission = async (input: CreateMissionInput) => {
+    if (!selectedProfile) return;
+    try {
+      const newMission = await createClimateMission(selectedProfile.id, input);
       setMissions((prev) => [newMission, ...prev]);
       setShowCreateMission(false);
     } catch (err) {
@@ -458,10 +1007,10 @@ export default function ClimatePage() {
   const [bootstrapping, setBootstrapping] = useState(false);
 
   const handleBootstrapMissions = async () => {
-    if (!profile) return;
+    if (!selectedProfile) return;
     try {
       setBootstrapping(true);
-      const result = await bootstrapMissions();
+      const result = await bootstrapMissions(selectedProfile.id);
       if (result.created && result.missions) {
         setMissions(result.missions);
       }
@@ -471,6 +1020,14 @@ export default function ClimatePage() {
       setBootstrapping(false);
     }
   };
+
+  const profilesByScope = profiles.reduce(
+    (acc, p) => {
+      acc[p.scope] = (acc[p.scope] || 0) + 1;
+      return acc;
+    },
+    {} as Record<ProfileScope, number>
+  );
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -496,28 +1053,44 @@ export default function ClimatePage() {
         </div>
       </header>
 
-            <main className="flex-1 p-6">
-              <div className="max-w-7xl mx-auto">
-                <div className="mb-8">
-                  <h1 className="text-3xl font-bold mb-2">{config.hero_title}</h1>
-                  <p className="text-gray-400">{config.hero_subtitle}</p>
-                  {isDefaultConfig && (
-                    <p className="text-xs text-gray-500 mt-2">
-                      Using default configuration.{" "}
-                      <Link href="/admin/frontend" className="text-emerald-500 hover:text-emerald-400">
-                        Customize
-                      </Link>
-                    </p>
-                  )}
-                </div>
+      <main className="flex-1 p-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-2">
+              <h1 className="text-3xl font-bold">{config.hero_title}</h1>
+              {profiles.length > 0 && (
+                <ProfileSelector
+                  profiles={profiles}
+                  selectedProfile={selectedProfile}
+                  onSelect={setSelectedProfile}
+                  onCreateNew={() => setShowCreateProfile(true)}
+                />
+              )}
+            </div>
+            <p className="text-gray-400">{config.hero_subtitle}</p>
+            {selectedProfile && (
+              <p className="text-sm text-emerald-500 mt-2">
+                Viewing: {selectedProfile.name} (scope: {SCOPE_LABELS[selectedProfile.scope]})
+                {selectedProfile.is_primary && " - Primary Profile"}
+              </p>
+            )}
+            {isDefaultConfig && (
+              <p className="text-xs text-gray-500 mt-2">
+                Using default configuration.{" "}
+                <Link href="/admin/frontend" className="text-emerald-500 hover:text-emerald-400">
+                  Customize
+                </Link>
+              </p>
+            )}
+          </div>
 
           {loading ? (
             <LoadingSpinner />
           ) : error ? (
-            <ErrorMessage message={error} onRetry={loadProfile} />
-          ) : !profile ? (
+            <ErrorMessage message={error} onRetry={loadProfiles} />
+          ) : profiles.length === 0 ? (
             <CreateProfileForm onSubmit={handleCreateProfile} />
-          ) : (
+          ) : selectedProfile ? (
             <>
               {config.show_dashboard_section && (
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
@@ -553,102 +1126,101 @@ export default function ClimatePage() {
               )}
 
               {config.show_missions_section && (
-              <div className="mb-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-semibold">Your Climate Missions</h2>
-                  <button
-                    onClick={() => setShowCreateMission(true)}
-                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 rounded text-white transition-colors"
-                  >
-                    + New Mission
-                  </button>
-                </div>
-
-                {showCreateMission && (
-                  <div className="mb-4">
-                    <CreateMissionForm
-                      onSubmit={handleCreateMission}
-                      onCancel={() => setShowCreateMission(false)}
-                    />
-                  </div>
-                )}
-
-                {missionsLoading ? (
-                  <LoadingSpinner />
-                ) : missions.length === 0 ? (
-                  <div className="agent-card text-center">
-                    <p className="text-gray-400 mb-4">No missions yet. Get started with some recommended climate actions!</p>
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-semibold">
+                      Missions for {selectedProfile.name}
+                    </h2>
                     <button
-                      onClick={handleBootstrapMissions}
-                      disabled={bootstrapping}
-                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded text-white transition-colors"
+                      onClick={() => setShowCreateMission(true)}
+                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 rounded text-white transition-colors"
                     >
-                      {bootstrapping ? "Creating..." : "Create Starter Missions"}
+                      + New Mission
                     </button>
                   </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {missions.map((mission) => (
-                      <MissionCard
-                        key={mission.id}
-                        mission={mission}
-                        onStatusChange={handleStatusChange}
+
+                  {showCreateMission && (
+                    <div className="mb-4">
+                      <CreateMissionForm
+                        onSubmit={handleCreateMission}
+                        onCancel={() => setShowCreateMission(false)}
                       />
-                    ))}
-                  </div>
-                )}
-              </div>
+                    </div>
+                  )}
+
+                  {missionsLoading ? (
+                    <LoadingSpinner />
+                  ) : missions.length === 0 ? (
+                    <div className="agent-card text-center">
+                      <p className="text-gray-400 mb-4">
+                        No missions yet for this profile. Get started with some recommended climate actions!
+                      </p>
+                      <button
+                        onClick={handleBootstrapMissions}
+                        disabled={bootstrapping}
+                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded text-white transition-colors"
+                      >
+                        {bootstrapping ? "Creating..." : "Create Starter Missions"}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {missions.map((mission) => (
+                        <MissionCard
+                          key={mission.id}
+                          mission={mission}
+                          onStatusChange={handleStatusChange}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
 
               {config.show_profile_section && (
-              <div className="agent-card">
-                <h2 className="text-xl font-semibold mb-4">Climate Profile</h2>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                  <div>
-                    <p className="text-gray-400 text-sm">Name</p>
-                    <p className="font-medium">{profile.name}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-400 text-sm">Type</p>
-                    <p className="font-medium capitalize">{profile.profile_type}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-400 text-sm">Country</p>
-                    <p className="font-medium">{profile.country || "Not set"}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-400 text-sm">City / Region</p>
-                    <p className="font-medium">{profile.city_or_region || "Not set"}</p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div>
-                    <p className="text-gray-400 text-sm">Household Size</p>
-                    <p className="font-medium">{profile.household_size ? `${profile.household_size} people` : "Not set"}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-400 text-sm">Primary Energy</p>
-                    <p className="font-medium">{profile.primary_energy_source?.replace(/_/g, " ") || "Not set"}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-400 text-sm">Transport Mode</p>
-                    <p className="font-medium">{profile.transport_mode || "Not set"}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-400 text-sm">Diet Type</p>
-                    <p className="font-medium">{profile.diet_type || "Not set"}</p>
-                  </div>
-                </div>
-              </div>
+                <ProfileDetailPane
+                  profile={selectedProfile}
+                  onSetPrimary={handleSetPrimary}
+                  onEdit={() => setShowEditProfile(true)}
+                  settingPrimary={settingPrimary}
+                />
               )}
             </>
+          ) : (
+            <div className="agent-card text-center">
+              <p className="text-gray-400 mb-4">Select a profile to view its climate data.</p>
+            </div>
           )}
         </div>
       </main>
 
-            <footer className="border-t border-zinc-800 p-4 text-center text-gray-500 text-sm">
-              ZORA CORE v0.6 - Climate OS v0.2
-            </footer>
+      <footer className="border-t border-zinc-800 p-4 text-center text-gray-500 text-sm">
+        ZORA CORE v0.7 - Climate OS v0.3
+        {profiles.length > 0 && (
+          <span className="ml-4">
+            {profiles.length} profile{profiles.length !== 1 ? "s" : ""} |{" "}
+            {Object.entries(profilesByScope)
+              .map(([scope, count]) => `${count} ${SCOPE_LABELS[scope as ProfileScope].toLowerCase()}`)
+              .join(", ")}
+          </span>
+        )}
+      </footer>
+
+      {showCreateProfile && (
+        <CreateProfileModal
+          onSubmit={handleCreateProfile}
+          onCancel={() => setShowCreateProfile(false)}
+        />
+      )}
+
+      {showEditProfile && selectedProfile && (
+        <EditProfileModal
+          profile={selectedProfile}
+          onSave={handleUpdateProfile}
+          onCancel={() => setShowEditProfile(false)}
+          saving={savingProfile}
+        />
+      )}
     </div>
   );
 }
