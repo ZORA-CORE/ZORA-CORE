@@ -9,6 +9,7 @@ import journalHandler from './handlers/journal';
 import agentsHandler from './handlers/agents';
 import memoryHandler from './handlers/memory';
 import adminHandler from './handlers/admin';
+import adminMetricsHandler from './handlers/admin-metrics';
 import authHandler from './handlers/auth';
 import frontendConfigHandler from './handlers/frontend-config';
 import agentSuggestionsHandler from './handlers/agent-suggestions';
@@ -25,14 +26,25 @@ import autonomySchedulesHandler from './handlers/autonomy-schedules';
 
 const app = new Hono<AuthAppEnv>();
 
+// Request ID middleware - generates or propagates X-Request-ID header
+app.use('*', async (c, next) => {
+  const requestId = c.req.header('X-Request-ID') || crypto.randomUUID();
+  c.set('requestId', requestId);
+  await next();
+  // Add request ID to response headers
+  c.res.headers.set('X-Request-ID', requestId);
+});
+
 app.use('*', cors({
   origin: '*',
   allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowHeaders: ['Content-Type', 'Authorization', 'X-ZORA-ADMIN-SECRET'],
+  allowHeaders: ['Content-Type', 'Authorization', 'X-ZORA-ADMIN-SECRET', 'X-Request-ID'],
 }));
 
 // Apply auth middleware to protected routes
 // Note: /api/status and /api/public/* remain public (no auth required)
+// Note: /api/admin/* uses X-ZORA-ADMIN-SECRET (handled in admin handler)
+// Note: /api/admin/system-metrics and /api/admin/autonomy-status use JWT auth (handled in admin-metrics handler)
 app.use('/api/climate/*', authMiddleware);
 app.use('/api/agents/*', authMiddleware);
 app.use('/api/missions/*', authMiddleware);
@@ -42,6 +54,9 @@ app.use('/api/autonomy/*', authMiddleware);
 app.use('/api/mashups/*', authMiddleware);
 app.use('/api/shop/*', authMiddleware);
 app.use('/api/zora-shop/*', authMiddleware);
+// Admin metrics endpoints require JWT auth (founder/brand_admin role)
+app.use('/api/admin/system-metrics', authMiddleware);
+app.use('/api/admin/autonomy-status', authMiddleware);
 
 // Public routes (no auth required) - mounted before auth middleware check
 app.route('/api/public/mashups', publicMashupsHandler);
@@ -136,12 +151,15 @@ app.get('/', (c) => {
       'GET /api/admin/users (requires X-ZORA-ADMIN-SECRET)',
       'POST /api/admin/users (requires X-ZORA-ADMIN-SECRET)',
       'POST /api/admin/users/:id/token (requires X-ZORA-ADMIN-SECRET)',
+      'GET /api/admin/system-metrics (requires JWT, founder/brand_admin)',
+      'GET /api/admin/autonomy-status (requires JWT, founder/brand_admin)',
     ],
   });
 });
 
 app.route('/api/status', statusHandler);
 app.route('/api/admin', adminHandler);
+app.route('/api/admin', adminMetricsHandler);  // Observability & Metrics v1 (Iteration 00B6)
 app.route('/api/auth', authHandler);
 app.route('/api/agents', agentsHandler);
 app.route('/api/agents', memoryHandler);
@@ -167,19 +185,38 @@ app.route('/api/zora-shop/projects', zoraShopProjectsHandler);
 app.route('/api/autonomy/schedules', autonomySchedulesHandler);
 
 app.notFound((c) => {
+  const requestId = c.get('requestId') || 'unknown';
   return c.json({
-    error: 'NOT_FOUND',
-    message: 'The requested endpoint does not exist',
-    status: 404,
+    error: {
+      code: 'not_found',
+      message: 'The requested endpoint does not exist',
+    },
   }, 404);
 });
 
 app.onError((err, c) => {
-  console.error('Unhandled error:', err);
+  const requestId = c.get('requestId') || 'unknown';
+  const auth = c.get('auth') as { tenantId?: string } | undefined;
+  const tenantId = auth?.tenantId || 'unknown';
+  
+  // Log error with context for debugging
+  console.error('Unhandled error:', {
+    request_id: requestId,
+    tenant_id: tenantId,
+    url: c.req.url,
+    method: c.req.method,
+    error: err.message,
+    stack: err.stack,
+  });
+  
   return c.json({
-    error: 'INTERNAL_ERROR',
-    message: 'An unexpected error occurred',
-    status: 500,
+    error: {
+      code: 'internal_error',
+      message: 'An unexpected error occurred',
+      details: {
+        request_id: requestId,
+      },
+    },
   }, 500);
 });
 
