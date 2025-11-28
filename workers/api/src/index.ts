@@ -13,6 +13,7 @@ import frontendConfigHandler from './handlers/frontend-config';
 import agentSuggestionsHandler from './handlers/agent-suggestions';
 import brandsHandler from './handlers/brands';
 import productsHandler from './handlers/products';
+import publicMashupsHandler from './handlers/public-mashups';
 
 const app = new Hono<AuthAppEnv>();
 
@@ -23,7 +24,7 @@ app.use('*', cors({
 }));
 
 // Apply auth middleware to protected routes
-// Note: /api/status remains public for health checks
+// Note: /api/status and /api/public/* remain public (no auth required)
 app.use('/api/climate/*', authMiddleware);
 app.use('/api/agents/*', authMiddleware);
 app.use('/api/missions/*', authMiddleware);
@@ -32,51 +33,60 @@ app.use('/api/frontend/*', authMiddleware);
 app.use('/api/autonomy/*', authMiddleware);
 app.use('/api/mashups/*', authMiddleware);
 
+// Public routes (no auth required) - mounted before auth middleware check
+app.route('/api/public/mashups', publicMashupsHandler);
+
 app.get('/', (c) => {
   return c.json({
     name: 'ZORA CORE API',
-    version: '0.6.0',
+    version: '0.7.0',
     docs: '/api/status',
-        endpoints: [
-          'GET /api/status',
-          'GET /api/agents',
-          'GET /api/agents/:agentId',
-          'GET /api/agents/:agentId/memory',
-          'POST /api/agents/:agentId/memory/semantic-search',
-          'GET /api/climate/profiles',
-          'GET /api/climate/profiles/:id',
-          'POST /api/climate/profiles',
-          'PUT /api/climate/profiles/:id',
-          'GET /api/climate/profiles/:id/missions',
-          'POST /api/climate/profiles/:id/missions',
-          'PATCH /api/missions/:id',
-          'GET /api/journal',
-          'GET /api/frontend/config/:page',
-          'PUT /api/frontend/config/:page',
-          'POST /api/autonomy/frontend/suggest',
-          'GET /api/autonomy/frontend/suggestions',
-          'GET /api/autonomy/frontend/suggestions/:id',
-          'POST /api/autonomy/frontend/suggestions/:id/decision',
-          'GET /api/mashups/brands',
-          'GET /api/mashups/brands/:id',
-          'POST /api/mashups/brands',
-          'PUT /api/mashups/brands/:id',
-          'DELETE /api/mashups/brands/:id',
-          'GET /api/mashups/products',
-          'GET /api/mashups/products/:id',
-          'POST /api/mashups/products',
-          'PUT /api/mashups/products/:id',
-          'DELETE /api/mashups/products/:id',
-        ],
-        admin_endpoints: [
-          'GET /api/admin/status (requires X-ZORA-ADMIN-SECRET)',
-          'GET /api/admin/schema-status (requires X-ZORA-ADMIN-SECRET)',
-          'POST /api/admin/bootstrap-tenant (requires X-ZORA-ADMIN-SECRET)',
-          'GET /api/admin/tenants (requires X-ZORA-ADMIN-SECRET)',
-          'GET /api/admin/users (requires X-ZORA-ADMIN-SECRET)',
-          'POST /api/admin/users (requires X-ZORA-ADMIN-SECRET)',
-          'POST /api/admin/users/:id/token (requires X-ZORA-ADMIN-SECRET)',
-        ],
+    public_endpoints: [
+      'GET /api/status',
+      'GET /api/public/mashups/products',
+      'GET /api/public/mashups/products/:id',
+      'GET /api/public/mashups/brands',
+      'GET /api/public/mashups/stats',
+    ],
+    authenticated_endpoints: [
+      'GET /api/agents',
+      'GET /api/agents/:agentId',
+      'GET /api/agents/:agentId/memory',
+      'POST /api/agents/:agentId/memory/semantic-search',
+      'GET /api/climate/profiles',
+      'GET /api/climate/profiles/:id',
+      'POST /api/climate/profiles',
+      'PUT /api/climate/profiles/:id',
+      'GET /api/climate/profiles/:id/missions',
+      'POST /api/climate/profiles/:id/missions',
+      'PATCH /api/missions/:id',
+      'GET /api/journal',
+      'GET /api/frontend/config/:page',
+      'PUT /api/frontend/config/:page',
+      'POST /api/autonomy/frontend/suggest',
+      'GET /api/autonomy/frontend/suggestions',
+      'GET /api/autonomy/frontend/suggestions/:id',
+      'POST /api/autonomy/frontend/suggestions/:id/decision',
+      'GET /api/mashups/brands',
+      'GET /api/mashups/brands/:id',
+      'POST /api/mashups/brands',
+      'PUT /api/mashups/brands/:id',
+      'DELETE /api/mashups/brands/:id',
+      'GET /api/mashups/products',
+      'GET /api/mashups/products/:id',
+      'POST /api/mashups/products',
+      'PUT /api/mashups/products/:id',
+      'DELETE /api/mashups/products/:id',
+    ],
+    admin_endpoints: [
+      'GET /api/admin/status (requires X-ZORA-ADMIN-SECRET)',
+      'GET /api/admin/schema-status (requires X-ZORA-ADMIN-SECRET)',
+      'POST /api/admin/bootstrap-tenant (requires X-ZORA-ADMIN-SECRET)',
+      'GET /api/admin/tenants (requires X-ZORA-ADMIN-SECRET)',
+      'GET /api/admin/users (requires X-ZORA-ADMIN-SECRET)',
+      'POST /api/admin/users (requires X-ZORA-ADMIN-SECRET)',
+      'POST /api/admin/users/:id/token (requires X-ZORA-ADMIN-SECRET)',
+    ],
   });
 });
 

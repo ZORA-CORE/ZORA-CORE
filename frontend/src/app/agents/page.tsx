@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
 import {
   getAgents,
@@ -14,6 +13,10 @@ import type {
   MemoryEventWithSimilarity,
   PaginatedResponse,
 } from "@/lib/types";
+import { PageShell } from "@/components/ui/PageShell";
+import { HeroSection } from "@/components/ui/HeroSection";
+import { Card } from "@/components/ui/Card";
+import { useAuth } from "@/lib/AuthContext";
 
 type ViewMode = "recent" | "search";
 
@@ -335,6 +338,7 @@ function AgentDetailPanel({
 }
 
 export default function AgentsPage() {
+  const { isAuthenticated } = useAuth();
   const [agents, setAgents] = useState<Agent[]>([]);
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -362,48 +366,15 @@ export default function AgentsPage() {
   }, [loadAgents]);
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <header className="border-b border-zinc-800 p-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <Link href="/" className="text-2xl font-bold">
-            <span className="text-emerald-500">ZORA</span> CORE
-          </Link>
-          <nav className="flex gap-4">
-            <Link
-              href="/dashboard"
-              className="hover:text-emerald-500 transition-colors"
-            >
-              Dashboard
-            </Link>
-            <Link href="/agents" className="text-emerald-500">
-              Agents
-            </Link>
-            <Link
-              href="/climate"
-              className="hover:text-emerald-500 transition-colors"
-            >
-              Climate OS
-            </Link>
-            <Link
-              href="/journal"
-              className="hover:text-emerald-500 transition-colors"
-            >
-              Journal
-            </Link>
-          </nav>
-        </div>
-      </header>
+    <PageShell isAuthenticated={isAuthenticated}>
+      <HeroSection
+        headline="ZORA Agent Family"
+        subheadline="Meet the 6 core agents that power ZORA CORE. Click on an agent to view their memory and perform semantic searches."
+        size="sm"
+      />
 
-      <main className="flex-1 p-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold mb-2">ZORA Agent Family</h1>
-            <p className="text-gray-400">
-              Meet the 6 core agents that power ZORA CORE. Click on an agent to
-              view their memory and perform semantic searches.
-            </p>
-          </div>
-
+      <section className="py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {error && <ErrorMessage message={error} onRetry={loadAgents} />}
 
           {isLoading && <LoadingSpinner />}
@@ -411,7 +382,7 @@ export default function AgentsPage() {
           {!isLoading && !error && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-1 space-y-3">
-                <h2 className="text-lg font-semibold text-gray-300 mb-3">
+                <h2 className="text-lg font-semibold text-[var(--foreground)]/80 mb-3">
                   Select an Agent
                 </h2>
                 {agents.map((agent) => (
@@ -431,10 +402,10 @@ export default function AgentsPage() {
                     onClose={() => setSelectedAgent(null)}
                   />
                 ) : (
-                  <div className="bg-zinc-900 border border-zinc-700 rounded-lg p-8 text-center">
-                    <div className="w-16 h-16 rounded-full bg-zinc-800 flex items-center justify-center mx-auto mb-4">
+                  <Card variant="default" padding="lg" className="text-center">
+                    <div className="w-16 h-16 rounded-full bg-[var(--card-border)] flex items-center justify-center mx-auto mb-4">
                       <svg
-                        className="w-8 h-8 text-gray-500"
+                        className="w-8 h-8 text-[var(--foreground)]/40"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -447,24 +418,20 @@ export default function AgentsPage() {
                         />
                       </svg>
                     </div>
-                    <h3 className="text-lg font-semibold text-gray-300 mb-2">
+                    <h3 className="text-lg font-semibold text-[var(--foreground)]/80 mb-2">
                       Select an Agent
                     </h3>
-                    <p className="text-gray-500">
+                    <p className="text-[var(--foreground)]/60">
                       Click on an agent from the list to view their recent
                       memories and perform semantic searches.
                     </p>
-                  </div>
+                  </Card>
                 )}
               </div>
             </div>
           )}
         </div>
-      </main>
-
-      <footer className="border-t border-zinc-800 p-4 text-center text-gray-500 text-sm">
-        ZORA CORE v0.4 - Climate-first AI Operating System
-      </footer>
-    </div>
+      </section>
+    </PageShell>
   );
 }

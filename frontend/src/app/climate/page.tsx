@@ -25,6 +25,12 @@ import type {
   ClimatePageConfig,
   ProfileScope,
 } from "@/lib/types";
+import { PageShell } from "@/components/ui/PageShell";
+import { HeroSection } from "@/components/ui/HeroSection";
+import { SectionHeader } from "@/components/ui/SectionHeader";
+import { Card } from "@/components/ui/Card";
+import { StatCard } from "@/components/ui/StatCard";
+import { useAuth } from "@/lib/AuthContext";
 
 const DEFAULT_CLIMATE_CONFIG: ClimatePageConfig = {
   hero_title: "Climate OS",
@@ -1030,34 +1036,33 @@ export default function ClimatePage() {
   );
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <header className="border-b border-zinc-800 p-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <Link href="/" className="text-2xl font-bold">
-            <span className="text-emerald-500">ZORA</span> CORE
-          </Link>
-          <nav className="flex gap-4">
-            <Link href="/dashboard" className="hover:text-emerald-500 transition-colors">
-              Dashboard
-            </Link>
-            <Link href="/agents" className="hover:text-emerald-500 transition-colors">
-              Agents
-            </Link>
-            <Link href="/climate" className="text-emerald-500">
-              Climate OS
-            </Link>
-            <Link href="/journal" className="hover:text-emerald-500 transition-colors">
-              Journal
-            </Link>
-          </nav>
-        </div>
-      </header>
+    <PageShell isAuthenticated={true}>
+      <HeroSection
+        headline={config.hero_title}
+        subheadline={config.hero_subtitle}
+        size="sm"
+      />
 
-      <main className="flex-1 p-6">
-        <div className="max-w-7xl mx-auto">
+      <section className="py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mb-8">
-            <div className="flex items-center justify-between mb-2">
-              <h1 className="text-3xl font-bold">{config.hero_title}</h1>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                {selectedProfile && (
+                  <p className="text-sm text-[var(--primary)]">
+                    Viewing: {selectedProfile.name} (scope: {SCOPE_LABELS[selectedProfile.scope]})
+                    {selectedProfile.is_primary && " - Primary Profile"}
+                  </p>
+                )}
+                {isDefaultConfig && (
+                  <p className="text-xs text-[var(--foreground)]/40 mt-1">
+                    Using default configuration.{" "}
+                    <Link href="/admin/frontend" className="text-[var(--primary)] hover:underline">
+                      Customize
+                    </Link>
+                  </p>
+                )}
+              </div>
               {profiles.length > 0 && (
                 <ProfileSelector
                   profiles={profiles}
@@ -1067,21 +1072,6 @@ export default function ClimatePage() {
                 />
               )}
             </div>
-            <p className="text-gray-400">{config.hero_subtitle}</p>
-            {selectedProfile && (
-              <p className="text-sm text-emerald-500 mt-2">
-                Viewing: {selectedProfile.name} (scope: {SCOPE_LABELS[selectedProfile.scope]})
-                {selectedProfile.is_primary && " - Primary Profile"}
-              </p>
-            )}
-            {isDefaultConfig && (
-              <p className="text-xs text-gray-500 mt-2">
-                Using default configuration.{" "}
-                <Link href="/admin/frontend" className="text-emerald-500 hover:text-emerald-400">
-                  Customize
-                </Link>
-              </p>
-            )}
           </div>
 
           {loading ? (
@@ -1192,19 +1182,7 @@ export default function ClimatePage() {
             </div>
           )}
         </div>
-      </main>
-
-      <footer className="border-t border-zinc-800 p-4 text-center text-gray-500 text-sm">
-        ZORA CORE v0.7 - Climate OS v0.3
-        {profiles.length > 0 && (
-          <span className="ml-4">
-            {profiles.length} profile{profiles.length !== 1 ? "s" : ""} |{" "}
-            {Object.entries(profilesByScope)
-              .map(([scope, count]) => `${count} ${SCOPE_LABELS[scope as ProfileScope].toLowerCase()}`)
-              .join(", ")}
-          </span>
-        )}
-      </footer>
+      </section>
 
       {showCreateProfile && (
         <CreateProfileModal
@@ -1221,6 +1199,6 @@ export default function ClimatePage() {
           saving={savingProfile}
         />
       )}
-    </div>
+    </PageShell>
   );
 }

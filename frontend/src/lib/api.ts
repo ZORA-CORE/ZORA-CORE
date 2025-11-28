@@ -17,7 +17,6 @@ import type {
   FrontendConfigResponse,
   UpdateFrontendConfigInput,
   AgentSuggestion,
-  AgentSuggestionListItem,
   AgentSuggestionsListResponse,
   CreateSuggestionInput,
   SuggestionDecisionInput,
@@ -31,6 +30,10 @@ import type {
   UpdateProductInput,
   ProductsListResponse,
   ProductStatus,
+  PublicProductsResponse,
+  PublicBrandsResponse,
+  PublicMashupStats,
+  PublicProduct,
 } from './types';
 import { getToken, clearToken } from './auth';
 
@@ -97,6 +100,48 @@ async function request<T>(
         }
       }
       
+      throw new ZoraApiError(data as ApiError);
+    }
+
+    log('Response:', data);
+    return data as T;
+  } catch (error) {
+    if (error instanceof ZoraApiError) {
+      throw error;
+    }
+    log('Network error:', error);
+    throw new ZoraApiError({
+      error: 'NETWORK_ERROR',
+      message: error instanceof Error ? error.message : 'Network request failed',
+      status: 0,
+    });
+  }
+}
+
+/**
+ * Public request function - no authentication required
+ * Used for public endpoints like /api/public/*
+ */
+async function publicRequest<T>(
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<T> {
+  const url = `${API_BASE_URL}${endpoint}`;
+  log(`[PUBLIC] ${options.method || 'GET'} ${url}`);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      log('Error response:', data);
       throw new ZoraApiError(data as ApiError);
     }
 
@@ -391,6 +436,43 @@ export async function deleteProduct(id: string): Promise<{ success: boolean; mes
   });
 }
 
+// Public Mashup API functions (v0.18) - no authentication required
+export async function getPublicProducts(params?: {
+  sector?: string;
+  country?: string;
+}): Promise<PublicProductsResponse> {
+  const searchParams = new URLSearchParams();
+  if (params?.sector) searchParams.set('sector', params.sector);
+  if (params?.country) searchParams.set('country', params.country);
+
+  const query = searchParams.toString();
+  return publicRequest<PublicProductsResponse>(
+    `/api/public/mashups/products${query ? `?${query}` : ''}`
+  );
+}
+
+export async function getPublicProduct(id: string): Promise<PublicProduct> {
+  return publicRequest<PublicProduct>(`/api/public/mashups/products/${id}`);
+}
+
+export async function getPublicBrands(params?: {
+  sector?: string;
+  country?: string;
+}): Promise<PublicBrandsResponse> {
+  const searchParams = new URLSearchParams();
+  if (params?.sector) searchParams.set('sector', params.sector);
+  if (params?.country) searchParams.set('country', params.country);
+
+  const query = searchParams.toString();
+  return publicRequest<PublicBrandsResponse>(
+    `/api/public/mashups/brands${query ? `?${query}` : ''}`
+  );
+}
+
+export async function getPublicMashupStats(): Promise<PublicMashupStats> {
+  return publicRequest<PublicMashupStats>('/api/public/mashups/stats');
+}
+
 export const api = {
   getStatus,
   getClimateProfiles,
@@ -424,6 +506,11 @@ export const api = {
   createProduct,
   updateProduct,
   deleteProduct,
+  // Public Mashup API (v0.18)
+  getPublicProducts,
+  getPublicProduct,
+  getPublicBrands,
+  getPublicMashupStats,
 };
 
 export default api;

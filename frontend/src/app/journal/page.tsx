@@ -1,9 +1,15 @@
 "use client";
 
-import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
 import { getJournalEntries, ZoraApiError } from "@/lib/api";
 import type { JournalEntry, JournalCategory } from "@/lib/types";
+import { PageShell } from "@/components/ui/PageShell";
+import { HeroSection } from "@/components/ui/HeroSection";
+import { Card } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { LoadingSpinner as Spinner } from "@/components/ui/LoadingSpinner";
+import { useAuth } from "@/lib/AuthContext";
 
 function LoadingSpinner() {
   return (
@@ -82,6 +88,7 @@ function JournalEntryCard({ entry }: { entry: JournalEntry }) {
 }
 
 export default function JournalPage() {
+  const { isAuthenticated } = useAuth();
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -133,47 +140,25 @@ export default function JournalPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <header className="border-b border-zinc-800 p-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <Link href="/" className="text-2xl font-bold">
-            <span className="text-emerald-500">ZORA</span> CORE
-          </Link>
-          <nav className="flex gap-4">
-            <Link href="/dashboard" className="hover:text-emerald-500 transition-colors">
-              Dashboard
-            </Link>
-            <Link href="/agents" className="hover:text-emerald-500 transition-colors">
-              Agents
-            </Link>
-            <Link href="/climate" className="hover:text-emerald-500 transition-colors">
-              Climate OS
-            </Link>
-            <Link href="/journal" className="text-emerald-500">
-              Journal
-            </Link>
-          </nav>
-        </div>
-      </header>
+    <PageShell isAuthenticated={isAuthenticated}>
+      <HeroSection
+        headline="ZORA Journal"
+        subheadline="System events, decisions, and milestones from ZORA CORE. Track the evolution of the AI operating system."
+        size="sm"
+      />
 
-      <main className="flex-1 p-6">
-        <div className="max-w-4xl mx-auto">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold mb-2">ZORA Journal</h1>
-            <p className="text-gray-400">
-              System events, decisions, and milestones from ZORA CORE.
-              Track the evolution of the AI operating system.
-            </p>
-          </div>
-
+      <section className="py-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           {loading ? (
-            <LoadingSpinner />
+            <div className="py-12">
+              <Spinner size="lg" />
+            </div>
           ) : error ? (
             <ErrorMessage message={error} onRetry={handleRetry} />
           ) : entries.length === 0 ? (
-            <div className="agent-card text-center text-gray-400">
-              <p>No journal entries yet. The system will log important events here.</p>
-            </div>
+            <Card variant="default" padding="lg" className="text-center">
+              <p className="text-[var(--foreground)]/60">No journal entries yet. The system will log important events here.</p>
+            </Card>
           ) : (
             <>
               <div className="space-y-4">
@@ -183,24 +168,20 @@ export default function JournalPage() {
               </div>
 
               {hasMore && (
-                <div className="mt-6 text-center">
-                  <button
+                <div className="mt-8 text-center">
+                  <Button
                     onClick={handleLoadMore}
                     disabled={loadingMore}
-                    className="px-6 py-2 bg-zinc-700 hover:bg-zinc-600 disabled:bg-zinc-800 disabled:cursor-not-allowed rounded text-white transition-colors"
+                    variant="secondary"
                   >
                     {loadingMore ? "Loading..." : "Load More"}
-                  </button>
+                  </Button>
                 </div>
               )}
             </>
           )}
         </div>
-      </main>
-
-      <footer className="border-t border-zinc-800 p-4 text-center text-gray-500 text-sm">
-        ZORA CORE v0.4 - Climate-first AI Operating System
-      </footer>
-    </div>
+      </section>
+    </PageShell>
   );
 }
