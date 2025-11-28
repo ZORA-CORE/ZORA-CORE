@@ -192,7 +192,7 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <Card variant="highlight" padding="md">
+        <Card variant="bordered" padding="md">
           <p className="text-sm text-[var(--foreground)]">
             <strong>Founder?</strong> If you need to set up tenants, users, or generate tokens,{' '}
             <Link href="/admin/setup" className="text-[var(--primary)] underline hover:text-[var(--primary)]/80">

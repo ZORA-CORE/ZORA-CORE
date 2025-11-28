@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { getFrontendConfig, getClimateMissions, getClimateProfiles, getPublicProducts } from "@/lib/api";
 import type { HomePageConfig, ClimateMission, DashboardSummary, ClimateProfile, ProfileScope, PublicProduct } from "@/lib/types";
+import { DEFAULT_HOME_PAGE_CONFIG } from "@/lib/frontendConfig";
 import { PageShell } from "@/components/ui/PageShell";
 import { HeroSection } from "@/components/ui/HeroSection";
 import { SectionHeader } from "@/components/ui/SectionHeader";
@@ -44,15 +45,6 @@ interface Task {
   status: "pending" | "in_progress" | "completed" | "failed";
   priority: "low" | "medium" | "high" | "critical";
 }
-
-const DEFAULT_CONFIG: HomePageConfig = {
-  hero_title: "ZORA CORE",
-  hero_subtitle: "Climate-first AI Operating System.",
-  primary_cta_label: "Open Climate OS",
-  primary_cta_link: "/climate",
-  show_climate_dashboard: true,
-  show_missions_section: true,
-};
 
 const agents: Agent[] = [
   {
@@ -297,7 +289,7 @@ function ProfilesOverview({ profiles, primaryProfile }: { profiles: ClimateProfi
 export default function Dashboard() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState<"agents" | "tasks">("agents");
-  const [config, setConfig] = useState<HomePageConfig>(DEFAULT_CONFIG);
+  const [config, setConfig] = useState<HomePageConfig>(DEFAULT_HOME_PAGE_CONFIG);
   const [isDefault, setIsDefault] = useState(true);
   const [configLoading, setConfigLoading] = useState(true);
   const [missions, setMissions] = useState<ClimateMission[]>([]);
