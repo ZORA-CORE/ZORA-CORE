@@ -18,6 +18,9 @@ import publicMashupsHandler from './handlers/public-mashups';
 import agentTasksHandler from './handlers/agent-tasks';
 import agentInsightsHandler from './handlers/agent-insights';
 import agentCommandsHandler from './handlers/agent-commands';
+import materialsHandler from './handlers/materials';
+import shopProductsHandler from './handlers/shop-products';
+import zoraShopProjectsHandler from './handlers/zora-shop-projects';
 
 const app = new Hono<AuthAppEnv>();
 
@@ -36,6 +39,8 @@ app.use('/api/journal/*', authMiddleware);
 app.use('/api/frontend/*', authMiddleware);
 app.use('/api/autonomy/*', authMiddleware);
 app.use('/api/mashups/*', authMiddleware);
+app.use('/api/shop/*', authMiddleware);
+app.use('/api/zora-shop/*', authMiddleware);
 
 // Public routes (no auth required) - mounted before auth middleware check
 app.route('/api/public/mashups', publicMashupsHandler);
@@ -93,6 +98,27 @@ app.get('/', (c) => {
       'POST /api/mashups/products',
       'PUT /api/mashups/products/:id',
       'DELETE /api/mashups/products/:id',
+      'GET /api/shop/brands',
+      'GET /api/shop/brands/:id',
+      'POST /api/shop/brands',
+      'PUT /api/shop/brands/:id',
+      'DELETE /api/shop/brands/:id',
+      'GET /api/shop/materials',
+      'GET /api/shop/materials/:id',
+      'POST /api/shop/materials',
+      'PUT /api/shop/materials/:id',
+      'DELETE /api/shop/materials/:id',
+      'GET /api/shop/products',
+      'GET /api/shop/products/:id',
+      'POST /api/shop/products',
+      'PUT /api/shop/products/:id',
+      'DELETE /api/shop/products/:id',
+      'GET /api/zora-shop/projects',
+      'GET /api/zora-shop/projects/:id',
+      'POST /api/zora-shop/projects',
+      'PUT /api/zora-shop/projects/:id',
+      'PATCH /api/zora-shop/projects/:id/status',
+      'DELETE /api/zora-shop/projects/:id',
     ],
     admin_endpoints: [
       'GET /api/admin/status (requires X-ZORA-ADMIN-SECRET)',
@@ -122,6 +148,12 @@ app.route('/api/frontend/config', frontendConfigHandler);
 app.route('/api/autonomy/frontend', agentSuggestionsHandler);
 app.route('/api/mashups/brands', brandsHandler);
 app.route('/api/mashups/products', productsHandler);
+
+// ZORA SHOP Backend v1.0 routes
+app.route('/api/shop/brands', brandsHandler);
+app.route('/api/shop/materials', materialsHandler);
+app.route('/api/shop/products', shopProductsHandler);
+app.route('/api/zora-shop/projects', zoraShopProjectsHandler);
 
 app.notFound((c) => {
   return c.json({

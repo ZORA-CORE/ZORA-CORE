@@ -20,7 +20,7 @@
 --   - /admin/setup will work correctly
 -- 
 -- Date: 2025-11-28
--- Version: 2.0.0 (Climate OS Backend v1.0 - Multi-Profile, Summaries & Weekly Plans)
+-- Version: 2.1.0 (ZORA SHOP Backend v1.0 - Brands, Products, Climate Metadata & Projects)
 -- ============================================================================
 
 -- ============================================================================
@@ -952,7 +952,20 @@ CREATE POLICY "Allow all for service role" ON products
     USING (true)
     WITH CHECK (true);
 
-COMMENT ON TABLE products IS 'Products for the climate-first Mashup Shop - climate-neutral or climate-positive items';
+COMMENT ON TABLE products IS 'Products for the climate-first ZORA SHOP - climate-neutral or climate-positive items';
+
+-- Add ZORA SHOP Backend v1.0 columns to products table
+ALTER TABLE products ADD COLUMN IF NOT EXISTS brand_id UUID REFERENCES brands(id) ON DELETE SET NULL;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS price_currency VARCHAR(10) DEFAULT 'EUR';
+ALTER TABLE products ADD COLUMN IF NOT EXISTS price_amount NUMERIC(12, 2);
+ALTER TABLE products ADD COLUMN IF NOT EXISTS description TEXT;
+
+-- Rename short_description to description if needed (for backward compatibility, keep both)
+-- The 'description' column is the primary one for ZORA SHOP Backend v1.0
+
+-- Add index for brand_id
+CREATE INDEX IF NOT EXISTS idx_products_brand ON products(brand_id);
+CREATE INDEX IF NOT EXISTS idx_products_tenant_brand ON products(tenant_id, brand_id);
 
 -- ============================================================================
 -- STEP 14: CREATE PRODUCT_BRANDS JOIN TABLE (Mashup Shop v0.1)
@@ -995,6 +1008,218 @@ CREATE POLICY "Allow all for service role" ON product_brands
     WITH CHECK (true);
 
 COMMENT ON TABLE product_brands IS 'Join table linking products to brands - enables mashup/collab products with multiple brands';
+
+-- ============================================================================
+-- STEP 14B: CREATE MATERIALS TABLE (ZORA SHOP Backend v1.0)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS materials (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    category VARCHAR(100),
+    metadata JSONB DEFAULT '{}',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ
+);
+
+-- Indexes for materials
+CREATE INDEX IF NOT EXISTS idx_materials_tenant ON materials(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_materials_name ON materials(name);
+CREATE INDEX IF NOT EXISTS idx_materials_category ON materials(category);
+CREATE INDEX IF NOT EXISTS idx_materials_tenant_name ON materials(tenant_id, name);
+CREATE INDEX IF NOT EXISTS idx_materials_created_at ON materials(created_at DESC);
+
+-- Trigger for updated_at
+DROP TRIGGER IF EXISTS update_materials_updated_at ON materials;
+CREATE TRIGGER update_materials_updated_at
+    BEFORE UPDATE ON materials
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Enable RLS
+ALTER TABLE materials ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy
+DROP POLICY IF EXISTS "Allow all for service role" ON materials;
+CREATE POLICY "Allow all for service role" ON materials
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE materials IS 'Base materials for ZORA SHOP products - e.g. organic cotton, recycled polyester, hemp';
+
+-- ============================================================================
+-- STEP 14C: CREATE PRODUCT_MATERIALS JOIN TABLE (ZORA SHOP Backend v1.0)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS product_materials (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    material_id UUID NOT NULL REFERENCES materials(id) ON DELETE CASCADE,
+    percentage NUMERIC(5, 2) CHECK (percentage IS NULL OR (percentage >= 0 AND percentage <= 100)),
+    notes TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ
+);
+
+-- Add unique constraint for (product_id, material_id) if not exists
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'product_materials_product_id_material_id_key'
+    ) THEN
+        ALTER TABLE product_materials ADD CONSTRAINT product_materials_product_id_material_id_key UNIQUE(product_id, material_id);
+    END IF;
+EXCEPTION WHEN duplicate_object THEN
+    -- Constraint already exists, ignore
+END$$;
+
+-- Indexes for product_materials
+CREATE INDEX IF NOT EXISTS idx_product_materials_tenant ON product_materials(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_product_materials_product ON product_materials(product_id);
+CREATE INDEX IF NOT EXISTS idx_product_materials_material ON product_materials(material_id);
+CREATE INDEX IF NOT EXISTS idx_product_materials_tenant_product ON product_materials(tenant_id, product_id);
+CREATE INDEX IF NOT EXISTS idx_product_materials_tenant_material ON product_materials(tenant_id, material_id);
+
+-- Trigger for updated_at
+DROP TRIGGER IF EXISTS update_product_materials_updated_at ON product_materials;
+CREATE TRIGGER update_product_materials_updated_at
+    BEFORE UPDATE ON product_materials
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Enable RLS
+ALTER TABLE product_materials ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy
+DROP POLICY IF EXISTS "Allow all for service role" ON product_materials;
+CREATE POLICY "Allow all for service role" ON product_materials
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE product_materials IS 'Join table linking products to materials with percentage composition';
+
+-- ============================================================================
+-- STEP 14D: CREATE PRODUCT_CLIMATE_META TABLE (ZORA SHOP Backend v1.0)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS product_climate_meta (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    climate_label VARCHAR(100),
+    estimated_impact_kgco2 NUMERIC(12, 2),
+    certifications TEXT,
+    notes TEXT,
+    metadata JSONB DEFAULT '{}',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ
+);
+
+-- Add unique constraint for (product_id) - one climate meta per product
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'product_climate_meta_product_id_key'
+    ) THEN
+        ALTER TABLE product_climate_meta ADD CONSTRAINT product_climate_meta_product_id_key UNIQUE(product_id);
+    END IF;
+EXCEPTION WHEN duplicate_object THEN
+    -- Constraint already exists, ignore
+END$$;
+
+-- Indexes for product_climate_meta
+CREATE INDEX IF NOT EXISTS idx_product_climate_meta_tenant ON product_climate_meta(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_product_climate_meta_product ON product_climate_meta(product_id);
+CREATE INDEX IF NOT EXISTS idx_product_climate_meta_label ON product_climate_meta(climate_label);
+CREATE INDEX IF NOT EXISTS idx_product_climate_meta_tenant_label ON product_climate_meta(tenant_id, climate_label);
+
+-- Trigger for updated_at
+DROP TRIGGER IF EXISTS update_product_climate_meta_updated_at ON product_climate_meta;
+CREATE TRIGGER update_product_climate_meta_updated_at
+    BEFORE UPDATE ON product_climate_meta
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Enable RLS
+ALTER TABLE product_climate_meta ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy
+DROP POLICY IF EXISTS "Allow all for service role" ON product_climate_meta;
+CREATE POLICY "Allow all for service role" ON product_climate_meta
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE product_climate_meta IS 'Climate metadata for ZORA SHOP products - labels, impact estimates, certifications';
+
+-- ============================================================================
+-- STEP 14E: CREATE ZORA_SHOP_PROJECTS TABLE (ZORA SHOP Backend v1.0)
+-- ============================================================================
+
+-- ZORA Shop project status enum
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'zora_shop_project_status') THEN
+        CREATE TYPE zora_shop_project_status AS ENUM (
+            'idea',
+            'brief',
+            'concept',
+            'review',
+            'launched',
+            'archived'
+        );
+    END IF;
+END$$;
+
+CREATE TABLE IF NOT EXISTS zora_shop_projects (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    title VARCHAR(500) NOT NULL,
+    description TEXT,
+    status VARCHAR(50) NOT NULL DEFAULT 'idea',
+    primary_brand_id UUID NOT NULL REFERENCES brands(id) ON DELETE CASCADE,
+    secondary_brand_id UUID REFERENCES brands(id) ON DELETE SET NULL,
+    theme VARCHAR(255),
+    target_launch_date DATE,
+    launched_at TIMESTAMPTZ,
+    metadata JSONB DEFAULT '{}',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ
+);
+
+-- Indexes for zora_shop_projects
+CREATE INDEX IF NOT EXISTS idx_zora_shop_projects_tenant ON zora_shop_projects(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_zora_shop_projects_status ON zora_shop_projects(status);
+CREATE INDEX IF NOT EXISTS idx_zora_shop_projects_primary_brand ON zora_shop_projects(primary_brand_id);
+CREATE INDEX IF NOT EXISTS idx_zora_shop_projects_secondary_brand ON zora_shop_projects(secondary_brand_id);
+CREATE INDEX IF NOT EXISTS idx_zora_shop_projects_tenant_status ON zora_shop_projects(tenant_id, status);
+CREATE INDEX IF NOT EXISTS idx_zora_shop_projects_created_at ON zora_shop_projects(created_at DESC);
+
+-- Trigger for updated_at
+DROP TRIGGER IF EXISTS update_zora_shop_projects_updated_at ON zora_shop_projects;
+CREATE TRIGGER update_zora_shop_projects_updated_at
+    BEFORE UPDATE ON zora_shop_projects
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Enable RLS
+ALTER TABLE zora_shop_projects ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy
+DROP POLICY IF EXISTS "Allow all for service role" ON zora_shop_projects;
+CREATE POLICY "Allow all for service role" ON zora_shop_projects
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE zora_shop_projects IS 'ZORA SHOP Projects - brand collaboration projects/drops/campaigns';
 
 -- ============================================================================
 -- STEP 15: CREATE AGENT_TASKS TABLE (Agent Runtime v1)
@@ -1298,11 +1523,11 @@ DECLARE
     table_count INTEGER;
     function_count INTEGER;
 BEGIN
-        -- Count required tables (now 16 with climate_plans and climate_plan_items for Climate OS Backend v1.0)
-        SELECT COUNT(*) INTO table_count
-        FROM information_schema.tables 
-        WHERE table_schema = 'public' 
-        AND table_name IN ('tenants', 'users', 'memory_events', 'journal_entries', 'climate_profiles', 'climate_missions', 'climate_plans', 'climate_plan_items', 'frontend_configs', 'agent_suggestions', 'brands', 'products', 'product_brands', 'agent_tasks', 'agent_insights', 'agent_commands');
+    -- Count required tables (now 20 with ZORA SHOP Backend v1.0 tables)
+    SELECT COUNT(*) INTO table_count
+    FROM information_schema.tables 
+    WHERE table_schema = 'public' 
+    AND table_name IN ('tenants', 'users', 'memory_events', 'journal_entries', 'climate_profiles', 'climate_missions', 'climate_plans', 'climate_plan_items', 'frontend_configs', 'agent_suggestions', 'brands', 'products', 'product_brands', 'agent_tasks', 'agent_insights', 'agent_commands', 'materials', 'product_materials', 'product_climate_meta', 'zora_shop_projects');
     
     -- Count search_memories_by_embedding functions (should be exactly 1)
     SELECT COUNT(*) INTO function_count
@@ -1310,10 +1535,10 @@ BEGIN
     WHERE proname = 'search_memories_by_embedding';
     
     RAISE NOTICE '=== ZORA CORE Schema Verification ===';
-        RAISE NOTICE 'Required tables found: % of 14', table_count;
-        RAISE NOTICE 'search_memories_by_embedding functions: % (should be 1)', function_count;
+    RAISE NOTICE 'Required tables found: % of 20', table_count;
+    RAISE NOTICE 'search_memories_by_embedding functions: % (should be 1)', function_count;
     
-        IF table_count = 14 AND function_count = 1 THEN
+    IF table_count = 20 AND function_count = 1 THEN
         RAISE NOTICE 'Schema is correctly configured!';
     ELSE
         RAISE WARNING 'Schema may have issues. Please check the tables and functions.';
