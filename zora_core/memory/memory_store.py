@@ -2,81 +2,25 @@
 ZORA CORE Memory Store
 
 Provides the core memory storage and retrieval functionality for EIVOR.
-This MVP uses in-memory storage; production will use Supabase/Postgres.
+This module contains the in-memory implementation. For Supabase-backed
+storage, see supabase_adapter.py.
 """
 
 import uuid
-from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum
 from typing import Any, Dict, List, Optional
 
-
-class MemoryType(str, Enum):
-    """Types of memories that can be stored."""
-    DECISION = "decision"
-    REFLECTION = "reflection"
-    ARTIFACT = "artifact"
-    CONVERSATION = "conversation"
-    PLAN = "plan"
-    RESULT = "result"
-    RESEARCH = "research"
-    DESIGN = "design"
-    SAFETY_REVIEW = "safety_review"
-    CLIMATE_DATA = "climate_data"
-    BRAND_DATA = "brand_data"
+from .base import Memory, MemoryBackend, MemoryType
 
 
-@dataclass
-class Memory:
-    """Represents a single memory entry."""
-    id: str
-    agent: str
-    memory_type: MemoryType
-    content: str
-    tags: List[str] = field(default_factory=list)
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    session_id: Optional[str] = None
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: Optional[datetime] = None
-    embedding: Optional[List[float]] = None  # For future vector search
-
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert memory to dictionary."""
-        return {
-            "id": self.id,
-            "agent": self.agent,
-            "memory_type": self.memory_type.value,
-            "content": self.content,
-            "tags": self.tags,
-            "metadata": self.metadata,
-            "session_id": self.session_id,
-            "created_at": self.created_at.isoformat(),
-            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
-        }
-
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "Memory":
-        """Create memory from dictionary."""
-        return cls(
-            id=data["id"],
-            agent=data["agent"],
-            memory_type=MemoryType(data["memory_type"]),
-            content=data["content"],
-            tags=data.get("tags", []),
-            metadata=data.get("metadata", {}),
-            session_id=data.get("session_id"),
-            created_at=datetime.fromisoformat(data["created_at"]) if isinstance(data["created_at"], str) else data["created_at"],
-            updated_at=datetime.fromisoformat(data["updated_at"]) if data.get("updated_at") and isinstance(data["updated_at"], str) else data.get("updated_at"),
-        )
-
-
-class MemoryStore:
+class MemoryStore(MemoryBackend):
     """
     In-memory storage for ZORA CORE memories.
     
-    This is the MVP implementation. Production will use Supabase/Postgres
-    with vector embeddings for semantic search.
+    This is the MVP implementation. For production use with persistent
+    storage, see SupabaseMemoryAdapter in supabase_adapter.py.
+    
+    Implements the MemoryBackend interface for interchangeability.
     """
 
     def __init__(self):
@@ -169,6 +113,8 @@ class MemoryStore:
         memory_type: str = None,
         session_id: str = None,
         limit: int = 10,
+        start_time: datetime = None,
+        end_time: datetime = None,
     ) -> List[Dict[str, Any]]:
         """
         Search memories based on criteria.
@@ -180,6 +126,8 @@ class MemoryStore:
             memory_type: Filter by memory type
             session_id: Filter by session
             limit: Maximum results to return
+            start_time: Filter by start time
+            end_time: Filter by end time
             
         Returns:
             List of matching memories as dictionaries
@@ -209,7 +157,7 @@ class MemoryStore:
                 tag_ids.update(self._tag_index.get(tag, []))
             candidate_ids &= tag_ids
         
-        # Get memories and filter by query
+        # Get memories and filter by query and time range
         results = []
         for memory_id in candidate_ids:
             memory = self._memories.get(memory_id)
@@ -220,10 +168,13 @@ class MemoryStore:
             if query and query.lower() not in memory.content.lower():
                 continue
             
-            results.append(memory.to_dict())
+            # Time range filter
+            if start_time and memory.created_at < start_time:
+                continue
+            if end_time and memory.created_at > end_time:
+                continue
             
-            if len(results) >= limit:
-                break
+            results.append(memory.to_dict())
         
         # Sort by created_at (newest first)
         results.sort(key=lambda x: x["created_at"], reverse=True)
