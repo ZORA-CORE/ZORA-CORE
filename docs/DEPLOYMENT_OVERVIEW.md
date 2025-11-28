@@ -81,6 +81,10 @@ wrangler secret put OPENAI_API_KEY --env production
 # JWT authentication secret (min 32 characters)
 wrangler secret put ZORA_JWT_SECRET --env production
 # Enter: your-jwt-secret-at-least-32-characters
+
+# Admin bootstrap secret (for /admin/setup page)
+wrangler secret put ZORA_BOOTSTRAP_SECRET --env production
+# Enter: your-admin-secret-at-least-32-characters
 ```
 
 ### Step 4: Configure Custom Domain (Optional)
@@ -208,6 +212,7 @@ app.your-domain.com -> CNAME -> cname.vercel-dns.com
 | `SUPABASE_SERVICE_KEY` | Service role key | Yes |
 | `OPENAI_API_KEY` | OpenAI API key | Yes |
 | `ZORA_JWT_SECRET` | JWT signing secret | Yes |
+| `ZORA_BOOTSTRAP_SECRET` | Admin bootstrap secret | Yes |
 
 ### Frontend (Vercel Environment Variables)
 
@@ -267,6 +272,47 @@ app.your-domain.com -> CNAME -> cname.vercel-dns.com
 - [Workers API README](../workers/api/README.md) - API documentation
 - [Frontend README](../frontend/README.md) - Frontend documentation
 
+## Part 4: First-Time Admin Setup
+
+After deploying both the API and frontend, use the Admin Setup page to bootstrap your first tenant and users.
+
+### Step 1: Access Admin Setup
+
+1. Navigate to `https://your-frontend-domain.com/admin/setup`
+2. Enter your `ZORA_BOOTSTRAP_SECRET` in the admin secret field
+3. Click "Authenticate"
+
+### Step 2: Check System Status
+
+The System Status section shows:
+- Whether JWT secret is configured
+- Whether bootstrap secret is configured
+- Whether Supabase is connected
+- Whether tenants and users exist
+
+### Step 3: Bootstrap Tenant (First Time Only)
+
+If no tenants exist:
+1. Enter a tenant name (e.g., "ZORA CORE")
+2. Enter the founder's email address
+3. Click "Bootstrap Tenant"
+
+This creates the default tenant and founder user.
+
+### Step 4: Generate JWT Token
+
+1. In the "Manage Tenants & Users" section, select your tenant
+2. Find your user in the list
+3. Click "Generate Token"
+4. Copy the token
+
+### Step 5: Log In
+
+1. Navigate to `/login`
+2. Paste your JWT token
+3. Click "Sign in"
+4. You now have access to Climate OS, Agents, and Journal
+
 ---
 
-*ZORA CORE Deployment Guide - Iteration 0008*
+*ZORA CORE Deployment Guide - Iteration 0009*

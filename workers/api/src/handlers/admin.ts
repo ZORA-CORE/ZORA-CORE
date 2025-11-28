@@ -1,0 +1,376 @@
+/**
+ * Admin API handlers for ZORA CORE
+ * 
+ * These endpoints are protected by ZORA_BOOTSTRAP_SECRET and provide
+ * admin functionality for tenant/user management and JWT token issuance.
+ */
+
+import { Hono } from 'hono';
+import type { Tenant, User, AdminStatusResponse, BootstrapTenantInput, CreateUserInput, TokenResponse, UserRole } from '../types';
+import type { AuthAppEnv } from '../middleware/auth';
+import { getSupabaseClient } from '../lib/supabase';
+import { jsonResponse, errorResponse } from '../lib/response';
+import { createToken } from '../lib/auth';
+
+const adminHandler = new Hono<AuthAppEnv>();
+
+/**
+ * Middleware to verify admin secret
+ */
+adminHandler.use('*', async (c, next) => {
+  const adminSecret = c.env.ZORA_BOOTSTRAP_SECRET;
+  
+  if (!adminSecret) {
+    return errorResponse('ADMIN_NOT_CONFIGURED', 'ZORA_BOOTSTRAP_SECRET is not configured', 500);
+  }
+  
+  const providedSecret = c.req.header('X-ZORA-ADMIN-SECRET');
+  
+  if (!providedSecret) {
+    return errorResponse('MISSING_ADMIN_SECRET', 'X-ZORA-ADMIN-SECRET header is required', 401);
+  }
+  
+  if (providedSecret !== adminSecret) {
+    return errorResponse('INVALID_ADMIN_SECRET', 'Invalid admin secret', 403);
+  }
+  
+  await next();
+});
+
+/**
+ * GET /api/admin/status
+ * Returns system status for admin setup
+ */
+adminHandler.get('/status', async (c) => {
+  const jwtSecretConfigured = !!c.env.ZORA_JWT_SECRET;
+  const bootstrapSecretConfigured = !!c.env.ZORA_BOOTSTRAP_SECRET;
+  
+  let supabaseConnected = false;
+  let tenantsExist = false;
+  let founderExists = false;
+  let tenantCount = 0;
+  let userCount = 0;
+  
+  try {
+    const supabase = getSupabaseClient(c.env);
+    
+    // Check Supabase connection and get tenant count
+    const { data: tenants, error: tenantError } = await supabase
+      .from('tenants')
+      .select('id', { count: 'exact' });
+    
+    if (!tenantError) {
+      supabaseConnected = true;
+      tenantCount = tenants?.length || 0;
+      tenantsExist = tenantCount > 0;
+    }
+    
+    // Get user count and check for founder
+    const { data: users, error: userError } = await supabase
+      .from('users')
+      .select('id, role');
+    
+    if (!userError && users) {
+      userCount = users.length;
+      founderExists = users.some(u => u.role === 'founder');
+    }
+  } catch (err) {
+    console.error('Error checking admin status:', err);
+  }
+  
+  const status: AdminStatusResponse = {
+    jwt_secret_configured: jwtSecretConfigured,
+    bootstrap_secret_configured: bootstrapSecretConfigured,
+    supabase_connected: supabaseConnected,
+    tenants_exist: tenantsExist,
+    founder_exists: founderExists,
+    tenant_count: tenantCount,
+    user_count: userCount,
+  };
+  
+  return jsonResponse(status);
+});
+
+/**
+ * POST /api/admin/bootstrap-tenant
+ * Creates the first tenant and founder user
+ */
+adminHandler.post('/bootstrap-tenant', async (c) => {
+  const supabase = getSupabaseClient(c.env);
+  
+  // Check if tenants already exist
+  const { data: existingTenants, error: checkError } = await supabase
+    .from('tenants')
+    .select('id')
+    .limit(1);
+  
+  if (checkError) {
+    return errorResponse('DATABASE_ERROR', `Failed to check existing tenants: ${checkError.message}`, 500);
+  }
+  
+  if (existingTenants && existingTenants.length > 0) {
+    return errorResponse('ALREADY_BOOTSTRAPPED', 'Bootstrap has already been completed. Tenants already exist.', 409);
+  }
+  
+  // Parse request body
+  let input: BootstrapTenantInput;
+  try {
+    input = await c.req.json();
+  } catch {
+    return errorResponse('INVALID_JSON', 'Request body must be valid JSON', 400);
+  }
+  
+  if (!input.tenant_name || !input.founder_email) {
+    return errorResponse('MISSING_FIELDS', 'tenant_name and founder_email are required', 400);
+  }
+  
+  // Create tenant
+  const tenantSlug = input.tenant_name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  
+  const { data: tenant, error: tenantError } = await supabase
+    .from('tenants')
+    .insert({
+      name: input.tenant_name,
+      slug: tenantSlug,
+      description: 'Default tenant created during bootstrap',
+      metadata: { bootstrapped: true, bootstrapped_at: new Date().toISOString() },
+    })
+    .select()
+    .single();
+  
+  if (tenantError || !tenant) {
+    return errorResponse('TENANT_CREATE_FAILED', `Failed to create tenant: ${tenantError?.message}`, 500);
+  }
+  
+  // Create founder user
+  const { data: user, error: userError } = await supabase
+    .from('users')
+    .insert({
+      tenant_id: tenant.id,
+      email: input.founder_email,
+      display_name: 'Founder',
+      role: 'founder',
+      metadata: { bootstrapped: true },
+    })
+    .select()
+    .single();
+  
+  if (userError || !user) {
+    // Rollback tenant creation
+    await supabase.from('tenants').delete().eq('id', tenant.id);
+    return errorResponse('USER_CREATE_FAILED', `Failed to create founder user: ${userError?.message}`, 500);
+  }
+  
+  return jsonResponse({
+    message: 'Bootstrap completed successfully',
+    tenant: tenant as Tenant,
+    user: user as User,
+  }, 201);
+});
+
+/**
+ * GET /api/admin/tenants
+ * Lists all tenants
+ */
+adminHandler.get('/tenants', async (c) => {
+  const supabase = getSupabaseClient(c.env);
+  
+  const { data: tenants, error } = await supabase
+    .from('tenants')
+    .select('*')
+    .order('created_at', { ascending: false });
+  
+  if (error) {
+    return errorResponse('DATABASE_ERROR', `Failed to fetch tenants: ${error.message}`, 500);
+  }
+  
+  // Get user counts per tenant
+  const { data: userCounts } = await supabase
+    .from('users')
+    .select('tenant_id');
+  
+  const countMap: Record<string, number> = {};
+  if (userCounts) {
+    for (const u of userCounts) {
+      countMap[u.tenant_id] = (countMap[u.tenant_id] || 0) + 1;
+    }
+  }
+  
+  const tenantsWithCounts = (tenants || []).map(t => ({
+    ...t,
+    user_count: countMap[t.id] || 0,
+  }));
+  
+  return jsonResponse({ data: tenantsWithCounts });
+});
+
+/**
+ * GET /api/admin/users
+ * Lists users, optionally filtered by tenant_id
+ */
+adminHandler.get('/users', async (c) => {
+  const supabase = getSupabaseClient(c.env);
+  const tenantId = c.req.query('tenant_id');
+  
+  let query = supabase
+    .from('users')
+    .select('*')
+    .order('created_at', { ascending: false });
+  
+  if (tenantId) {
+    query = query.eq('tenant_id', tenantId);
+  }
+  
+  const { data: users, error } = await query;
+  
+  if (error) {
+    return errorResponse('DATABASE_ERROR', `Failed to fetch users: ${error.message}`, 500);
+  }
+  
+  return jsonResponse({ data: users || [] });
+});
+
+/**
+ * POST /api/admin/users
+ * Creates a new user
+ */
+adminHandler.post('/users', async (c) => {
+  const supabase = getSupabaseClient(c.env);
+  
+  let input: CreateUserInput;
+  try {
+    input = await c.req.json();
+  } catch {
+    return errorResponse('INVALID_JSON', 'Request body must be valid JSON', 400);
+  }
+  
+  if (!input.tenant_id || !input.email || !input.role) {
+    return errorResponse('MISSING_FIELDS', 'tenant_id, email, and role are required', 400);
+  }
+  
+  // Validate role
+  const validRoles: UserRole[] = ['founder', 'brand_admin', 'viewer'];
+  if (!validRoles.includes(input.role)) {
+    return errorResponse('INVALID_ROLE', `Role must be one of: ${validRoles.join(', ')}`, 400);
+  }
+  
+  // Verify tenant exists
+  const { data: tenant, error: tenantError } = await supabase
+    .from('tenants')
+    .select('id')
+    .eq('id', input.tenant_id)
+    .single();
+  
+  if (tenantError || !tenant) {
+    return errorResponse('TENANT_NOT_FOUND', 'Tenant not found', 404);
+  }
+  
+  // Check if email already exists for this tenant
+  const { data: existingUser } = await supabase
+    .from('users')
+    .select('id')
+    .eq('tenant_id', input.tenant_id)
+    .eq('email', input.email)
+    .single();
+  
+  if (existingUser) {
+    return errorResponse('USER_EXISTS', 'A user with this email already exists for this tenant', 409);
+  }
+  
+  // Create user
+  const { data: user, error: userError } = await supabase
+    .from('users')
+    .insert({
+      tenant_id: input.tenant_id,
+      email: input.email,
+      display_name: input.display_name || null,
+      role: input.role,
+      metadata: {},
+    })
+    .select()
+    .single();
+  
+  if (userError || !user) {
+    return errorResponse('USER_CREATE_FAILED', `Failed to create user: ${userError?.message}`, 500);
+  }
+  
+  return jsonResponse({ data: user as User }, 201);
+});
+
+/**
+ * POST /api/admin/users/:id/token
+ * Issues a JWT token for a specific user
+ */
+adminHandler.post('/users/:id/token', async (c) => {
+  const userId = c.req.param('id');
+  const jwtSecret = c.env.ZORA_JWT_SECRET;
+  
+  if (!jwtSecret) {
+    return errorResponse('JWT_NOT_CONFIGURED', 'ZORA_JWT_SECRET is not configured', 500);
+  }
+  
+  const supabase = getSupabaseClient(c.env);
+  
+  // Get user
+  const { data: user, error: userError } = await supabase
+    .from('users')
+    .select('*')
+    .eq('id', userId)
+    .single();
+  
+  if (userError || !user) {
+    return errorResponse('USER_NOT_FOUND', 'User not found', 404);
+  }
+  
+  // Get tenant
+  const { data: tenant, error: tenantError } = await supabase
+    .from('tenants')
+    .select('*')
+    .eq('id', user.tenant_id)
+    .single();
+  
+  if (tenantError || !tenant) {
+    return errorResponse('TENANT_NOT_FOUND', 'Tenant not found', 404);
+  }
+  
+  // Parse optional expires_in from request body
+  let expiresInSeconds = 7 * 24 * 60 * 60; // Default: 7 days
+  try {
+    const body = await c.req.json();
+    if (body.expires_in && typeof body.expires_in === 'number') {
+      expiresInSeconds = body.expires_in;
+    }
+  } catch {
+    // No body or invalid JSON, use default expiration
+  }
+  
+  // Create token
+  const token = await createToken(
+    {
+      tenant_id: user.tenant_id,
+      user_id: user.id,
+      role: user.role as 'founder' | 'brand_admin' | 'viewer',
+    },
+    jwtSecret,
+    expiresInSeconds
+  );
+  
+  const expiresAt = new Date(Date.now() + expiresInSeconds * 1000).toISOString();
+  
+  // Update last_login_at
+  await supabase
+    .from('users')
+    .update({ last_login_at: new Date().toISOString() })
+    .eq('id', userId);
+  
+  const response: TokenResponse = {
+    token,
+    user: user as User,
+    tenant: tenant as Tenant,
+    expires_at: expiresAt,
+  };
+  
+  return jsonResponse(response);
+});
+
+export default adminHandler;
