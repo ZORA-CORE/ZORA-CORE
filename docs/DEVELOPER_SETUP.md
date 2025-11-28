@@ -65,15 +65,26 @@ For persistent storage, you'll need to set up Supabase.
 
 ### 2. Apply the Database Schema
 
-1. Go to your project's SQL Editor in the Supabase dashboard
-2. Copy the contents of `supabase/migrations/00001_initial_schema.sql`
-3. Paste and run the SQL
-4. For semantic memory support, also run `supabase/migrations/00002_pgvector_semantic_memory.sql`
+**Recommended: Use the One-Click Schema Script**
 
-Alternatively, if you have the Supabase CLI:
-```bash
-supabase db push
-```
+For the easiest setup, use the canonical schema script that handles all migrations in one go:
+
+1. Go to your project's SQL Editor in the Supabase dashboard
+2. Open `supabase/SUPABASE_SCHEMA_V1_FULL.sql` from the repository
+3. Copy the entire file and paste it into the SQL editor
+4. Click "Run"
+
+This script is idempotent and can be run multiple times safely. It will create all required tables, functions, and indexes.
+
+For detailed step-by-step instructions (no CLI required), see [SUPABASE_SETUP_NO_CLI.md](./SUPABASE_SETUP_NO_CLI.md).
+
+**Alternative: Apply Individual Migrations**
+
+If you prefer to apply migrations individually:
+
+1. Copy the contents of `supabase/migrations/00001_initial_schema.sql`
+2. Paste and run the SQL
+3. Repeat for each migration file in order (00002, 00003, 00004)
 
 **Note:** The pgvector migration requires the pgvector extension to be enabled in your Supabase project. This is typically available by default on Supabase projects.
 
