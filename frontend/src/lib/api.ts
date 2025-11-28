@@ -34,6 +34,12 @@ import type {
   PublicBrandsResponse,
   PublicMashupStats,
   PublicProduct,
+  AgentTask,
+  AgentTaskListItem,
+  CreateAgentTaskInput,
+  AgentTasksListResponse,
+  AgentTaskResponse,
+  AgentTaskStatus,
 } from './types';
 import { getToken, clearToken } from './auth';
 
@@ -473,6 +479,38 @@ export async function getPublicMashupStats(): Promise<PublicMashupStats> {
   return publicRequest<PublicMashupStats>('/api/public/mashups/stats');
 }
 
+// Agent Tasks API functions (v0.19/v0.20)
+export async function getAgentTasks(params?: {
+  agent_id?: string;
+  status?: AgentTaskStatus;
+  task_type?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<AgentTasksListResponse> {
+  const searchParams = new URLSearchParams();
+  if (params?.agent_id) searchParams.set('agent_id', params.agent_id);
+  if (params?.status) searchParams.set('status', params.status);
+  if (params?.task_type) searchParams.set('task_type', params.task_type);
+  if (params?.limit) searchParams.set('limit', params.limit.toString());
+  if (params?.offset) searchParams.set('offset', params.offset.toString());
+
+  const query = searchParams.toString();
+  return request<AgentTasksListResponse>(
+    `/api/agents/tasks${query ? `?${query}` : ''}`
+  );
+}
+
+export async function getAgentTask(id: string): Promise<AgentTaskResponse> {
+  return request<AgentTaskResponse>(`/api/agents/tasks/${id}`);
+}
+
+export async function createAgentTask(input: CreateAgentTaskInput): Promise<AgentTaskResponse> {
+  return request<AgentTaskResponse>('/api/agents/tasks', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
 export const api = {
   getStatus,
   getClimateProfiles,
@@ -511,6 +549,10 @@ export const api = {
   getPublicProduct,
   getPublicBrands,
   getPublicMashupStats,
+  // Agent Tasks API (v0.19/v0.20)
+  getAgentTasks,
+  getAgentTask,
+  createAgentTask,
 };
 
 export default api;

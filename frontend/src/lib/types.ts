@@ -626,3 +626,68 @@ export interface PublicMashupStats {
   sectors: string[];
   countries: string[];
 }
+
+// Agent Runtime v1 types (Iteration 0019/0020)
+export type AgentTaskStatus = 'pending' | 'in_progress' | 'completed' | 'failed';
+
+export interface AgentTask {
+  id: string;
+  tenant_id: string;
+  agent_id: string;
+  task_type: string;
+  status: AgentTaskStatus;
+  priority: number;
+  title: string;
+  description: string | null;
+  payload: Record<string, unknown>;
+  result_summary: string | null;
+  error_message: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  created_by_user_id: string | null;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface AgentTaskListItem {
+  id: string;
+  agent_id: string;
+  task_type: string;
+  status: AgentTaskStatus;
+  priority: number;
+  title: string;
+  created_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+}
+
+export interface CreateAgentTaskInput {
+  agent_id: string;
+  task_type: string;
+  title: string;
+  description?: string;
+  payload?: Record<string, unknown>;
+  priority?: number;
+}
+
+export interface AgentTasksListResponse {
+  data: AgentTaskListItem[];
+  pagination: {
+    limit: number;
+    offset: number;
+    total: number;
+    has_more: boolean;
+  };
+}
+
+export interface AgentTaskResponse {
+  data: AgentTask;
+}
+
+export interface AgentTaskStatusCounts {
+  pending: number;
+  in_progress: number;
+  completed: number;
+  failed: number;
+  total: number;
+}

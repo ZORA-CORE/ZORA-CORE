@@ -215,4 +215,80 @@ app.post('/tasks', async (c) => {
   return jsonResponse({ data: data as AgentTask }, 201);
 });
 
+/**
+ * POST /api/agents/tasks/run-dry
+ * Validate task creation without actually creating it (dry run)
+ * Returns validation result and what would be created
+ */
+app.post('/tasks/run-dry', async (c) => {
+  const tenantId = c.get('tenantId');
+
+  if (!tenantId) {
+    return jsonResponse(
+      { error: 'UNAUTHORIZED', message: 'Authentication required', status: 401 },
+      401
+    );
+  }
+
+  let body: CreateAgentTaskInput;
+  try {
+    body = await c.req.json();
+  } catch {
+    return jsonResponse(
+      { error: 'INVALID_JSON', message: 'Request body must be valid JSON', status: 400 },
+      400
+    );
+  }
+
+  const validationErrors: string[] = [];
+
+  // Validate required fields
+  if (!body.agent_id) {
+    validationErrors.push('agent_id is required');
+  }
+  if (!body.task_type) {
+    validationErrors.push('task_type is required');
+  }
+  if (!body.title) {
+    validationErrors.push('title is required');
+  }
+
+  // Validate agent_id
+  if (body.agent_id) {
+    const normalizedAgentId = body.agent_id.toUpperCase();
+    if (!VALID_AGENT_IDS.includes(normalizedAgentId)) {
+      validationErrors.push(`Invalid agent_id '${body.agent_id}'. Must be one of: ${VALID_AGENT_IDS.join(', ')}`);
+    }
+  }
+
+  // Validate priority if provided
+  if (body.priority !== undefined && (typeof body.priority !== 'number' || body.priority < 0)) {
+    validationErrors.push('priority must be a non-negative number');
+  }
+
+  if (validationErrors.length > 0) {
+    return jsonResponse({
+      valid: false,
+      errors: validationErrors,
+      message: 'Validation failed',
+    });
+  }
+
+  // Return what would be created
+  const normalizedAgentId = body.agent_id.toUpperCase();
+  return jsonResponse({
+    valid: true,
+    message: 'Task would be created successfully',
+    preview: {
+      agent_id: normalizedAgentId,
+      task_type: body.task_type,
+      title: body.title,
+      description: body.description || null,
+      payload: body.payload || {},
+      priority: body.priority ?? 0,
+      status: 'pending',
+    },
+  });
+});
+
 export default app;

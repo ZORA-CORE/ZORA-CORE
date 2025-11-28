@@ -183,6 +183,86 @@ Agent Runtime v1 is designed with safety in mind:
 - **AEGIS oversight** - Safety reviews can be scheduled to monitor agent activities
 - **Tenant isolation** - All tasks are scoped to a specific tenant
 
+## Using the Agent Control Center
+
+The Agent Control Center is a web UI for managing agent tasks without using the CLI. Access it at `/admin/agents/tasks` (requires founder or brand_admin role).
+
+### Features
+
+1. **Task Queue Status** - View counts of pending, in-progress, completed, and failed tasks with a refresh button
+
+2. **Task List** - Browse all tasks with columns for:
+   - Created date
+   - Agent name (color-coded)
+   - Title and task type
+   - Status badge
+   - Priority
+   - Completion date
+
+3. **Filters** - Filter tasks by:
+   - Agent (CONNOR, LUMINA, EIVOR, ORACLE, AEGIS, SAM)
+   - Status (pending, in_progress, completed, failed)
+
+4. **Task Details** - Click any task to view full details including:
+   - Title and description
+   - Payload (JSON)
+   - Result summary (for completed tasks)
+   - Error message (for failed tasks)
+   - All timestamps
+
+5. **Create Tasks** - Create new tasks with:
+   - Agent dropdown (selects which agent handles the task)
+   - Task type dropdown (constrained by agent selection)
+   - Title (auto-filled based on task type)
+   - Description (optional)
+   - Extra instructions (optional, passed in payload)
+   - Priority (0 = normal, higher = more urgent)
+
+### Dry Run Validation
+
+Use the `/api/agents/tasks/run-dry` endpoint to validate task creation without actually creating a task:
+
+```bash
+curl -X POST https://api.zoracore.dk/api/agents/tasks/run-dry \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "agent_id": "LUMINA",
+    "task_type": "plan_frontend_improvements",
+    "title": "Review dashboard"
+  }'
+```
+
+Response:
+```json
+{
+  "valid": true,
+  "message": "Task would be created successfully",
+  "preview": {
+    "agent_id": "LUMINA",
+    "task_type": "plan_frontend_improvements",
+    "title": "Review dashboard",
+    "description": null,
+    "payload": {},
+    "priority": 0,
+    "status": "pending"
+  }
+}
+```
+
+### Navigation
+
+Access the Agent Control Center from:
+- `/admin/setup` → Quick Links → "Agent Control Center"
+- Direct URL: `/admin/agents/tasks`
+
+### Important Notes
+
+- The Agent Control Center only creates and views tasks - it does NOT execute them
+- Task execution happens via the Python CLI/runtime (see CLI Usage section above)
+- Run `python -m zora_core.autonomy.cli run-once` to process pending tasks
+- All tasks are tenant-scoped (you only see tasks for your tenant)
+
 ## Future Enhancements
 
 Planned for future iterations:
@@ -192,7 +272,6 @@ Planned for future iterations:
 - Task dependencies and workflows
 - Agent-to-agent task delegation
 - Real-time task status updates via WebSocket
-- Admin UI for task management at `/admin/agents/tasks`
 
 ## Related Documentation
 
