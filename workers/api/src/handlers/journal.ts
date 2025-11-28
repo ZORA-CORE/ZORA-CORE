@@ -1,5 +1,7 @@
 import { Hono } from 'hono';
-import type { AppEnv, JournalEntry } from '../types';
+import type { JournalEntry } from '../types';
+import type { AuthAppEnv } from '../middleware/auth';
+import { getTenantId } from '../middleware/auth';
 import { getSupabaseClient } from '../lib/supabase';
 import {
   paginatedResponse,
@@ -7,10 +9,11 @@ import {
   serverErrorResponse,
 } from '../lib/response';
 
-const app = new Hono<AppEnv>();
+const app = new Hono<AuthAppEnv>();
 
 app.get('/', async (c) => {
   try {
+    const tenantId = getTenantId(c);
     const url = new URL(c.req.url);
     const { limit, offset } = parsePaginationParams(url);
     const category = url.searchParams.get('category');
@@ -20,7 +23,8 @@ app.get('/', async (c) => {
     
     let query = supabase
       .from('journal_entries')
-      .select('*', { count: 'exact' });
+      .select('*', { count: 'exact' })
+      .eq('tenant_id', tenantId);
     
     if (category) {
       query = query.eq('category', category);

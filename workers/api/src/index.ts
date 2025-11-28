@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import type { AppEnv } from './types';
+import { authMiddleware, type AuthAppEnv } from './middleware/auth';
 import statusHandler from './handlers/status';
 import profilesHandler from './handlers/profiles';
 import missionsHandler from './handlers/missions';
@@ -8,13 +9,20 @@ import journalHandler from './handlers/journal';
 import agentsHandler from './handlers/agents';
 import memoryHandler from './handlers/memory';
 
-const app = new Hono<AppEnv>();
+const app = new Hono<AuthAppEnv>();
 
 app.use('*', cors({
   origin: '*',
   allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization'],
 }));
+
+// Apply auth middleware to protected routes
+// Note: /api/status remains public for health checks
+app.use('/api/climate/*', authMiddleware);
+app.use('/api/agents/*', authMiddleware);
+app.use('/api/missions/*', authMiddleware);
+app.use('/api/journal/*', authMiddleware);
 
 app.get('/', (c) => {
   return c.json({

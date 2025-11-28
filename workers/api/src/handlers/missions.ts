@@ -1,5 +1,7 @@
 import { Hono } from 'hono';
-import type { AppEnv, ClimateMission, CreateMissionInput, UpdateMissionInput } from '../types';
+import type { ClimateMission, CreateMissionInput, UpdateMissionInput } from '../types';
+import type { AuthAppEnv } from '../middleware/auth';
+import { getTenantId } from '../middleware/auth';
 import { getSupabaseClient } from '../lib/supabase';
 import {
   jsonResponse,
@@ -10,10 +12,11 @@ import {
   serverErrorResponse,
 } from '../lib/response';
 
-const app = new Hono<AppEnv>();
+const app = new Hono<AuthAppEnv>();
 
 app.get('/profiles/:profileId/missions', async (c) => {
   try {
+    const tenantId = getTenantId(c);
     const profileId = c.req.param('profileId');
     const url = new URL(c.req.url);
     const { limit, offset } = parsePaginationParams(url);
@@ -21,10 +24,12 @@ app.get('/profiles/:profileId/missions', async (c) => {
     
     const supabase = getSupabaseClient(c.env);
     
+    // Verify profile belongs to tenant
     const { data: profile } = await supabase
       .from('climate_profiles')
       .select('id')
       .eq('id', profileId)
+      .eq('tenant_id', tenantId)
       .single();
     
     if (!profile) {
@@ -34,7 +39,8 @@ app.get('/profiles/:profileId/missions', async (c) => {
     let query = supabase
       .from('climate_missions')
       .select('*', { count: 'exact' })
-      .eq('profile_id', profileId);
+      .eq('profile_id', profileId)
+      .eq('tenant_id', tenantId);
     
     if (status) {
       query = query.eq('status', status);
@@ -58,6 +64,7 @@ app.get('/profiles/:profileId/missions', async (c) => {
 
 app.post('/profiles/:profileId/missions', async (c) => {
   try {
+    const tenantId = getTenantId(c);
     const profileId = c.req.param('profileId');
     const body = await c.req.json<CreateMissionInput>();
     
@@ -67,10 +74,12 @@ app.post('/profiles/:profileId/missions', async (c) => {
     
     const supabase = getSupabaseClient(c.env);
     
+    // Verify profile belongs to tenant
     const { data: profile } = await supabase
       .from('climate_profiles')
       .select('id')
       .eq('id', profileId)
+      .eq('tenant_id', tenantId)
       .single();
     
     if (!profile) {
@@ -80,6 +89,7 @@ app.post('/profiles/:profileId/missions', async (c) => {
     const { data, error } = await supabase
       .from('climate_missions')
       .insert({
+        tenant_id: tenantId,
         profile_id: profileId,
         title: body.title,
         description: body.description || null,
@@ -105,15 +115,18 @@ app.post('/profiles/:profileId/missions', async (c) => {
 
 app.patch('/missions/:id', async (c) => {
   try {
+    const tenantId = getTenantId(c);
     const id = c.req.param('id');
     const body = await c.req.json<UpdateMissionInput>();
     
     const supabase = getSupabaseClient(c.env);
     
+    // Verify mission belongs to tenant
     const { data: existing } = await supabase
       .from('climate_missions')
       .select('id')
       .eq('id', id)
+      .eq('tenant_id', tenantId)
       .single();
     
     if (!existing) {
@@ -144,6 +157,7 @@ app.patch('/missions/:id', async (c) => {
       .from('climate_missions')
       .update(updateData)
       .eq('id', id)
+      .eq('tenant_id', tenantId)
       .select()
       .single();
     

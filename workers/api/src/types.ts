@@ -2,6 +2,7 @@ export type Bindings = {
   SUPABASE_URL: string;
   SUPABASE_SERVICE_KEY: string;
   OPENAI_API_KEY?: string;
+  ZORA_JWT_SECRET?: string;
   ENVIRONMENT: string;
 };
 

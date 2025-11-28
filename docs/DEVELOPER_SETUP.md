@@ -522,6 +522,97 @@ When memories are saved, ZORA CORE tracks which provider/model was used:
 
 This metadata is stored in the `memory_events` table and returned in search results.
 
+## JWT Authentication Setup
+
+ZORA CORE uses JWT (JSON Web Token) authentication for API access. All protected endpoints require a valid JWT token.
+
+### 1. Set the JWT Secret
+
+The JWT secret is used to sign and verify tokens. Set it in your environment:
+
+```bash
+# For Python CLI (token generation)
+export ZORA_JWT_SECRET="your-secret-key-at-least-32-characters-long"
+
+# For Cloudflare Workers API (add to .dev.vars)
+ZORA_JWT_SECRET=your-secret-key-at-least-32-characters-long
+```
+
+**Important:** Use the same secret for both the CLI and the Workers API.
+
+### 2. Generate a JWT Token
+
+Use the CLI tool to generate tokens for development:
+
+```bash
+# Generate a token with default tenant/user (founder role)
+PYTHONPATH=. python -m zora_core.auth.cli issue-token
+
+# Generate with verbose output (shows usage instructions)
+PYTHONPATH=. python -m zora_core.auth.cli issue-token -v
+
+# Generate with custom tenant/user
+PYTHONPATH=. python -m zora_core.auth.cli issue-token \
+  --tenant-id=00000000-0000-0000-0000-000000000001 \
+  --user-id=00000000-0000-0000-0000-000000000001 \
+  --role=founder
+
+# Generate with custom expiration (in seconds)
+PYTHONPATH=. python -m zora_core.auth.cli issue-token --expires-in=604800  # 7 days
+
+# Show default tenant/user IDs
+PYTHONPATH=. python -m zora_core.auth.cli defaults
+
+# Verify a token
+PYTHONPATH=. python -m zora_core.auth.cli verify-token <your-token>
+```
+
+### 3. Use the Token
+
+**In the Frontend:**
+1. Navigate to `/login`
+2. Paste your JWT token
+3. Click "Sign in"
+
+**In API Requests:**
+```bash
+# Include the token in the Authorization header
+curl -H "Authorization: Bearer <your-token>" \
+  http://localhost:8787/api/climate/profiles
+```
+
+### 4. Apply the Multi-Tenant Migration
+
+Before using authentication, apply the tenants/users migration:
+
+```sql
+-- Run in Supabase SQL Editor
+-- Copy contents from supabase/migrations/00004_tenants_and_users.sql
+```
+
+This creates:
+- `tenants` table for multi-tenant support
+- `users` table with roles (founder, brand_admin, viewer)
+- `tenant_id` columns on all data tables
+- Default tenant and founder user
+
+### JWT Token Structure
+
+Tokens contain the following claims:
+- `tenant_id`: UUID of the tenant
+- `user_id`: UUID of the user
+- `role`: User role (founder, brand_admin, viewer)
+- `iat`: Issued at timestamp
+- `exp`: Expiration timestamp
+
+### User Roles
+
+| Role | Permissions |
+|------|-------------|
+| `founder` | Full access to all tenant data |
+| `brand_admin` | Read/write access to tenant data |
+| `viewer` | Read-only access to tenant data |
+
 ## Environment Variables Reference
 
 | Variable | Description | Required | Default |
@@ -529,6 +620,7 @@ This metadata is stored in the `memory_events` table and returned in search resu
 | `SUPABASE_URL` | Supabase project URL | For Supabase backend | - |
 | `SUPABASE_SERVICE_KEY` | Service role key | For Supabase backend | - |
 | `SUPABASE_ANON_KEY` | Anonymous key | Alternative to service key | - |
+| `ZORA_JWT_SECRET` | JWT signing secret | For authentication | - |
 | `OPENAI_API_KEY` | OpenAI API key | For semantic memory | - |
 | `ANTHROPIC_API_KEY` | Anthropic API key | For Claude models | - |
 | `GEMINI_API_KEY` | Google API key | For Gemini models | - |

@@ -1,11 +1,12 @@
 import { Hono } from 'hono';
 import type {
-  AppEnv,
   MemoryEvent,
   MemoryEventWithSimilarity,
   SemanticSearchRequest,
   SemanticSearchResponse,
 } from '../types';
+import type { AuthAppEnv } from '../middleware/auth';
+import { getTenantId } from '../middleware/auth';
 import { getSupabaseClient } from '../lib/supabase';
 import { generateEmbedding, getEmbeddingModel, OpenAIError } from '../lib/openai';
 import {
@@ -18,7 +19,7 @@ import {
 } from '../lib/response';
 import { getAgentById, isValidAgentId } from './agents';
 
-const app = new Hono<AppEnv>();
+const app = new Hono<AuthAppEnv>();
 
 function formatMemoryEvent(row: Record<string, unknown>): MemoryEvent {
   return {
@@ -54,6 +55,7 @@ app.get('/:agentId/memory', async (c) => {
   }
 
   try {
+    const tenantId = getTenantId(c);
     const url = new URL(c.req.url);
     const { limit, offset } = parsePaginationParams(url);
 
@@ -65,6 +67,7 @@ app.get('/:agentId/memory', async (c) => {
       .from('memory_events')
       .select('*', { count: 'exact' })
       .eq('agent', agentName)
+      .eq('tenant_id', tenantId)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
@@ -106,6 +109,7 @@ app.post('/:agentId/memory/semantic-search', async (c) => {
   const limit = Math.min(Math.max(body.limit || 20, 1), 100);
 
   try {
+    const tenantId = getTenantId(c);
     const embeddingResult = await generateEmbedding(body.query, c.env);
 
     const supabase = getSupabaseClient(c.env);
@@ -116,6 +120,7 @@ app.post('/:agentId/memory/semantic-search', async (c) => {
       match_threshold: 0.0,
       match_count: limit,
       filter_agent: agentName,
+      filter_tenant_id: tenantId,
     });
 
     if (error) {
