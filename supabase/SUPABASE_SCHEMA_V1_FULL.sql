@@ -19,7 +19,7 @@
 --   - /admin/setup will work correctly
 -- 
 -- Date: 2025-11-28
--- Version: 1.3.0 (Agent Autonomy Layer v0)
+-- Version: 1.4.0 (Climate OS v0.3 - Multi-Profile Support)
 -- ============================================================================
 
 -- ============================================================================
@@ -423,6 +423,14 @@ ALTER TABLE climate_profiles ADD COLUMN IF NOT EXISTS household_size INTEGER CHE
 ALTER TABLE climate_profiles ADD COLUMN IF NOT EXISTS primary_energy_source VARCHAR(100);
 ALTER TABLE climate_profiles ADD COLUMN IF NOT EXISTS notes TEXT;
 
+-- Add new Climate OS v0.3 columns for multi-profile support
+ALTER TABLE climate_profiles ADD COLUMN IF NOT EXISTS scope VARCHAR(50) DEFAULT 'individual';
+ALTER TABLE climate_profiles ADD COLUMN IF NOT EXISTS is_primary BOOLEAN DEFAULT false;
+ALTER TABLE climate_profiles ADD COLUMN IF NOT EXISTS organization_name VARCHAR(255);
+ALTER TABLE climate_profiles ADD COLUMN IF NOT EXISTS sector VARCHAR(100);
+ALTER TABLE climate_profiles ADD COLUMN IF NOT EXISTS website_url VARCHAR(500);
+ALTER TABLE climate_profiles ADD COLUMN IF NOT EXISTS logo_url VARCHAR(500);
+
 -- Set default tenant_id for existing records
 UPDATE climate_profiles SET tenant_id = '00000000-0000-0000-0000-000000000001' WHERE tenant_id IS NULL;
 
@@ -443,6 +451,24 @@ CREATE INDEX IF NOT EXISTS idx_climate_profiles_type ON climate_profiles(profile
 CREATE INDEX IF NOT EXISTS idx_climate_profiles_score ON climate_profiles(climate_score DESC);
 CREATE INDEX IF NOT EXISTS idx_climate_profiles_tenant ON climate_profiles(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_climate_profiles_tenant_type ON climate_profiles(tenant_id, profile_type);
+CREATE INDEX IF NOT EXISTS idx_climate_profiles_scope ON climate_profiles(scope);
+CREATE INDEX IF NOT EXISTS idx_climate_profiles_tenant_scope ON climate_profiles(tenant_id, scope);
+CREATE INDEX IF NOT EXISTS idx_climate_profiles_is_primary ON climate_profiles(tenant_id, is_primary) WHERE is_primary = true;
+
+-- Partial unique index to ensure only one primary profile per tenant
+-- This enforces at most one is_primary = true per tenant
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_indexes 
+        WHERE indexname = 'idx_climate_profiles_unique_primary'
+    ) THEN
+        CREATE UNIQUE INDEX idx_climate_profiles_unique_primary 
+        ON climate_profiles(tenant_id) WHERE is_primary = true;
+    END IF;
+EXCEPTION WHEN duplicate_table THEN
+    -- Index already exists
+END$$;
 
 -- Trigger for updated_at
 DROP TRIGGER IF EXISTS update_climate_profiles_updated_at ON climate_profiles;

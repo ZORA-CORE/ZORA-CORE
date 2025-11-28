@@ -4,7 +4,21 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { getFrontendConfig, getClimateMissions, getClimateProfiles } from "@/lib/api";
-import type { HomePageConfig, ClimateMission, DashboardSummary } from "@/lib/types";
+import type { HomePageConfig, ClimateMission, DashboardSummary, ClimateProfile, ProfileScope } from "@/lib/types";
+
+const SCOPE_COLORS: Record<ProfileScope, string> = {
+  individual: "bg-blue-500",
+  household: "bg-purple-500",
+  organization: "bg-amber-500",
+  brand: "bg-emerald-500",
+};
+
+const SCOPE_LABELS: Record<ProfileScope, string> = {
+  individual: "Individual",
+  household: "Household",
+  organization: "Organization",
+  brand: "Brand",
+};
 
 interface Agent {
   name: string;
@@ -228,6 +242,50 @@ function MissionsTeaser({ missions }: { missions: ClimateMission[] }) {
   );
 }
 
+function ProfilesOverview({ profiles, primaryProfile }: { profiles: ClimateProfile[]; primaryProfile: ClimateProfile | null }) {
+  const profilesByScope = profiles.reduce(
+    (acc, p) => {
+      acc[p.scope] = (acc[p.scope] || 0) + 1;
+      return acc;
+    },
+    {} as Record<ProfileScope, number>
+  );
+
+  return (
+    <div className="agent-card">
+      <h3 className="text-lg font-semibold mb-4">Climate Profiles</h3>
+      {profiles.length === 0 ? (
+        <p className="text-gray-400 text-sm">No profiles yet. Create your first profile in Climate OS.</p>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            {(Object.keys(SCOPE_LABELS) as ProfileScope[]).map((scope) => (
+              <div key={scope} className="flex items-center gap-2">
+                <span className={`w-3 h-3 rounded-full ${SCOPE_COLORS[scope]}`}></span>
+                <span className="text-sm text-gray-400">{SCOPE_LABELS[scope]}:</span>
+                <span className="text-sm font-medium">{profilesByScope[scope] || 0}</span>
+              </div>
+            ))}
+          </div>
+          {primaryProfile && (
+            <div className="border-t border-zinc-700 pt-3 mt-3">
+              <p className="text-xs text-gray-500 mb-1">Primary Profile</p>
+              <div className="flex items-center gap-2">
+                <span className={`w-2 h-2 rounded-full ${SCOPE_COLORS[primaryProfile.scope]}`}></span>
+                <span className="font-medium">{primaryProfile.name}</span>
+                <span className="text-xs text-gray-500">({SCOPE_LABELS[primaryProfile.scope]})</span>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+      <Link href="/climate" className="mt-4 block text-center text-emerald-500 hover:text-emerald-400 text-sm">
+        Manage Profiles
+      </Link>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState<"agents" | "tasks">("agents");
@@ -235,6 +293,8 @@ export default function Dashboard() {
   const [isDefault, setIsDefault] = useState(true);
   const [configLoading, setConfigLoading] = useState(true);
   const [missions, setMissions] = useState<ClimateMission[]>([]);
+  const [profiles, setProfiles] = useState<ClimateProfile[]>([]);
+  const [primaryProfile, setPrimaryProfile] = useState<ClimateProfile | null>(null);
   const [climateSummary, setClimateSummary] = useState<DashboardSummary>({
     total_missions: 0,
     completed_count: 0,
@@ -272,10 +332,16 @@ export default function Dashboard() {
       }
 
       try {
-        const profilesResponse = await getClimateProfiles({ limit: 1 });
-        if (profilesResponse.data.length > 0) {
-          const profile = profilesResponse.data[0];
-          const missionsResponse = await getClimateMissions(profile.id, { limit: 10 });
+        const profilesResponse = await getClimateProfiles({ limit: 100 });
+        const allProfiles = profilesResponse.data;
+        setProfiles(allProfiles);
+        
+        // Find primary profile or use first profile
+        const primary = allProfiles.find((p) => p.is_primary) || allProfiles[0] || null;
+        setPrimaryProfile(primary);
+        
+        if (primary) {
+          const missionsResponse = await getClimateMissions(primary.id, { limit: 10 });
           const missionsList = missionsResponse.data;
           setMissions(missionsList);
 
@@ -361,7 +427,8 @@ export default function Dashboard() {
                 </div>
 
                 {(config.show_climate_dashboard || config.show_missions_section) && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                    <ProfilesOverview profiles={profiles} primaryProfile={primaryProfile} />
                     {config.show_climate_dashboard && (
                       <ClimateDashboardCard summary={climateSummary} />
                     )}
@@ -445,7 +512,7 @@ export default function Dashboard() {
       </main>
 
             <footer className="border-t border-zinc-800 p-4 text-center text-gray-500 text-sm">
-              ZORA CORE v0.6 - Climate-first AI Operating System
+              ZORA CORE v0.7 - Climate OS v0.3
             </footer>
     </div>
   );

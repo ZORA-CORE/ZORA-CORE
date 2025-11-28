@@ -1,4 +1,5 @@
 export type ProfileType = 'person' | 'brand' | 'organization';
+export type ProfileScope = 'individual' | 'household' | 'organization' | 'brand';
 export type MissionStatus = 'planned' | 'in_progress' | 'completed' | 'cancelled' | 'failed';
 export type JournalCategory =
   | 'release'
@@ -31,6 +32,13 @@ export interface ClimateProfile {
   household_size: number | null;
   primary_energy_source: string | null;
   notes: string | null;
+  // Multi-profile fields (v0.3)
+  scope: ProfileScope;
+  is_primary: boolean;
+  organization_name: string | null;
+  sector: string | null;
+  website_url: string | null;
+  logo_url: string | null;
   metadata: Record<string, unknown>;
   created_at: string;
   updated_at: string | null;
@@ -52,6 +60,13 @@ export interface CreateProfileInput {
   household_size?: number;
   primary_energy_source?: string;
   notes?: string;
+  // Multi-profile fields (v0.3)
+  scope?: ProfileScope;
+  is_primary?: boolean;
+  organization_name?: string;
+  sector?: string;
+  website_url?: string;
+  logo_url?: string;
   metadata?: Record<string, unknown>;
 }
 
@@ -71,6 +86,13 @@ export interface UpdateProfileInput {
   household_size?: number;
   primary_energy_source?: string;
   notes?: string;
+  // Multi-profile fields (v0.3)
+  scope?: ProfileScope;
+  is_primary?: boolean;
+  organization_name?: string;
+  sector?: string;
+  website_url?: string;
+  logo_url?: string;
   metadata?: Record<string, unknown>;
 }
 
@@ -128,6 +150,8 @@ export interface BootstrapMissionsResponse {
   created: boolean;
   reason?: string;
   existing_count?: number;
+  profile_id?: string;
+  profile_name?: string;
   missions?: ClimateMission[];
 }
 

@@ -21,6 +21,7 @@ app.get('/', async (c) => {
     const url = new URL(c.req.url);
     const { limit, offset } = parsePaginationParams(url);
     const profileType = url.searchParams.get('type');
+    const scope = url.searchParams.get('scope');
     
     const supabase = getSupabaseClient(c.env);
     
@@ -33,7 +34,12 @@ app.get('/', async (c) => {
       query = query.eq('profile_type', profileType);
     }
     
+    if (scope) {
+      query = query.eq('scope', scope);
+    }
+    
     const { data, error, count } = await query
+      .order('is_primary', { ascending: false })
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
     
@@ -88,6 +94,23 @@ app.post('/', async (c) => {
     
     const supabase = getSupabaseClient(c.env);
     
+    // If this profile is being set as primary, unset any existing primary profiles
+    if (body.is_primary) {
+      await supabase
+        .from('climate_profiles')
+        .update({ is_primary: false })
+        .eq('tenant_id', tenantId)
+        .eq('is_primary', true);
+    }
+    
+    // Check if this is the first profile for the tenant - if so, make it primary
+    const { count: existingCount } = await supabase
+      .from('climate_profiles')
+      .select('*', { count: 'exact', head: true })
+      .eq('tenant_id', tenantId);
+    
+    const shouldBePrimary = body.is_primary || (existingCount === 0);
+    
     const { data, error } = await supabase
       .from('climate_profiles')
       .insert({
@@ -107,6 +130,13 @@ app.post('/', async (c) => {
         household_size: body.household_size || null,
         primary_energy_source: body.primary_energy_source || null,
         notes: body.notes || null,
+        // Multi-profile fields (v0.3)
+        scope: body.scope || 'individual',
+        is_primary: shouldBePrimary,
+        organization_name: body.organization_name || null,
+        sector: body.sector || null,
+        website_url: body.website_url || null,
+        logo_url: body.logo_url || null,
         metadata: body.metadata || {},
       })
       .select()
@@ -117,14 +147,20 @@ app.post('/', async (c) => {
       return serverErrorResponse('Failed to create climate profile');
     }
     
+    const scopeLabel = data.scope || 'individual';
+    const sectorLabel = data.sector ? `, sector: ${data.sector}` : '';
     await insertJournalEntry(supabase, {
       tenantId,
       eventType: 'climate_profile_created',
-      summary: `Climate profile created: ${data.name}`,
+      summary: `New profile created: ${data.name} (scope: ${scopeLabel}${sectorLabel})`,
       metadata: {
         profile_id: data.id,
+        profile_name: data.name,
         profile_type: data.profile_type,
+        scope: data.scope,
+        sector: data.sector,
         country: data.country,
+        is_primary: data.is_primary,
       },
       relatedEntityIds: [data.id],
     });
@@ -146,13 +182,23 @@ app.put('/:id', async (c) => {
     
     const { data: existing } = await supabase
       .from('climate_profiles')
-      .select('id, name')
+      .select('id, name, scope')
       .eq('id', id)
       .eq('tenant_id', tenantId)
       .single();
     
     if (!existing) {
       return notFoundResponse('Climate profile');
+    }
+    
+    // If this profile is being set as primary, unset any existing primary profiles
+    if (body.is_primary === true) {
+      await supabase
+        .from('climate_profiles')
+        .update({ is_primary: false })
+        .eq('tenant_id', tenantId)
+        .eq('is_primary', true)
+        .neq('id', id);
     }
     
     const updateData: Record<string, unknown> = {};
@@ -171,6 +217,13 @@ app.put('/:id', async (c) => {
     if (body.household_size !== undefined) updateData.household_size = body.household_size;
     if (body.primary_energy_source !== undefined) updateData.primary_energy_source = body.primary_energy_source;
     if (body.notes !== undefined) updateData.notes = body.notes;
+    // Multi-profile fields (v0.3)
+    if (body.scope !== undefined) updateData.scope = body.scope;
+    if (body.is_primary !== undefined) updateData.is_primary = body.is_primary;
+    if (body.organization_name !== undefined) updateData.organization_name = body.organization_name;
+    if (body.sector !== undefined) updateData.sector = body.sector;
+    if (body.website_url !== undefined) updateData.website_url = body.website_url;
+    if (body.logo_url !== undefined) updateData.logo_url = body.logo_url;
     if (body.metadata !== undefined) updateData.metadata = body.metadata;
     
     const { data, error } = await supabase
@@ -186,12 +239,15 @@ app.put('/:id', async (c) => {
       return serverErrorResponse('Failed to update climate profile');
     }
     
+    const scopeLabel = data.scope || 'individual';
     await insertJournalEntry(supabase, {
       tenantId,
       eventType: 'climate_profile_updated',
-      summary: `Climate profile updated: ${data.name}`,
+      summary: `Profile updated: ${data.name} (scope: ${scopeLabel})`,
       metadata: {
         profile_id: data.id,
+        profile_name: data.name,
+        scope: data.scope,
         updated_fields: Object.keys(updateData),
       },
       relatedEntityIds: [data.id],
@@ -201,6 +257,68 @@ app.put('/:id', async (c) => {
   } catch (error) {
     console.error('Profile update error:', error);
     return serverErrorResponse('Failed to update climate profile');
+  }
+});
+
+// Set a profile as primary (convenience endpoint)
+app.post('/:id/set-primary', async (c) => {
+  try {
+    const tenantId = getTenantId(c);
+    const id = c.req.param('id');
+    
+    const supabase = getSupabaseClient(c.env);
+    
+    // Check if profile exists
+    const { data: existing } = await supabase
+      .from('climate_profiles')
+      .select('id, name, scope')
+      .eq('id', id)
+      .eq('tenant_id', tenantId)
+      .single();
+    
+    if (!existing) {
+      return notFoundResponse('Climate profile');
+    }
+    
+    // Unset any existing primary profiles
+    await supabase
+      .from('climate_profiles')
+      .update({ is_primary: false })
+      .eq('tenant_id', tenantId)
+      .eq('is_primary', true);
+    
+    // Set this profile as primary
+    const { data, error } = await supabase
+      .from('climate_profiles')
+      .update({ is_primary: true })
+      .eq('id', id)
+      .eq('tenant_id', tenantId)
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Error setting primary profile:', error);
+      return serverErrorResponse('Failed to set primary profile');
+    }
+    
+    const scopeLabel = data.scope || 'individual';
+    await insertJournalEntry(supabase, {
+      tenantId,
+      eventType: 'climate_profile_updated',
+      summary: `Profile set as primary: ${data.name} (scope: ${scopeLabel})`,
+      metadata: {
+        profile_id: data.id,
+        profile_name: data.name,
+        scope: data.scope,
+        action: 'set_primary',
+      },
+      relatedEntityIds: [data.id],
+    });
+    
+    return jsonResponse<ClimateProfile>(data);
+  } catch (error) {
+    console.error('Set primary profile error:', error);
+    return serverErrorResponse('Failed to set primary profile');
   }
 });
 

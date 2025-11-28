@@ -114,11 +114,13 @@ export async function getClimateProfiles(params?: {
   limit?: number;
   offset?: number;
   type?: string;
+  scope?: string;
 }): Promise<PaginatedResponse<ClimateProfile>> {
   const searchParams = new URLSearchParams();
   if (params?.limit) searchParams.set('limit', params.limit.toString());
   if (params?.offset) searchParams.set('offset', params.offset.toString());
   if (params?.type) searchParams.set('type', params.type);
+  if (params?.scope) searchParams.set('scope', params.scope);
 
   const query = searchParams.toString();
   return request<PaginatedResponse<ClimateProfile>>(
@@ -188,8 +190,15 @@ export async function updateMissionStatus(
   });
 }
 
-export async function bootstrapMissions(): Promise<BootstrapMissionsResponse> {
+export async function bootstrapMissions(profileId?: string): Promise<BootstrapMissionsResponse> {
   return request<BootstrapMissionsResponse>('/api/climate/missions/bootstrap', {
+    method: 'POST',
+    body: profileId ? JSON.stringify({ profile_id: profileId }) : undefined,
+  });
+}
+
+export async function setProfileAsPrimary(profileId: string): Promise<ClimateProfile> {
+  return request<ClimateProfile>(`/api/climate/profiles/${profileId}/set-primary`, {
     method: 'POST',
   });
 }
@@ -312,6 +321,7 @@ export const api = {
   getClimateProfile,
   createClimateProfile,
   updateClimateProfile,
+  setProfileAsPrimary,
   getClimateMissions,
   createClimateMission,
   updateMissionStatus,

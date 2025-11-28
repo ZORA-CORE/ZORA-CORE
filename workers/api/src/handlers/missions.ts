@@ -75,10 +75,10 @@ app.post('/profiles/:profileId/missions', async (c) => {
     
     const supabase = getSupabaseClient(c.env);
     
-    // Verify profile belongs to tenant
+    // Verify profile belongs to tenant and get profile details for journal
     const { data: profile } = await supabase
       .from('climate_profiles')
-      .select('id')
+      .select('id, name, scope')
       .eq('id', profileId)
       .eq('tenant_id', tenantId)
       .single();
@@ -112,13 +112,16 @@ app.post('/profiles/:profileId/missions', async (c) => {
       return serverErrorResponse('Failed to create climate mission');
     }
     
+    const scopeLabel = profile.scope || 'individual';
     await insertJournalEntry(supabase, {
       tenantId,
       eventType: 'climate_mission_created',
-      summary: `New mission created: ${data.title}`,
+      summary: `Mission created for profile '${profile.name}' (scope: ${scopeLabel}): ${data.title}`,
       metadata: {
         mission_id: data.id,
         profile_id: profileId,
+        profile_name: profile.name,
+        profile_scope: profile.scope,
         category: data.category,
         estimated_impact_kgco2: data.estimated_impact_kgco2,
       },
@@ -142,13 +145,26 @@ app.patch('/missions/:id', async (c) => {
     
     const { data: existing } = await supabase
       .from('climate_missions')
-      .select('id, title, status')
+      .select('id, title, status, profile_id')
       .eq('id', id)
       .eq('tenant_id', tenantId)
       .single();
     
     if (!existing) {
       return notFoundResponse('Climate mission');
+    }
+    
+    // Get profile details for journal context
+    let profileContext: { name: string; scope: string } | null = null;
+    if (existing.profile_id) {
+      const { data: profile } = await supabase
+        .from('climate_profiles')
+        .select('name, scope')
+        .eq('id', existing.profile_id)
+        .single();
+      if (profile) {
+        profileContext = { name: profile.name, scope: profile.scope || 'individual' };
+      }
     }
     
     const previousStatus = existing.status;
@@ -189,25 +205,31 @@ app.patch('/missions/:id', async (c) => {
     }
     
     if (body.status && body.status !== previousStatus) {
+      const profileLabel = profileContext 
+        ? ` for profile '${profileContext.name}' (${profileContext.scope})`
+        : '';
       const statusMessages: Record<string, string> = {
-        in_progress: `Mission started: ${data.title}`,
-        completed: `Mission completed: ${data.title}`,
-        cancelled: `Mission cancelled: ${data.title}`,
-        failed: `Mission failed: ${data.title}`,
-        planned: `Mission reset to planned: ${data.title}`,
+        in_progress: `Mission started${profileLabel}: ${data.title}`,
+        completed: `Mission completed${profileLabel}: ${data.title}`,
+        cancelled: `Mission cancelled${profileLabel}: ${data.title}`,
+        failed: `Mission failed${profileLabel}: ${data.title}`,
+        planned: `Mission reset to planned${profileLabel}: ${data.title}`,
       };
       
       await insertJournalEntry(supabase, {
         tenantId,
         eventType: 'climate_mission_status_updated',
-        summary: statusMessages[body.status] || `Mission status updated: ${data.title}`,
+        summary: statusMessages[body.status] || `Mission status updated${profileLabel}: ${data.title}`,
         metadata: {
           mission_id: data.id,
+          profile_id: existing.profile_id,
+          profile_name: profileContext?.name,
+          profile_scope: profileContext?.scope,
           previous_status: previousStatus,
           new_status: body.status,
           estimated_impact_kgco2: data.estimated_impact_kgco2,
         },
-        relatedEntityIds: [data.id],
+        relatedEntityIds: existing.profile_id ? [data.id, existing.profile_id] : [data.id],
       });
     }
     
@@ -245,37 +267,84 @@ const STARTER_MISSIONS = [
   },
 ];
 
+// Bootstrap starter missions for a profile
+// Accepts optional profile_id in body; if not provided, uses primary profile or first profile
 app.post('/missions/bootstrap', async (c) => {
   try {
     const tenantId = getTenantId(c);
     const supabase = getSupabaseClient(c.env);
     
-    const { count, error: countError } = await supabase
-      .from('climate_missions')
-      .select('*', { count: 'exact', head: true })
-      .eq('tenant_id', tenantId);
-    
-    if (countError) {
-      console.error('Error checking mission count:', countError);
-      return serverErrorResponse('Failed to check existing missions');
+    // Parse optional profile_id from body
+    let requestedProfileId: string | null = null;
+    try {
+      const body = await c.req.json<{ profile_id?: string }>();
+      requestedProfileId = body.profile_id || null;
+    } catch {
+      // No body or invalid JSON, use default profile selection
     }
     
-    if (count && count > 0) {
-      return jsonResponse({
-        created: false,
-        reason: 'missions_already_exist',
-        existing_count: count,
-      });
+    // Determine which profile to use
+    let targetProfile: { id: string; name: string; scope: string } | null = null;
+    
+    if (requestedProfileId) {
+      // Use the requested profile
+      const { data: profile } = await supabase
+        .from('climate_profiles')
+        .select('id, name, scope')
+        .eq('id', requestedProfileId)
+        .eq('tenant_id', tenantId)
+        .single();
+      
+      if (!profile) {
+        return notFoundResponse('Climate profile');
+      }
+      targetProfile = { id: profile.id, name: profile.name, scope: profile.scope || 'individual' };
+    } else {
+      // Try to find primary profile first, then fall back to first profile
+      const { data: primaryProfile } = await supabase
+        .from('climate_profiles')
+        .select('id, name, scope')
+        .eq('tenant_id', tenantId)
+        .eq('is_primary', true)
+        .single();
+      
+      if (primaryProfile) {
+        targetProfile = { id: primaryProfile.id, name: primaryProfile.name, scope: primaryProfile.scope || 'individual' };
+      } else {
+        const { data: firstProfile } = await supabase
+          .from('climate_profiles')
+          .select('id, name, scope')
+          .eq('tenant_id', tenantId)
+          .order('created_at', { ascending: true })
+          .limit(1)
+          .single();
+        
+        if (firstProfile) {
+          targetProfile = { id: firstProfile.id, name: firstProfile.name, scope: firstProfile.scope || 'individual' };
+        }
+      }
     }
     
-    const { data: profiles } = await supabase
-      .from('climate_profiles')
-      .select('id')
-      .eq('tenant_id', tenantId)
-      .order('created_at', { ascending: true })
-      .limit(1);
+    // Check if the target profile already has missions
+    if (targetProfile) {
+      const { count: existingCount } = await supabase
+        .from('climate_missions')
+        .select('*', { count: 'exact', head: true })
+        .eq('tenant_id', tenantId)
+        .eq('profile_id', targetProfile.id);
+      
+      if (existingCount && existingCount > 0) {
+        return jsonResponse({
+          created: false,
+          reason: 'profile_already_has_missions',
+          profile_id: targetProfile.id,
+          profile_name: targetProfile.name,
+          existing_count: existingCount,
+        });
+      }
+    }
     
-    const profileId = profiles && profiles.length > 0 ? profiles[0].id : null;
+    const profileId = targetProfile?.id || null;
     
     const missionsToInsert = STARTER_MISSIONS.map((mission) => ({
       tenant_id: tenantId,
@@ -299,20 +368,30 @@ app.post('/missions/bootstrap', async (c) => {
       return serverErrorResponse('Failed to create starter missions');
     }
     
+    const profileLabel = targetProfile 
+      ? ` for profile '${targetProfile.name}' (scope: ${targetProfile.scope})`
+      : '';
     await insertJournalEntry(supabase, {
       tenantId,
       eventType: 'climate_missions_bootstrapped',
-      summary: `Created ${createdMissions.length} starter missions for Climate OS`,
+      summary: `Created ${createdMissions.length} starter missions${profileLabel}`,
       metadata: {
         mission_count: createdMissions.length,
         mission_ids: createdMissions.map((m) => m.id),
+        profile_id: targetProfile?.id,
+        profile_name: targetProfile?.name,
+        profile_scope: targetProfile?.scope,
         total_estimated_impact_kgco2: STARTER_MISSIONS.reduce((sum, m) => sum + m.estimated_impact_kgco2, 0),
       },
-      relatedEntityIds: createdMissions.map((m) => m.id),
+      relatedEntityIds: targetProfile 
+        ? [...createdMissions.map((m) => m.id), targetProfile.id]
+        : createdMissions.map((m) => m.id),
     });
     
     return jsonResponse({
       created: true,
+      profile_id: targetProfile?.id,
+      profile_name: targetProfile?.name,
       missions: createdMissions,
     }, 201);
   } catch (error) {
