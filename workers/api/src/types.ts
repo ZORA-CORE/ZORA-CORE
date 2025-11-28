@@ -3,8 +3,62 @@ export type Bindings = {
   SUPABASE_SERVICE_KEY: string;
   OPENAI_API_KEY?: string;
   ZORA_JWT_SECRET?: string;
+  ZORA_BOOTSTRAP_SECRET?: string;
   ENVIRONMENT: string;
 };
+
+export type UserRole = 'founder' | 'brand_admin' | 'viewer';
+
+export interface Tenant {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface User {
+  id: string;
+  tenant_id: string;
+  email: string;
+  display_name: string | null;
+  role: UserRole;
+  metadata: Record<string, unknown>;
+  last_login_at: string | null;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface AdminStatusResponse {
+  jwt_secret_configured: boolean;
+  bootstrap_secret_configured: boolean;
+  supabase_connected: boolean;
+  tenants_exist: boolean;
+  founder_exists: boolean;
+  tenant_count: number;
+  user_count: number;
+}
+
+export interface BootstrapTenantInput {
+  tenant_name: string;
+  founder_email: string;
+}
+
+export interface CreateUserInput {
+  tenant_id: string;
+  email: string;
+  display_name?: string;
+  role: UserRole;
+}
+
+export interface TokenResponse {
+  token: string;
+  user: User;
+  tenant: Tenant;
+  expires_at: string;
+}
 
 export type AppEnv = {
   Bindings: Bindings;

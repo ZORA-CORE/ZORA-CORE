@@ -2,7 +2,27 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useAuth } from '@/lib/AuthContext';
+
+interface DecodedToken {
+  tenant_id: string;
+  user_id: string;
+  role: string;
+  iat: number;
+  exp: number;
+}
+
+function decodeTokenPayload(token: string): DecodedToken | null {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+    return payload;
+  } catch {
+    return null;
+  }
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -11,18 +31,21 @@ export default function LoginPage() {
   const [token, setToken] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [decodedToken, setDecodedToken] = useState<DecodedToken | null>(null);
+  const [showSuccess, setShowSuccess] = useState(false);
 
-  // Redirect if already authenticated
+  // Redirect if already authenticated (after showing success message)
   useEffect(() => {
-    if (!isLoading && isAuthenticated) {
+    if (!isLoading && isAuthenticated && !showSuccess) {
       router.push('/');
     }
-  }, [isAuthenticated, isLoading, router]);
+  }, [isAuthenticated, isLoading, router, showSuccess]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setIsSubmitting(true);
+    setDecodedToken(null);
 
     const trimmedToken = token.trim();
     
@@ -40,10 +63,19 @@ export default function LoginPage() {
       return;
     }
 
+    // Decode token to show info
+    const decoded = decodeTokenPayload(trimmedToken);
+    if (!decoded) {
+      setError('Failed to decode token. Please check your token format.');
+      setIsSubmitting(false);
+      return;
+    }
+
     const success = login(trimmedToken);
     
     if (success) {
-      router.push('/');
+      setDecodedToken(decoded);
+      setShowSuccess(true);
     } else {
       setError('Invalid or expired token. Please check your token and try again.');
     }
@@ -51,10 +83,95 @@ export default function LoginPage() {
     setIsSubmitting(false);
   };
 
+  const handleContinue = () => {
+    router.push('/');
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-gray-500">Loading...</div>
+      </div>
+    );
+  }
+
+  if (showSuccess && decodedToken) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md w-full space-y-8">
+          <div>
+            <h1 className="text-center text-3xl font-bold text-gray-900">
+              ZORA CORE
+            </h1>
+            <h2 className="mt-2 text-center text-xl text-green-600">
+              Login Successful
+            </h2>
+          </div>
+
+          <div className="bg-white shadow rounded-lg p-6">
+            <h3 className="text-sm font-medium text-gray-900 mb-4">Token Information</h3>
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-500">Tenant ID:</span>
+                <span className="font-mono text-gray-900 text-xs">{decodedToken.tenant_id}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">User ID:</span>
+                <span className="font-mono text-gray-900 text-xs">{decodedToken.user_id}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Role:</span>
+                <span className={`px-2 py-1 rounded-full text-xs ${
+                  decodedToken.role === 'founder'
+                    ? 'bg-purple-100 text-purple-800'
+                    : decodedToken.role === 'brand_admin'
+                    ? 'bg-blue-100 text-blue-800'
+                    : 'bg-gray-100 text-gray-800'
+                }`}>
+                  {decodedToken.role}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Expires:</span>
+                <span className="text-gray-900">{new Date(decodedToken.exp * 1000).toLocaleString()}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <button
+              onClick={handleContinue}
+              className="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              Continue to Dashboard
+            </button>
+            
+            <div className="grid grid-cols-3 gap-2">
+              <Link
+                href="/climate"
+                className="py-2 px-3 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 text-center"
+              >
+                Climate OS
+              </Link>
+              <Link
+                href="/agents"
+                className="py-2 px-3 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 text-center"
+              >
+                Agents
+              </Link>
+              <Link
+                href="/journal"
+                className="py-2 px-3 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 text-center"
+              >
+                Journal
+              </Link>
+            </div>
+          </div>
+
+          <div className="text-center text-xs text-gray-400">
+            <p>ZORA CORE - Multi-agent, climate-first AI operating system</p>
+          </div>
+        </div>
       </div>
     );
   }
@@ -71,6 +188,15 @@ export default function LoginPage() {
           </h2>
           <p className="mt-2 text-center text-sm text-gray-500">
             Enter your JWT token to access the dashboard
+          </p>
+        </div>
+
+        <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
+          <p className="text-sm text-blue-700">
+            <strong>Founder?</strong> If you need to set up tenants, users, or generate tokens,{' '}
+            <Link href="/admin/setup" className="underline hover:text-blue-800">
+              visit the Admin Setup page
+            </Link>.
           </p>
         </div>
 

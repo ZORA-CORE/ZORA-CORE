@@ -8,13 +8,14 @@ import missionsHandler from './handlers/missions';
 import journalHandler from './handlers/journal';
 import agentsHandler from './handlers/agents';
 import memoryHandler from './handlers/memory';
+import adminHandler from './handlers/admin';
 
 const app = new Hono<AuthAppEnv>();
 
 app.use('*', cors({
   origin: '*',
   allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowHeaders: ['Content-Type', 'Authorization'],
+  allowHeaders: ['Content-Type', 'Authorization', 'X-ZORA-ADMIN-SECRET'],
 }));
 
 // Apply auth middleware to protected routes
@@ -27,7 +28,7 @@ app.use('/api/journal/*', authMiddleware);
 app.get('/', (c) => {
   return c.json({
     name: 'ZORA CORE API',
-    version: '0.4.0',
+    version: '0.5.0',
     docs: '/api/status',
     endpoints: [
       'GET /api/status',
@@ -44,10 +45,19 @@ app.get('/', (c) => {
       'PATCH /api/missions/:id',
       'GET /api/journal',
     ],
+    admin_endpoints: [
+      'GET /api/admin/status (requires X-ZORA-ADMIN-SECRET)',
+      'POST /api/admin/bootstrap-tenant (requires X-ZORA-ADMIN-SECRET)',
+      'GET /api/admin/tenants (requires X-ZORA-ADMIN-SECRET)',
+      'GET /api/admin/users (requires X-ZORA-ADMIN-SECRET)',
+      'POST /api/admin/users (requires X-ZORA-ADMIN-SECRET)',
+      'POST /api/admin/users/:id/token (requires X-ZORA-ADMIN-SECRET)',
+    ],
   });
 });
 
 app.route('/api/status', statusHandler);
+app.route('/api/admin', adminHandler);
 app.route('/api/agents', agentsHandler);
 app.route('/api/agents', memoryHandler);
 app.route('/api/climate/profiles', profilesHandler);

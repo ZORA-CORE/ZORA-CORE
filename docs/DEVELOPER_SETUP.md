@@ -522,6 +522,71 @@ When memories are saved, ZORA CORE tracks which provider/model was used:
 
 This metadata is stored in the `memory_events` table and returned in search results.
 
+## Founder Admin Setup (No CLI Required)
+
+ZORA CORE provides a browser-based admin interface for first-time setup. This allows the Founder to bootstrap tenants, create users, and generate JWT tokens without using the CLI.
+
+### 1. Set the Bootstrap Secret
+
+The admin interface is protected by a bootstrap secret. Set it in your environment:
+
+```bash
+# For Cloudflare Workers API (add to .dev.vars)
+ZORA_BOOTSTRAP_SECRET=your-admin-secret-at-least-32-characters
+
+# For production (set via wrangler)
+wrangler secret put ZORA_BOOTSTRAP_SECRET --env production
+```
+
+### 2. Access the Admin Setup Page
+
+1. Start the Workers API and frontend (see Local End-to-End Run)
+2. Navigate to `http://localhost:3000/admin/setup`
+3. Enter your `ZORA_BOOTSTRAP_SECRET` in the admin secret field
+4. Click "Authenticate"
+
+### 3. Bootstrap Your First Tenant
+
+If no tenants exist yet:
+
+1. In the "Bootstrap Tenant" section, enter:
+   - **Tenant Name**: Your organization name (e.g., "ZORA CORE")
+   - **Founder Email**: Your email address
+2. Click "Bootstrap Tenant"
+3. This creates the default tenant and founder user
+
+### 4. Manage Tenants and Users
+
+Once authenticated, you can:
+
+- **View Tenants**: See all tenants with user counts
+- **View Users**: Select a tenant to see its users
+- **Create Users**: Add new users with email, display name, and role
+
+### 5. Generate JWT Tokens
+
+For each user, you can:
+
+1. Click "Generate Token" next to the user
+2. The token appears in a text area
+3. Click "Copy" to copy the token to clipboard
+4. Use this token to log in via `/login`
+
+### Admin API Endpoints
+
+The admin interface uses these protected endpoints:
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/admin/status` | GET | System status (JWT configured, tenants exist, etc.) |
+| `/api/admin/bootstrap-tenant` | POST | Create default tenant + founder user |
+| `/api/admin/tenants` | GET | List all tenants |
+| `/api/admin/users` | GET | List users (with `?tenant_id=` filter) |
+| `/api/admin/users` | POST | Create a new user |
+| `/api/admin/users/:id/token` | POST | Generate JWT token for a user |
+
+All admin endpoints require the `X-ZORA-ADMIN-SECRET` header.
+
 ## JWT Authentication Setup
 
 ZORA CORE uses JWT (JSON Web Token) authentication for API access. All protected endpoints require a valid JWT token.
