@@ -10,6 +10,7 @@ import agentsHandler from './handlers/agents';
 import memoryHandler from './handlers/memory';
 import adminHandler from './handlers/admin';
 import frontendConfigHandler from './handlers/frontend-config';
+import agentSuggestionsHandler from './handlers/agent-suggestions';
 
 const app = new Hono<AuthAppEnv>();
 
@@ -26,6 +27,7 @@ app.use('/api/agents/*', authMiddleware);
 app.use('/api/missions/*', authMiddleware);
 app.use('/api/journal/*', authMiddleware);
 app.use('/api/frontend/*', authMiddleware);
+app.use('/api/autonomy/*', authMiddleware);
 
 app.get('/', (c) => {
   return c.json({
@@ -48,6 +50,10 @@ app.get('/', (c) => {
           'GET /api/journal',
           'GET /api/frontend/config/:page',
           'PUT /api/frontend/config/:page',
+          'POST /api/autonomy/frontend/suggest',
+          'GET /api/autonomy/frontend/suggestions',
+          'GET /api/autonomy/frontend/suggestions/:id',
+          'POST /api/autonomy/frontend/suggestions/:id/decision',
         ],
     admin_endpoints: [
       'GET /api/admin/status (requires X-ZORA-ADMIN-SECRET)',
@@ -69,6 +75,7 @@ app.route('/api/climate', missionsHandler);
 app.route('/api/missions', missionsHandler);
 app.route('/api/journal', journalHandler);
 app.route('/api/frontend/config', frontendConfigHandler);
+app.route('/api/autonomy/frontend', agentSuggestionsHandler);
 
 app.notFound((c) => {
   return c.json({

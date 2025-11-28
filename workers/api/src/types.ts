@@ -76,7 +76,8 @@ export type JournalCategory =
   | 'config_change'
   | 'agent_action'
   | 'user_feedback'
-  | 'system_event';
+  | 'system_event'
+  | 'autonomy';
 
 export interface ClimateProfile {
   id: string;
@@ -323,4 +324,68 @@ export interface FrontendConfigResponse {
 
 export interface UpdateFrontendConfigInput {
   config: Record<string, unknown>;
+}
+
+// Agent Autonomy Layer types
+export type SuggestionStatus = 'proposed' | 'applied' | 'rejected';
+export type SuggestionType = 'frontend_config_change';
+
+export interface AgentSuggestion {
+  id: string;
+  tenant_id: string;
+  agent_id: string;
+  suggestion_type: SuggestionType;
+  target_page: string | null;
+  current_config: Record<string, unknown> | null;
+  suggested_config: Record<string, unknown>;
+  diff_summary: string | null;
+  status: SuggestionStatus;
+  decision_by_user_id: string | null;
+  decision_reason: string | null;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface CreateSuggestionInput {
+  page: string;
+  agent_id?: string;
+}
+
+export interface SuggestionDecisionInput {
+  decision: 'apply' | 'reject';
+  reason?: string;
+}
+
+export interface AgentSuggestionResponse {
+  id: string;
+  agent_id: string;
+  suggestion_type: SuggestionType;
+  target_page: string | null;
+  current_config: Record<string, unknown> | null;
+  suggested_config: Record<string, unknown>;
+  diff_summary: string | null;
+  status: SuggestionStatus;
+  decision_by_user_id: string | null;
+  decision_reason: string | null;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface AgentSuggestionListItem {
+  id: string;
+  agent_id: string;
+  suggestion_type: SuggestionType;
+  target_page: string | null;
+  diff_summary: string | null;
+  status: SuggestionStatus;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface ClimateContext {
+  profile_name: string | null;
+  total_missions: number;
+  completed_missions: number;
+  total_impact_kgco2: number;
+  categories: string[];
 }
