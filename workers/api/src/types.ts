@@ -972,3 +972,117 @@ export interface TaskDecisionResponse {
     message: string;
   };
 }
+
+// ============================================================================
+// Hemp & Climate Materials v1 types (Iteration 00C1)
+// ============================================================================
+
+// Hemp material category types
+export type HempCategory = 'fiber' | 'bioplastic' | 'construction' | 'paper_packaging' | 'other_industrial';
+
+// Extended Material type with hemp fields
+export interface HempMaterial extends Material {
+  is_hemp_or_cannabis_material: boolean;
+  hemp_category: HempCategory | null;
+  climate_benefit_note: string | null;
+}
+
+// Climate Material Profile - per-material climate impact data
+export interface ClimateMaterialProfile {
+  id: string;
+  tenant_id: string;
+  material_id: string;
+  baseline_unit: string;
+  baseline_co2_kg_per_unit: number | null;
+  reference_material_name: string | null;
+  co2_savings_vs_reference_kg_per_unit: number | null;
+  water_savings_l_per_unit: number | null;
+  land_savings_m2_per_unit: number | null;
+  data_source_label: string | null;
+  data_source_url: string | null;
+  created_at: string;
+  updated_at: string | null;
+}
+
+// Input for creating/updating climate material profiles
+export interface UpsertClimateMaterialProfileInput {
+  baseline_unit?: string;
+  baseline_co2_kg_per_unit?: number;
+  reference_material_name?: string;
+  co2_savings_vs_reference_kg_per_unit?: number;
+  water_savings_l_per_unit?: number;
+  land_savings_m2_per_unit?: number;
+  data_source_label?: string;
+  data_source_url?: string;
+}
+
+// Filters for climate material profiles
+export interface ClimateMaterialProfileFilters {
+  material_id?: string;
+  hemp_only?: boolean;
+}
+
+// Hemp material filters
+export interface HempMaterialFilters {
+  hemp_category?: HempCategory;
+}
+
+// Extended ProductClimateMeta with derived material impact
+export interface ProductClimateMetaWithDerived extends ProductClimateMeta {
+  derived_material_impact_kgco2: number | null;
+}
+
+// Material mission types
+export type MaterialMissionType = 'switch_material' | 'increase_hemp_share' | 'pilot_hemp_product';
+
+// Extended ClimateMission with material-switch fields
+export interface MaterialSwitchMission extends ClimateMission {
+  material_mission_type: MaterialMissionType | null;
+  from_material_id: string | null;
+  to_material_id: string | null;
+  material_quantity: number | null;
+  material_quantity_unit: string | null;
+  estimated_savings_kgco2: number | null;
+}
+
+// Input for creating material-switch missions
+export interface CreateMaterialSwitchMissionInput extends CreateMissionInput {
+  material_mission_type?: MaterialMissionType;
+  from_material_id?: string;
+  to_material_id?: string;
+  material_quantity?: number;
+  material_quantity_unit?: string;
+  estimated_savings_kgco2?: number;
+}
+
+// Input for updating material-switch missions
+export interface UpdateMaterialSwitchMissionInput extends UpdateMissionInput {
+  material_mission_type?: MaterialMissionType;
+  from_material_id?: string;
+  to_material_id?: string;
+  material_quantity?: number;
+  material_quantity_unit?: string;
+  estimated_savings_kgco2?: number;
+}
+
+// Material impact estimation response
+export interface MaterialImpactEstimate {
+  material_id?: string;
+  product_id?: string;
+  total_co2_kg: number | null;
+  breakdown: MaterialImpactBreakdown[];
+  data_completeness: 'full' | 'partial' | 'none';
+}
+
+export interface MaterialImpactBreakdown {
+  material_id: string;
+  material_name: string;
+  percentage: number | null;
+  co2_kg_per_unit: number | null;
+  contribution_kg: number | null;
+}
+
+// Climate material profile with material details
+export interface ClimateMaterialProfileWithMaterial extends ClimateMaterialProfile {
+  material?: HempMaterial;
+}
