@@ -705,6 +705,18 @@ export default function AdminSetupPage() {
                         >
                           Mashup Admin
                         </Link>
+                        <Link
+                          href="/admin/agents/tasks"
+                          className="text-blue-600 hover:text-blue-800 text-sm"
+                        >
+                          Agent Control Center
+                        </Link>
+                        <Link
+                          href="/admin/frontend"
+                          className="text-blue-600 hover:text-blue-800 text-sm"
+                        >
+                          Frontend Config
+                        </Link>
                       </div>
                     </section>
         </div>
