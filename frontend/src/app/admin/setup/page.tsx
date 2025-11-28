@@ -687,14 +687,26 @@ export default function AdminSetupPage() {
               >
                 Agents Dashboard
               </Link>
-              <Link
-                href="/journal"
-                className="text-blue-600 hover:text-blue-800 text-sm"
-              >
-                Journal
-              </Link>
-            </div>
-          </section>
+                        <Link
+                          href="/journal"
+                          className="text-blue-600 hover:text-blue-800 text-sm"
+                        >
+                          Journal
+                        </Link>
+                        <Link
+                          href="/mashups"
+                          className="text-blue-600 hover:text-blue-800 text-sm"
+                        >
+                          Mashup Shop
+                        </Link>
+                        <Link
+                          href="/admin/mashups"
+                          className="text-blue-600 hover:text-blue-800 text-sm"
+                        >
+                          Mashup Admin
+                        </Link>
+                      </div>
+                    </section>
         </div>
       </div>
     </div>
