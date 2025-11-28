@@ -89,6 +89,9 @@ Process tasks using the CLI:
 # Process up to 5 tasks and exit
 python -m zora_core.autonomy.cli run-once --limit=5
 
+# Process with time and failure limits
+python -m zora_core.autonomy.cli run-once --limit=20 --max-seconds=300 --max-failures=5
+
 # Run continuous loop (for dev/testing)
 python -m zora_core.autonomy.cli run-loop --sleep-seconds=10
 
@@ -102,6 +105,15 @@ python -m zora_core.autonomy.cli create-task \
     --title="Review dashboard page" \
     --payload='{"page": "dashboard"}'
 ```
+
+### CLI Flags for run-once
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--limit` | 10 | Maximum number of tasks to process |
+| `--max-seconds` | None | Maximum runtime in seconds (no limit by default) |
+| `--max-failures` | 5 | Stop if this many tasks fail |
+| `--verbose` | False | Enable debug-level logging |
 
 ### Programmatic Usage
 
@@ -263,11 +275,20 @@ Access the Agent Control Center from:
 - Run `python -m zora_core.autonomy.cli run-once` to process pending tasks
 - All tasks are tenant-scoped (you only see tasks for your tenant)
 
+## Automated Scheduling (GitHub Actions)
+
+As of Iteration 0021, the Agent Runtime can run automatically via GitHub Actions without requiring manual CLI execution or user login. Tasks created in the Agent Control Center are processed automatically every 15 minutes.
+
+See [AGENT_AUTOMATION_V1.md](./AGENT_AUTOMATION_V1.md) for:
+- How to configure GitHub Secrets
+- How to change the schedule
+- How to monitor and debug automated runs
+- Safety limits and controls
+
 ## Future Enhancements
 
 Planned for future iterations:
 
-- Production cron scheduling (currently CLI is for dev/testing)
 - More sophisticated task handlers with actual LLM reasoning
 - Task dependencies and workflows
 - Agent-to-agent task delegation
@@ -275,6 +296,7 @@ Planned for future iterations:
 
 ## Related Documentation
 
+- [AGENT_AUTOMATION_V1.md](./AGENT_AUTOMATION_V1.md) - Automated scheduling via GitHub Actions
 - [AUTONOMY_LAYER_V0.md](./AUTONOMY_LAYER_V0.md) - Agent suggestion system
 - [DEVELOPER_SETUP.md](./DEVELOPER_SETUP.md) - Development environment setup
 - [SUPABASE_SETUP_NO_CLI.md](./SUPABASE_SETUP_NO_CLI.md) - Database setup guide
