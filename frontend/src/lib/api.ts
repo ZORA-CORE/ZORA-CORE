@@ -14,6 +14,7 @@ import type {
   MemoryEvent,
   SemanticSearchResponse,
 } from './types';
+import { getToken, clearToken } from './auth';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_ZORA_API_BASE_URL || 'http://localhost:8787';
 const IS_DEV = process.env.NODE_ENV === 'development';
@@ -22,6 +23,17 @@ function log(...args: unknown[]) {
   if (IS_DEV) {
     console.log('[ZORA API]', ...args);
   }
+}
+
+/**
+ * Get authorization headers if token is available
+ */
+function getAuthHeaders(): Record<string, string> {
+  const token = getToken();
+  if (token) {
+    return { Authorization: `Bearer ${token}` };
+  }
+  return {};
 }
 
 export class ZoraApiError extends Error {
@@ -48,6 +60,7 @@ async function request<T>(
       ...options,
       headers: {
         'Content-Type': 'application/json',
+        ...getAuthHeaders(),
         ...options.headers,
       },
     });
@@ -56,6 +69,16 @@ async function request<T>(
 
     if (!response.ok) {
       log('Error response:', data);
+      
+      // Handle authentication errors
+      if (response.status === 401) {
+        clearToken();
+        // Redirect to login if in browser
+        if (typeof window !== 'undefined') {
+          window.location.href = '/login';
+        }
+      }
+      
       throw new ZoraApiError(data as ApiError);
     }
 

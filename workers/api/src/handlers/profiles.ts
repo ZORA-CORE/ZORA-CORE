@@ -1,5 +1,7 @@
 import { Hono } from 'hono';
-import type { AppEnv, ClimateProfile, CreateProfileInput, UpdateProfileInput } from '../types';
+import type { ClimateProfile, CreateProfileInput, UpdateProfileInput } from '../types';
+import type { AuthAppEnv } from '../middleware/auth';
+import { getTenantId } from '../middleware/auth';
 import { getSupabaseClient } from '../lib/supabase';
 import {
   jsonResponse,
@@ -10,10 +12,11 @@ import {
   serverErrorResponse,
 } from '../lib/response';
 
-const app = new Hono<AppEnv>();
+const app = new Hono<AuthAppEnv>();
 
 app.get('/', async (c) => {
   try {
+    const tenantId = getTenantId(c);
     const url = new URL(c.req.url);
     const { limit, offset } = parsePaginationParams(url);
     const profileType = url.searchParams.get('type');
@@ -22,7 +25,8 @@ app.get('/', async (c) => {
     
     let query = supabase
       .from('climate_profiles')
-      .select('*', { count: 'exact' });
+      .select('*', { count: 'exact' })
+      .eq('tenant_id', tenantId);
     
     if (profileType) {
       query = query.eq('profile_type', profileType);
@@ -46,6 +50,7 @@ app.get('/', async (c) => {
 
 app.get('/:id', async (c) => {
   try {
+    const tenantId = getTenantId(c);
     const id = c.req.param('id');
     const supabase = getSupabaseClient(c.env);
     
@@ -53,6 +58,7 @@ app.get('/:id', async (c) => {
       .from('climate_profiles')
       .select('*')
       .eq('id', id)
+      .eq('tenant_id', tenantId)
       .single();
     
     if (error) {
@@ -72,6 +78,7 @@ app.get('/:id', async (c) => {
 
 app.post('/', async (c) => {
   try {
+    const tenantId = getTenantId(c);
     const body = await c.req.json<CreateProfileInput>();
     
     if (!body.name) {
@@ -83,6 +90,7 @@ app.post('/', async (c) => {
     const { data, error } = await supabase
       .from('climate_profiles')
       .insert({
+        tenant_id: tenantId,
         owner_id: body.owner_id || null,
         profile_type: body.profile_type || 'person',
         name: body.name,
@@ -112,6 +120,7 @@ app.post('/', async (c) => {
 
 app.put('/:id', async (c) => {
   try {
+    const tenantId = getTenantId(c);
     const id = c.req.param('id');
     const body = await c.req.json<UpdateProfileInput>();
     
@@ -121,6 +130,7 @@ app.put('/:id', async (c) => {
       .from('climate_profiles')
       .select('id')
       .eq('id', id)
+      .eq('tenant_id', tenantId)
       .single();
     
     if (!existing) {
@@ -144,6 +154,7 @@ app.put('/:id', async (c) => {
       .from('climate_profiles')
       .update(updateData)
       .eq('id', id)
+      .eq('tenant_id', tenantId)
       .select()
       .single();
     
