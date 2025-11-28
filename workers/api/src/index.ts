@@ -9,6 +9,7 @@ import journalHandler from './handlers/journal';
 import agentsHandler from './handlers/agents';
 import memoryHandler from './handlers/memory';
 import adminHandler from './handlers/admin';
+import frontendConfigHandler from './handlers/frontend-config';
 
 const app = new Hono<AuthAppEnv>();
 
@@ -24,27 +25,30 @@ app.use('/api/climate/*', authMiddleware);
 app.use('/api/agents/*', authMiddleware);
 app.use('/api/missions/*', authMiddleware);
 app.use('/api/journal/*', authMiddleware);
+app.use('/api/frontend/*', authMiddleware);
 
 app.get('/', (c) => {
   return c.json({
     name: 'ZORA CORE API',
     version: '0.5.0',
     docs: '/api/status',
-    endpoints: [
-      'GET /api/status',
-      'GET /api/agents',
-      'GET /api/agents/:agentId',
-      'GET /api/agents/:agentId/memory',
-      'POST /api/agents/:agentId/memory/semantic-search',
-      'GET /api/climate/profiles',
-      'GET /api/climate/profiles/:id',
-      'POST /api/climate/profiles',
-      'PUT /api/climate/profiles/:id',
-      'GET /api/climate/profiles/:id/missions',
-      'POST /api/climate/profiles/:id/missions',
-      'PATCH /api/missions/:id',
-      'GET /api/journal',
-    ],
+        endpoints: [
+          'GET /api/status',
+          'GET /api/agents',
+          'GET /api/agents/:agentId',
+          'GET /api/agents/:agentId/memory',
+          'POST /api/agents/:agentId/memory/semantic-search',
+          'GET /api/climate/profiles',
+          'GET /api/climate/profiles/:id',
+          'POST /api/climate/profiles',
+          'PUT /api/climate/profiles/:id',
+          'GET /api/climate/profiles/:id/missions',
+          'POST /api/climate/profiles/:id/missions',
+          'PATCH /api/missions/:id',
+          'GET /api/journal',
+          'GET /api/frontend/config/:page',
+          'PUT /api/frontend/config/:page',
+        ],
     admin_endpoints: [
       'GET /api/admin/status (requires X-ZORA-ADMIN-SECRET)',
       'POST /api/admin/bootstrap-tenant (requires X-ZORA-ADMIN-SECRET)',
@@ -64,6 +68,7 @@ app.route('/api/climate/profiles', profilesHandler);
 app.route('/api/climate', missionsHandler);
 app.route('/api/missions', missionsHandler);
 app.route('/api/journal', journalHandler);
+app.route('/api/frontend/config', frontendConfigHandler);
 
 app.notFound((c) => {
   return c.json({

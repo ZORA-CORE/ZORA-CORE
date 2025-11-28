@@ -9,6 +9,7 @@ import {
   createClimateMission,
   updateMissionStatus,
   bootstrapMissions,
+  getFrontendConfig,
   ZoraApiError,
 } from "@/lib/api";
 import type {
@@ -18,7 +19,16 @@ import type {
   CreateMissionInput,
   CreateProfileInput,
   DashboardSummary,
+  ClimatePageConfig,
 } from "@/lib/types";
+
+const DEFAULT_CLIMATE_CONFIG: ClimatePageConfig = {
+  hero_title: "Climate OS",
+  hero_subtitle: "Track your climate impact and complete missions to reduce your footprint. Every action counts in the fight against climate change.",
+  show_profile_section: true,
+  show_dashboard_section: true,
+  show_missions_section: true,
+};
 
 function LoadingSpinner() {
   return (
@@ -344,6 +354,21 @@ export default function ClimatePage() {
   const [missionsLoading, setMissionsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showCreateMission, setShowCreateMission] = useState(false);
+  const [config, setConfig] = useState<ClimatePageConfig>(DEFAULT_CLIMATE_CONFIG);
+  const [isDefaultConfig, setIsDefaultConfig] = useState(true);
+
+  useEffect(() => {
+    async function loadConfig() {
+      try {
+        const response = await getFrontendConfig("climate");
+        setConfig(response.config as ClimatePageConfig);
+        setIsDefaultConfig(response.is_default);
+      } catch (err) {
+        console.error("Failed to load frontend config:", err);
+      }
+    }
+    loadConfig();
+  }, []);
 
   const loadProfile = useCallback(async () => {
     try {
@@ -471,15 +496,20 @@ export default function ClimatePage() {
         </div>
       </header>
 
-      <main className="flex-1 p-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold mb-2">Climate OS</h1>
-            <p className="text-gray-400">
-              Track your climate impact and complete missions to reduce your footprint.
-              Every action counts in the fight against climate change.
-            </p>
-          </div>
+            <main className="flex-1 p-6">
+              <div className="max-w-7xl mx-auto">
+                <div className="mb-8">
+                  <h1 className="text-3xl font-bold mb-2">{config.hero_title}</h1>
+                  <p className="text-gray-400">{config.hero_subtitle}</p>
+                  {isDefaultConfig && (
+                    <p className="text-xs text-gray-500 mt-2">
+                      Using default configuration.{" "}
+                      <Link href="/admin/frontend" className="text-emerald-500 hover:text-emerald-400">
+                        Customize
+                      </Link>
+                    </p>
+                  )}
+                </div>
 
           {loading ? (
             <LoadingSpinner />
@@ -489,37 +519,40 @@ export default function ClimatePage() {
             <CreateProfileForm onSubmit={handleCreateProfile} />
           ) : (
             <>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-                <div className="agent-card text-center">
-                  <p className="text-gray-400 text-sm mb-1">Total Missions</p>
-                  <p className="text-4xl font-bold text-emerald-500">
-                    {dashboardSummary.total_missions}
-                  </p>
-                  <p className="text-xs text-gray-500">climate actions</p>
+              {config.show_dashboard_section && (
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                  <div className="agent-card text-center">
+                    <p className="text-gray-400 text-sm mb-1">Total Missions</p>
+                    <p className="text-4xl font-bold text-emerald-500">
+                      {dashboardSummary.total_missions}
+                    </p>
+                    <p className="text-xs text-gray-500">climate actions</p>
+                  </div>
+                  <div className="agent-card text-center">
+                    <p className="text-gray-400 text-sm mb-1">Completed</p>
+                    <p className="text-4xl font-bold text-emerald-500">
+                      {dashboardSummary.completed_count}
+                    </p>
+                    <p className="text-xs text-gray-500">missions done</p>
+                  </div>
+                  <div className="agent-card text-center">
+                    <p className="text-gray-400 text-sm mb-1">In Progress</p>
+                    <p className="text-4xl font-bold text-amber-500">
+                      {dashboardSummary.in_progress_count}
+                    </p>
+                    <p className="text-xs text-gray-500">active now</p>
+                  </div>
+                  <div className="agent-card text-center">
+                    <p className="text-gray-400 text-sm mb-1">Total Impact</p>
+                    <p className="text-4xl font-bold text-emerald-500">
+                      {dashboardSummary.total_impact_kgco2 > 0 ? `${dashboardSummary.total_impact_kgco2} kg` : "--"}
+                    </p>
+                    <p className="text-xs text-gray-500">CO2 reduction</p>
+                  </div>
                 </div>
-                <div className="agent-card text-center">
-                  <p className="text-gray-400 text-sm mb-1">Completed</p>
-                  <p className="text-4xl font-bold text-emerald-500">
-                    {dashboardSummary.completed_count}
-                  </p>
-                  <p className="text-xs text-gray-500">missions done</p>
-                </div>
-                <div className="agent-card text-center">
-                  <p className="text-gray-400 text-sm mb-1">In Progress</p>
-                  <p className="text-4xl font-bold text-amber-500">
-                    {dashboardSummary.in_progress_count}
-                  </p>
-                  <p className="text-xs text-gray-500">active now</p>
-                </div>
-                <div className="agent-card text-center">
-                  <p className="text-gray-400 text-sm mb-1">Total Impact</p>
-                  <p className="text-4xl font-bold text-emerald-500">
-                    {dashboardSummary.total_impact_kgco2 > 0 ? `${dashboardSummary.total_impact_kgco2} kg` : "--"}
-                  </p>
-                  <p className="text-xs text-gray-500">CO2 reduction</p>
-                </div>
-              </div>
+              )}
 
+              {config.show_missions_section && (
               <div className="mb-6">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-semibold">Your Climate Missions</h2>
@@ -565,7 +598,9 @@ export default function ClimatePage() {
                   </div>
                 )}
               </div>
+              )}
 
+              {config.show_profile_section && (
               <div className="agent-card">
                 <h2 className="text-xl font-semibold mb-4">Climate Profile</h2>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
@@ -605,14 +640,15 @@ export default function ClimatePage() {
                   </div>
                 </div>
               </div>
+              )}
             </>
           )}
         </div>
       </main>
 
-      <footer className="border-t border-zinc-800 p-4 text-center text-gray-500 text-sm">
-        ZORA CORE v0.5 - Climate OS v0.2
-      </footer>
+            <footer className="border-t border-zinc-800 p-4 text-center text-gray-500 text-sm">
+              ZORA CORE v0.6 - Climate OS v0.2
+            </footer>
     </div>
   );
 }

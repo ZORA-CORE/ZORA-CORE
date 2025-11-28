@@ -286,3 +286,34 @@ export interface TokenResponse {
   tenant: Tenant;
   expires_at: string;
 }
+
+export interface HomePageConfig {
+  hero_title: string;
+  hero_subtitle: string;
+  primary_cta_label: string;
+  primary_cta_link: string;
+  show_climate_dashboard: boolean;
+  show_missions_section: boolean;
+}
+
+export interface ClimatePageConfig {
+  hero_title: string;
+  hero_subtitle: string;
+  show_profile_section: boolean;
+  show_dashboard_section: boolean;
+  show_missions_section: boolean;
+}
+
+export interface FrontendConfigResponse {
+  page: string;
+  config: HomePageConfig | ClimatePageConfig | Record<string, unknown>;
+  id?: string;
+  tenant_id?: string;
+  is_default: boolean;
+  created_at?: string;
+  updated_at?: string | null;
+}
+
+export interface UpdateFrontendConfigInput {
+  config: HomePageConfig | ClimatePageConfig | Record<string, unknown>;
+}

@@ -13,12 +13,12 @@
 -- 
 -- After running:
 --   - All required tables will exist: tenants, users, memory_events, 
---     journal_entries, climate_profiles, climate_missions
+--     journal_entries, climate_profiles, climate_missions, frontend_configs
 --   - The search_memories_by_embedding function will be correctly defined
 --   - /admin/setup will work correctly
 -- 
 -- Date: 2025-11-28
--- Version: 1.1.0 (Climate OS v0.2)
+-- Version: 1.2.0 (Frontend Config Layer v0)
 -- ============================================================================
 
 -- ============================================================================
@@ -518,7 +518,57 @@ CREATE POLICY "Allow all for service role" ON climate_missions
 COMMENT ON TABLE climate_missions IS 'Climate missions and their tracked impact';
 
 -- ============================================================================
--- STEP 10: FIX DUPLICATE search_memories_by_embedding FUNCTIONS
+-- STEP 10: CREATE FRONTEND_CONFIGS TABLE
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS frontend_configs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    page VARCHAR(100) NOT NULL,
+    config JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ
+);
+
+-- Add unique constraint for (tenant_id, page) if not exists
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'frontend_configs_tenant_id_page_key'
+    ) THEN
+        ALTER TABLE frontend_configs ADD CONSTRAINT frontend_configs_tenant_id_page_key UNIQUE(tenant_id, page);
+    END IF;
+EXCEPTION WHEN duplicate_object THEN
+    -- Constraint already exists, ignore
+END$$;
+
+-- Indexes for frontend_configs
+CREATE INDEX IF NOT EXISTS idx_frontend_configs_tenant ON frontend_configs(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_frontend_configs_page ON frontend_configs(page);
+CREATE INDEX IF NOT EXISTS idx_frontend_configs_tenant_page ON frontend_configs(tenant_id, page);
+
+-- Trigger for updated_at
+DROP TRIGGER IF EXISTS update_frontend_configs_updated_at ON frontend_configs;
+CREATE TRIGGER update_frontend_configs_updated_at
+    BEFORE UPDATE ON frontend_configs
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Enable RLS
+ALTER TABLE frontend_configs ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy
+DROP POLICY IF EXISTS "Allow all for service role" ON frontend_configs;
+CREATE POLICY "Allow all for service role" ON frontend_configs
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE frontend_configs IS 'Frontend configuration per tenant and page - drives config-driven UI';
+
+-- ============================================================================
+-- STEP 11: FIX DUPLICATE search_memories_by_embedding FUNCTIONS
 -- ============================================================================
 -- This is the critical fix for ERROR 42725: function name is not unique
 
@@ -599,7 +649,7 @@ $$;
 COMMENT ON FUNCTION search_memories_by_embedding IS 'Semantic search over memory events with optional agent and tenant filtering';
 
 -- ============================================================================
--- STEP 11: VERIFY SCHEMA
+-- STEP 12: VERIFY SCHEMA
 -- ============================================================================
 
 -- This query will show all tables that should exist
@@ -609,11 +659,11 @@ DECLARE
     table_count INTEGER;
     function_count INTEGER;
 BEGIN
-    -- Count required tables
+    -- Count required tables (now 7 with frontend_configs)
     SELECT COUNT(*) INTO table_count
     FROM information_schema.tables 
     WHERE table_schema = 'public' 
-    AND table_name IN ('tenants', 'users', 'memory_events', 'journal_entries', 'climate_profiles', 'climate_missions');
+    AND table_name IN ('tenants', 'users', 'memory_events', 'journal_entries', 'climate_profiles', 'climate_missions', 'frontend_configs');
     
     -- Count search_memories_by_embedding functions (should be exactly 1)
     SELECT COUNT(*) INTO function_count
@@ -621,10 +671,10 @@ BEGIN
     WHERE proname = 'search_memories_by_embedding';
     
     RAISE NOTICE '=== ZORA CORE Schema Verification ===';
-    RAISE NOTICE 'Required tables found: % of 6', table_count;
+    RAISE NOTICE 'Required tables found: % of 7', table_count;
     RAISE NOTICE 'search_memories_by_embedding functions: % (should be 1)', function_count;
     
-    IF table_count = 6 AND function_count = 1 THEN
+    IF table_count = 7 AND function_count = 1 THEN
         RAISE NOTICE 'Schema is correctly configured!';
     ELSE
         RAISE WARNING 'Schema may have issues. Please check the tables and functions.';
