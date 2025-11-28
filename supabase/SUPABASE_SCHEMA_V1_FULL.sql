@@ -20,7 +20,7 @@
 --   - /admin/setup will work correctly
 -- 
 -- Date: 2025-11-28
--- Version: 2.1.0 (ZORA SHOP Backend v1.0 - Brands, Products, Climate Metadata & Projects)
+-- Version: 2.2.0 (Agent Task Execution Engine v1.0 - Enhanced task execution with command linking)
 -- ============================================================================
 
 -- ============================================================================
@@ -1248,6 +1248,7 @@ CREATE TABLE IF NOT EXISTS agent_tasks (
     title VARCHAR(500) NOT NULL,
     description TEXT,
     payload JSONB DEFAULT '{}',
+    result JSONB,
     result_summary TEXT,
     error_message TEXT,
     started_at TIMESTAMPTZ,
@@ -1256,6 +1257,29 @@ CREATE TABLE IF NOT EXISTS agent_tasks (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ
 );
+
+-- Add command_id column if it doesn't exist (for linking to agent_commands)
+-- Note: FK constraint added after agent_commands table is created
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'agent_tasks' AND column_name = 'command_id'
+    ) THEN
+        ALTER TABLE agent_tasks ADD COLUMN command_id UUID;
+    END IF;
+END$$;
+
+-- Add result column if it doesn't exist (for structured task results)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'agent_tasks' AND column_name = 'result'
+    ) THEN
+        ALTER TABLE agent_tasks ADD COLUMN result JSONB;
+    END IF;
+END$$;
 
 -- Indexes for agent_tasks
 CREATE INDEX IF NOT EXISTS idx_agent_tasks_tenant ON agent_tasks(tenant_id);
@@ -1268,6 +1292,8 @@ CREATE INDEX IF NOT EXISTS idx_agent_tasks_tenant_agent ON agent_tasks(tenant_id
 CREATE INDEX IF NOT EXISTS idx_agent_tasks_created_at ON agent_tasks(created_at DESC);
 -- Composite index for task claiming: pending tasks ordered by priority and creation time
 CREATE INDEX IF NOT EXISTS idx_agent_tasks_pending_priority ON agent_tasks(tenant_id, status, priority DESC, created_at ASC) WHERE status = 'pending';
+-- Index for command_id (linking tasks to commands)
+CREATE INDEX IF NOT EXISTS idx_agent_tasks_command_id ON agent_tasks(command_id) WHERE command_id IS NOT NULL;
 
 -- Trigger for updated_at
 DROP TRIGGER IF EXISTS update_agent_tasks_updated_at ON agent_tasks;
@@ -1412,6 +1438,21 @@ CREATE POLICY "Allow all for service role" ON agent_commands
     WITH CHECK (true);
 
 COMMENT ON TABLE agent_commands IS 'Agent commands - freeform prompts from Founder that LUMINA translates into agent_tasks';
+
+-- Add FK constraint from agent_tasks.command_id to agent_commands.id
+-- (Now that agent_commands table exists)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints 
+        WHERE constraint_name = 'fk_agent_tasks_command_id' 
+        AND table_name = 'agent_tasks'
+    ) THEN
+        ALTER TABLE agent_tasks 
+        ADD CONSTRAINT fk_agent_tasks_command_id 
+        FOREIGN KEY (command_id) REFERENCES agent_commands(id) ON DELETE SET NULL;
+    END IF;
+END$$;
 
 -- ============================================================================
 -- STEP 18: FIX DUPLICATE search_memories_by_embedding FUNCTIONS

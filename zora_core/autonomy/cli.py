@@ -17,6 +17,7 @@ import sys
 from typing import Optional
 
 from .runtime import AgentRuntime, is_runtime_configured
+from .executor import TaskExecutor, is_executor_configured, get_supported_task_types
 
 
 def setup_logging(verbose: bool = False) -> None:
@@ -179,6 +180,126 @@ async def cmd_status(
         print(f"Error: {e}")
 
 
+async def cmd_run_pending_tasks(
+    limit: int = 10,
+    task_type: Optional[str] = None,
+    tenant_id: Optional[str] = None,
+    verbose: bool = False,
+) -> tuple[int, int, int]:
+    """
+    Execute pending tasks using the Task Executor v1.0.
+    
+    This command uses the new Task Execution Engine which supports
+    domain-specific task types for Climate OS and ZORA SHOP.
+    
+    Returns a tuple of (completed, failed, skipped).
+    """
+    setup_logging(verbose)
+    logger = logging.getLogger("zora.autonomy.cli")
+    
+    if not is_executor_configured():
+        logger.error("Executor not configured. Set SUPABASE_URL and SUPABASE_SERVICE_KEY.")
+        print("ERROR: Executor not configured")
+        print("  Set SUPABASE_URL and SUPABASE_SERVICE_KEY environment variables.")
+        return (0, 0, 0)
+    
+    logger.info(f"Starting run-pending-tasks with limit={limit}, task_type={task_type}")
+    
+    try:
+        executor = TaskExecutor(tenant_id=tenant_id)
+        summary = await executor.execute_pending_tasks(
+            tenant_id=tenant_id,
+            limit=limit,
+            task_type=task_type,
+        )
+        
+        print("=== Task Execution Summary ===")
+        print(f"Tasks fetched:   {summary.total_fetched}")
+        print(f"Tasks executed:  {summary.total_executed}")
+        print(f"  Completed:     {summary.completed}")
+        print(f"  Failed:        {summary.failed}")
+        print(f"  Skipped:       {summary.skipped}")
+        print()
+        
+        if summary.task_results:
+            print("Task Results:")
+            for result in summary.task_results:
+                status_icon = "+" if result["status"] == "completed" else "-" if result["status"] == "failed" else "~"
+                print(f"  [{status_icon}] {result['task_type']}: {result.get('result_summary') or result.get('error_message') or result.get('reason', 'N/A')}")
+        
+        return (summary.completed, summary.failed, summary.skipped)
+        
+    except Exception as e:
+        logger.error(f"Error running executor: {e}")
+        print(f"ERROR: {e}")
+        return (0, 0, 0)
+
+
+async def cmd_run_task(
+    task_id: str,
+    tenant_id: Optional[str] = None,
+    verbose: bool = False,
+) -> bool:
+    """
+    Execute a specific task by ID using the Task Executor v1.0.
+    
+    Returns True if successful, False otherwise.
+    """
+    setup_logging(verbose)
+    logger = logging.getLogger("zora.autonomy.cli")
+    
+    if not is_executor_configured():
+        logger.error("Executor not configured. Set SUPABASE_URL and SUPABASE_SERVICE_KEY.")
+        print("ERROR: Executor not configured")
+        return False
+    
+    logger.info(f"Running task {task_id}")
+    
+    try:
+        executor = TaskExecutor(tenant_id=tenant_id)
+        result = await executor.execute_single_task_by_id(
+            task_id=task_id,
+            tenant_id=tenant_id,
+        )
+        
+        if result.success:
+            print(f"Task {task_id} completed successfully")
+            if result.result_summary:
+                print(f"  Summary: {result.result_summary}")
+            if result.result:
+                print(f"  Result: {result.result}")
+            return True
+        else:
+            print(f"Task {task_id} failed")
+            print(f"  Error: {result.error_message}")
+            return False
+            
+    except Exception as e:
+        logger.error(f"Error running task: {e}")
+        print(f"ERROR: {e}")
+        return False
+
+
+async def cmd_list_task_types(verbose: bool = False) -> None:
+    """
+    List supported task types for the Task Executor v1.0.
+    """
+    setup_logging(verbose)
+    
+    print("=== Supported Task Types (v1.0) ===")
+    print()
+    print("Climate OS:")
+    print("  climate.create_missions_from_plan  - Create missions from a weekly plan")
+    print("  climate.create_single_mission      - Create a single mission for a profile")
+    print()
+    print("ZORA SHOP:")
+    print("  zora_shop.create_project           - Create a ZORA SHOP project")
+    print("  zora_shop.update_product_climate_meta - Update product climate metadata")
+    print()
+    print("Use these task types when creating tasks via the Agent Command Console")
+    print("or directly via the API.")
+
+
 async def cmd_create_task(
     agent_id: str,
     task_type: str,
@@ -245,8 +366,17 @@ def main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Process up to 5 pending tasks
+  # Process up to 5 pending tasks (legacy runtime)
   python -m zora_core.autonomy.cli run-once --limit=5
+
+  # Execute pending tasks with Task Executor v1.0
+  python -m zora_core.autonomy.cli run-pending-tasks --limit=10
+
+  # Execute a specific task by ID
+  python -m zora_core.autonomy.cli run-task <task-uuid>
+
+  # List supported task types
+  python -m zora_core.autonomy.cli task-types
 
   # Run continuously with 10 second sleep between batches
   python -m zora_core.autonomy.cli run-loop --sleep-seconds=10
@@ -324,6 +454,41 @@ Environment Variables:
     subparsers.add_parser(
         "status",
         help="Show queue status",
+    )
+    
+    # run-pending-tasks command (Task Executor v1.0)
+    run_pending_parser = subparsers.add_parser(
+        "run-pending-tasks",
+        help="Execute pending tasks using Task Executor v1.0",
+    )
+    run_pending_parser.add_argument(
+        "--limit",
+        type=int,
+        default=10,
+        help="Maximum number of tasks to process (default: 10)",
+    )
+    run_pending_parser.add_argument(
+        "--task-type",
+        type=str,
+        default=None,
+        help="Filter by task type (e.g., climate.create_single_mission)",
+    )
+    
+    # run-task command (execute specific task by ID)
+    run_task_parser = subparsers.add_parser(
+        "run-task",
+        help="Execute a specific task by ID",
+    )
+    run_task_parser.add_argument(
+        "task_id",
+        type=str,
+        help="Task UUID to execute",
+    )
+    
+    # task-types command (list supported task types)
+    subparsers.add_parser(
+        "task-types",
+        help="List supported task types for Task Executor v1.0",
     )
     
     # create-task command
@@ -405,6 +570,33 @@ Environment Variables:
             verbose=args.verbose,
         ))
         sys.exit(0 if result else 1)
+    
+    elif args.command == "run-pending-tasks":
+        completed, failed, skipped = asyncio.run(cmd_run_pending_tasks(
+            limit=args.limit,
+            task_type=args.task_type,
+            tenant_id=args.tenant_id,
+            verbose=args.verbose,
+        ))
+        # Exit 0 if we completed at least one task or had nothing to do
+        # Exit 1 only if all tasks failed
+        if completed == 0 and failed > 0:
+            sys.exit(1)
+        sys.exit(0)
+    
+    elif args.command == "run-task":
+        success = asyncio.run(cmd_run_task(
+            task_id=args.task_id,
+            tenant_id=args.tenant_id,
+            verbose=args.verbose,
+        ))
+        sys.exit(0 if success else 1)
+    
+    elif args.command == "task-types":
+        asyncio.run(cmd_list_task_types(
+            verbose=args.verbose,
+        ))
+        sys.exit(0)
 
 
 if __name__ == "__main__":
