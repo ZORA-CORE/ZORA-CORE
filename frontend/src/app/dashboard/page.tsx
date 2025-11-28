@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { getFrontendConfig, getClimateMissions, getClimateProfiles } from "@/lib/api";
 import type { HomePageConfig, ClimateMission, DashboardSummary, ClimateProfile, ProfileScope } from "@/lib/types";
+import { VersionInfo } from "@/components/VersionInfo";
 
 const SCOPE_COLORS: Record<ProfileScope, string> = {
   individual: "bg-blue-500",
@@ -511,8 +512,9 @@ export default function Dashboard() {
         </div>
       </main>
 
-            <footer className="border-t border-zinc-800 p-4 text-center text-gray-500 text-sm">
-              ZORA CORE v0.7 - Climate OS v0.3
+            <footer className="border-t border-zinc-800 p-4 text-center">
+              <div className="text-gray-500 text-sm mb-2">ZORA CORE - Climate OS v0.3</div>
+              <VersionInfo />
             </footer>
     </div>
   );
