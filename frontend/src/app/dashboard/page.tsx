@@ -389,20 +389,23 @@ export default function Dashboard() {
           <Link href="/" className="text-2xl font-bold">
             <span className="text-emerald-500">ZORA</span> CORE
           </Link>
-          <nav className="flex gap-4">
-            <Link href="/dashboard" className="text-emerald-500">
-              Dashboard
-            </Link>
-            <Link href="/agents" className="hover:text-emerald-500 transition-colors">
-              Agents
-            </Link>
-            <Link href="/climate" className="hover:text-emerald-500 transition-colors">
-              Climate OS
-            </Link>
-            <Link href="/journal" className="hover:text-emerald-500 transition-colors">
-              Journal
-            </Link>
-          </nav>
+                    <nav className="flex gap-4">
+                      <Link href="/dashboard" className="text-emerald-500">
+                        Dashboard
+                      </Link>
+                      <Link href="/agents" className="hover:text-emerald-500 transition-colors">
+                        Agents
+                      </Link>
+                      <Link href="/climate" className="hover:text-emerald-500 transition-colors">
+                        Climate OS
+                      </Link>
+                      <Link href="/mashups" className="hover:text-emerald-500 transition-colors">
+                        Mashup Shop
+                      </Link>
+                      <Link href="/journal" className="hover:text-emerald-500 transition-colors">
+                        Journal
+                      </Link>
+                    </nav>
         </div>
       </header>
 

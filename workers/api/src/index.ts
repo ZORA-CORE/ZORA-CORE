@@ -11,6 +11,8 @@ import memoryHandler from './handlers/memory';
 import adminHandler from './handlers/admin';
 import frontendConfigHandler from './handlers/frontend-config';
 import agentSuggestionsHandler from './handlers/agent-suggestions';
+import brandsHandler from './handlers/brands';
+import productsHandler from './handlers/products';
 
 const app = new Hono<AuthAppEnv>();
 
@@ -28,11 +30,12 @@ app.use('/api/missions/*', authMiddleware);
 app.use('/api/journal/*', authMiddleware);
 app.use('/api/frontend/*', authMiddleware);
 app.use('/api/autonomy/*', authMiddleware);
+app.use('/api/mashups/*', authMiddleware);
 
 app.get('/', (c) => {
   return c.json({
     name: 'ZORA CORE API',
-    version: '0.5.0',
+    version: '0.6.0',
     docs: '/api/status',
         endpoints: [
           'GET /api/status',
@@ -54,6 +57,16 @@ app.get('/', (c) => {
           'GET /api/autonomy/frontend/suggestions',
           'GET /api/autonomy/frontend/suggestions/:id',
           'POST /api/autonomy/frontend/suggestions/:id/decision',
+          'GET /api/mashups/brands',
+          'GET /api/mashups/brands/:id',
+          'POST /api/mashups/brands',
+          'PUT /api/mashups/brands/:id',
+          'DELETE /api/mashups/brands/:id',
+          'GET /api/mashups/products',
+          'GET /api/mashups/products/:id',
+          'POST /api/mashups/products',
+          'PUT /api/mashups/products/:id',
+          'DELETE /api/mashups/products/:id',
         ],
         admin_endpoints: [
           'GET /api/admin/status (requires X-ZORA-ADMIN-SECRET)',
@@ -77,6 +90,8 @@ app.route('/api/missions', missionsHandler);
 app.route('/api/journal', journalHandler);
 app.route('/api/frontend/config', frontendConfigHandler);
 app.route('/api/autonomy/frontend', agentSuggestionsHandler);
+app.route('/api/mashups/brands', brandsHandler);
+app.route('/api/mashups/products', productsHandler);
 
 app.notFound((c) => {
   return c.json({

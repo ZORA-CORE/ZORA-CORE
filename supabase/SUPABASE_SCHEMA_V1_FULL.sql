@@ -19,7 +19,7 @@
 --   - /admin/setup will work correctly
 -- 
 -- Date: 2025-11-28
--- Version: 1.4.0 (Climate OS v0.3 - Multi-Profile Support)
+-- Version: 1.5.0 (Mashup Shop v0.1 - Brands & Products)
 -- ============================================================================
 
 -- ============================================================================
@@ -670,7 +670,181 @@ CREATE POLICY "Allow all for service role" ON agent_suggestions
 COMMENT ON TABLE agent_suggestions IS 'Agent-generated suggestions for frontend config changes - requires human approval';
 
 -- ============================================================================
--- STEP 12: FIX DUPLICATE search_memories_by_embedding FUNCTIONS
+-- STEP 12: CREATE BRANDS TABLE (Mashup Shop v0.1)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS brands (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    slug VARCHAR(100),
+    description TEXT,
+    country VARCHAR(100),
+    sector VARCHAR(100),
+    climate_tagline TEXT,
+    website_url VARCHAR(500),
+    logo_url VARCHAR(500),
+    metadata JSONB DEFAULT '{}',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ
+);
+
+-- Add unique constraint for (tenant_id, slug) if not exists
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'brands_tenant_id_slug_key'
+    ) THEN
+        ALTER TABLE brands ADD CONSTRAINT brands_tenant_id_slug_key UNIQUE(tenant_id, slug);
+    END IF;
+EXCEPTION WHEN duplicate_object THEN
+    -- Constraint already exists, ignore
+END$$;
+
+-- Indexes for brands
+CREATE INDEX IF NOT EXISTS idx_brands_tenant ON brands(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_brands_slug ON brands(slug);
+CREATE INDEX IF NOT EXISTS idx_brands_sector ON brands(sector);
+CREATE INDEX IF NOT EXISTS idx_brands_country ON brands(country);
+CREATE INDEX IF NOT EXISTS idx_brands_created_at ON brands(created_at DESC);
+
+-- Trigger for updated_at
+DROP TRIGGER IF EXISTS update_brands_updated_at ON brands;
+CREATE TRIGGER update_brands_updated_at
+    BEFORE UPDATE ON brands
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Enable RLS
+ALTER TABLE brands ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy
+DROP POLICY IF EXISTS "Allow all for service role" ON brands;
+CREATE POLICY "Allow all for service role" ON brands
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE brands IS 'Brands for the climate-first Mashup Shop - partners in cross-brand collaborations';
+
+-- ============================================================================
+-- STEP 13: CREATE PRODUCTS TABLE (Mashup Shop v0.1)
+-- ============================================================================
+
+-- Product status enum
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'product_status') THEN
+        CREATE TYPE product_status AS ENUM (
+            'draft',
+            'active',
+            'archived'
+        );
+    END IF;
+END$$;
+
+CREATE TABLE IF NOT EXISTS products (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    slug VARCHAR(100),
+    short_description TEXT,
+    long_description TEXT,
+    primary_image_url VARCHAR(500),
+    status VARCHAR(50) DEFAULT 'draft',
+    climate_score NUMERIC(5, 2) CHECK (climate_score IS NULL OR (climate_score >= 0 AND climate_score <= 100)),
+    estimated_impact_kgco2 NUMERIC(12, 2),
+    notes TEXT,
+    metadata JSONB DEFAULT '{}',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ
+);
+
+-- Add unique constraint for (tenant_id, slug) if not exists
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'products_tenant_id_slug_key'
+    ) THEN
+        ALTER TABLE products ADD CONSTRAINT products_tenant_id_slug_key UNIQUE(tenant_id, slug);
+    END IF;
+EXCEPTION WHEN duplicate_object THEN
+    -- Constraint already exists, ignore
+END$$;
+
+-- Indexes for products
+CREATE INDEX IF NOT EXISTS idx_products_tenant ON products(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_products_slug ON products(slug);
+CREATE INDEX IF NOT EXISTS idx_products_status ON products(status);
+CREATE INDEX IF NOT EXISTS idx_products_tenant_status ON products(tenant_id, status);
+CREATE INDEX IF NOT EXISTS idx_products_climate_score ON products(climate_score DESC);
+CREATE INDEX IF NOT EXISTS idx_products_created_at ON products(created_at DESC);
+
+-- Trigger for updated_at
+DROP TRIGGER IF EXISTS update_products_updated_at ON products;
+CREATE TRIGGER update_products_updated_at
+    BEFORE UPDATE ON products
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Enable RLS
+ALTER TABLE products ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy
+DROP POLICY IF EXISTS "Allow all for service role" ON products;
+CREATE POLICY "Allow all for service role" ON products
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE products IS 'Products for the climate-first Mashup Shop - climate-neutral or climate-positive items';
+
+-- ============================================================================
+-- STEP 14: CREATE PRODUCT_BRANDS JOIN TABLE (Mashup Shop v0.1)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS product_brands (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    brand_id UUID NOT NULL REFERENCES brands(id) ON DELETE CASCADE,
+    role VARCHAR(50) DEFAULT 'collab',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Add unique constraint for (product_id, brand_id) if not exists
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'product_brands_product_id_brand_id_key'
+    ) THEN
+        ALTER TABLE product_brands ADD CONSTRAINT product_brands_product_id_brand_id_key UNIQUE(product_id, brand_id);
+    END IF;
+EXCEPTION WHEN duplicate_object THEN
+    -- Constraint already exists, ignore
+END$$;
+
+-- Indexes for product_brands
+CREATE INDEX IF NOT EXISTS idx_product_brands_product ON product_brands(product_id);
+CREATE INDEX IF NOT EXISTS idx_product_brands_brand ON product_brands(brand_id);
+CREATE INDEX IF NOT EXISTS idx_product_brands_role ON product_brands(role);
+
+-- Enable RLS
+ALTER TABLE product_brands ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy
+DROP POLICY IF EXISTS "Allow all for service role" ON product_brands;
+CREATE POLICY "Allow all for service role" ON product_brands
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE product_brands IS 'Join table linking products to brands - enables mashup/collab products with multiple brands';
+
+-- ============================================================================
+-- STEP 15: FIX DUPLICATE search_memories_by_embedding FUNCTIONS
 -- ============================================================================
 -- This is the critical fix for ERROR 42725: function name is not unique
 
@@ -779,11 +953,11 @@ DECLARE
     table_count INTEGER;
     function_count INTEGER;
 BEGIN
-    -- Count required tables (now 8 with agent_suggestions)
+    -- Count required tables (now 11 with brands, products, product_brands)
     SELECT COUNT(*) INTO table_count
     FROM information_schema.tables 
     WHERE table_schema = 'public' 
-    AND table_name IN ('tenants', 'users', 'memory_events', 'journal_entries', 'climate_profiles', 'climate_missions', 'frontend_configs', 'agent_suggestions');
+    AND table_name IN ('tenants', 'users', 'memory_events', 'journal_entries', 'climate_profiles', 'climate_missions', 'frontend_configs', 'agent_suggestions', 'brands', 'products', 'product_brands');
     
     -- Count search_memories_by_embedding functions (should be exactly 1)
     SELECT COUNT(*) INTO function_count
@@ -791,10 +965,10 @@ BEGIN
     WHERE proname = 'search_memories_by_embedding';
     
     RAISE NOTICE '=== ZORA CORE Schema Verification ===';
-    RAISE NOTICE 'Required tables found: % of 8', table_count;
+    RAISE NOTICE 'Required tables found: % of 11', table_count;
     RAISE NOTICE 'search_memories_by_embedding functions: % (should be 1)', function_count;
     
-    IF table_count = 8 AND function_count = 1 THEN
+    IF table_count = 11 AND function_count = 1 THEN
         RAISE NOTICE 'Schema is correctly configured!';
     ELSE
         RAISE WARNING 'Schema may have issues. Please check the tables and functions.';

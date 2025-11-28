@@ -22,6 +22,15 @@ import type {
   CreateSuggestionInput,
   SuggestionDecisionInput,
   SuggestionDecisionResponse,
+  Brand,
+  CreateBrandInput,
+  UpdateBrandInput,
+  BrandsListResponse,
+  Product,
+  CreateProductInput,
+  UpdateProductInput,
+  ProductsListResponse,
+  ProductStatus,
 } from './types';
 import { getToken, clearToken } from './auth';
 
@@ -315,6 +324,73 @@ export async function decideSuggestion(
   );
 }
 
+// Mashup Shop API functions (v0.17)
+export async function getBrands(): Promise<BrandsListResponse> {
+  return request<BrandsListResponse>('/api/mashups/brands');
+}
+
+export async function getBrand(id: string): Promise<Brand> {
+  return request<Brand>(`/api/mashups/brands/${id}`);
+}
+
+export async function createBrand(input: CreateBrandInput): Promise<Brand> {
+  return request<Brand>('/api/mashups/brands', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export async function updateBrand(id: string, input: UpdateBrandInput): Promise<Brand> {
+  return request<Brand>(`/api/mashups/brands/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  });
+}
+
+export async function deleteBrand(id: string): Promise<{ success: boolean; message: string }> {
+  return request<{ success: boolean; message: string }>(`/api/mashups/brands/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function getProducts(params?: {
+  status?: ProductStatus;
+  brand_id?: string;
+}): Promise<ProductsListResponse> {
+  const searchParams = new URLSearchParams();
+  if (params?.status) searchParams.set('status', params.status);
+  if (params?.brand_id) searchParams.set('brand_id', params.brand_id);
+
+  const query = searchParams.toString();
+  return request<ProductsListResponse>(
+    `/api/mashups/products${query ? `?${query}` : ''}`
+  );
+}
+
+export async function getProduct(id: string): Promise<Product> {
+  return request<Product>(`/api/mashups/products/${id}`);
+}
+
+export async function createProduct(input: CreateProductInput): Promise<Product> {
+  return request<Product>('/api/mashups/products', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export async function updateProduct(id: string, input: UpdateProductInput): Promise<Product> {
+  return request<Product>(`/api/mashups/products/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  });
+}
+
+export async function deleteProduct(id: string): Promise<{ success: boolean; message: string }> {
+  return request<{ success: boolean; message: string }>(`/api/mashups/products/${id}`, {
+    method: 'DELETE',
+  });
+}
+
 export const api = {
   getStatus,
   getClimateProfiles,
@@ -337,6 +413,17 @@ export const api = {
   getSuggestions,
   getSuggestion,
   decideSuggestion,
+  // Mashup Shop
+  getBrands,
+  getBrand,
+  createBrand,
+  updateBrand,
+  deleteBrand,
+  getProducts,
+  getProduct,
+  createProduct,
+  updateProduct,
+  deleteProduct,
 };
 
 export default api;

@@ -406,3 +406,116 @@ export interface SchemaStatusResponse {
   missing_columns: string[];
   checked_at: string;
 }
+
+// Mashup Shop types (v0.17)
+export type ProductStatus = 'draft' | 'active' | 'archived';
+
+export interface Brand {
+  id: string;
+  tenant_id: string;
+  name: string;
+  slug: string | null;
+  description: string | null;
+  logo_url: string | null;
+  website_url: string | null;
+  climate_tagline: string | null;
+  sector: string | null;
+  country: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface CreateBrandInput {
+  name: string;
+  slug?: string;
+  description?: string;
+  logo_url?: string;
+  website_url?: string;
+  climate_tagline?: string;
+  sector?: string;
+  country?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface UpdateBrandInput {
+  name?: string;
+  slug?: string;
+  description?: string;
+  logo_url?: string;
+  website_url?: string;
+  climate_tagline?: string;
+  sector?: string;
+  country?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface ProductBrand {
+  id: string;
+  product_id: string;
+  brand_id: string;
+  role: string;
+  created_at: string;
+  brand?: Brand;
+}
+
+export interface Product {
+  id: string;
+  tenant_id: string;
+  name: string;
+  slug: string | null;
+  short_description: string | null;
+  long_description: string | null;
+  primary_image_url: string | null;
+  status: ProductStatus;
+  climate_score: number | null;
+  estimated_impact_kgco2: number | null;
+  notes: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string | null;
+  product_brands?: ProductBrand[];
+}
+
+export interface BrandAssociation {
+  brand_id: string;
+  role?: string;
+}
+
+export interface CreateProductInput {
+  name: string;
+  slug?: string;
+  short_description?: string;
+  long_description?: string;
+  primary_image_url?: string;
+  status?: ProductStatus;
+  climate_score?: number;
+  estimated_impact_kgco2?: number;
+  notes?: string;
+  metadata?: Record<string, unknown>;
+  brands?: BrandAssociation[];
+}
+
+export interface UpdateProductInput {
+  name?: string;
+  slug?: string;
+  short_description?: string;
+  long_description?: string;
+  primary_image_url?: string;
+  status?: ProductStatus;
+  climate_score?: number;
+  estimated_impact_kgco2?: number;
+  notes?: string;
+  metadata?: Record<string, unknown>;
+  brands?: BrandAssociation[];
+}
+
+export interface BrandsListResponse {
+  data: Brand[];
+  count: number;
+}
+
+export interface ProductsListResponse {
+  data: Product[];
+  count: number;
+}
