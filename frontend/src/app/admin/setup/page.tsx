@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
   getAdminStatus,
+  getSchemaStatus,
   bootstrapTenant,
   getTenants,
   getUsers,
@@ -13,6 +14,7 @@ import {
 } from '@/lib/admin-api';
 import type {
   AdminStatusResponse,
+  SchemaStatusResponse,
   Tenant,
   User,
   UserRole,
@@ -43,10 +45,11 @@ export default function AdminSetupPage() {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  const [status, setStatus] = useState<AdminStatusResponse | null>(null);
-  const [tenants, setTenants] = useState<Tenant[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
-  const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null);
+    const [status, setStatus] = useState<AdminStatusResponse | null>(null);
+    const [schemaStatus, setSchemaStatus] = useState<SchemaStatusResponse | null>(null);
+    const [tenants, setTenants] = useState<Tenant[]>([]);
+    const [users, setUsers] = useState<User[]>([]);
+    const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null);
 
   const [isLoading, setIsLoading] = useState(false);
   const [isBootstrapping, setIsBootstrapping] = useState(false);
@@ -71,18 +74,31 @@ export default function AdminSetupPage() {
     setSuccessMessage(null);
   };
 
-  const loadStatus = useCallback(async () => {
-    if (!adminSecret) return;
+    const loadStatus = useCallback(async () => {
+      if (!adminSecret) return;
     
-    try {
-      const statusData = await getAdminStatus(adminSecret);
-      setStatus(statusData);
-    } catch (err) {
-      if (err instanceof AdminApiError) {
-        setError(`Failed to load status: ${err.message}`);
+      try {
+        const statusData = await getAdminStatus(adminSecret);
+        setStatus(statusData);
+      } catch (err) {
+        if (err instanceof AdminApiError) {
+          setError(`Failed to load status: ${err.message}`);
+        }
       }
-    }
-  }, [adminSecret]);
+    }, [adminSecret]);
+
+    const loadSchemaStatus = useCallback(async () => {
+      if (!adminSecret) return;
+    
+      try {
+        const schemaData = await getSchemaStatus(adminSecret);
+        setSchemaStatus(schemaData);
+      } catch (err) {
+        if (err instanceof AdminApiError) {
+          console.error('Failed to load schema status:', err.message);
+        }
+      }
+    }, [adminSecret]);
 
   const loadTenants = useCallback(async () => {
     if (!adminSecret) return;
@@ -241,11 +257,12 @@ export default function AdminSetupPage() {
     }
   };
 
-  useEffect(() => {
-    if (isAuthenticated && adminSecret) {
-      loadStatus();
-    }
-  }, [isAuthenticated, adminSecret, loadStatus]);
+    useEffect(() => {
+      if (isAuthenticated && adminSecret) {
+        loadStatus();
+        loadSchemaStatus();
+      }
+    }, [isAuthenticated, adminSecret, loadStatus, loadSchemaStatus]);
 
   if (!isAuthenticated) {
     return (
@@ -355,12 +372,61 @@ export default function AdminSetupPage() {
                   <span className="text-sm text-gray-700">Users: {status.user_count}</span>
                 </div>
               </div>
-            ) : (
-              <p className="text-sm text-gray-500">Loading status...</p>
-            )}
-          </section>
+                      ) : (
+                        <p className="text-sm text-gray-500">Loading status...</p>
+                      )}
+                    </section>
 
-          {status && !status.tenants_exist && (
+                    <section className="bg-white shadow rounded-lg p-6">
+                      <h2 className="text-lg font-semibold text-gray-900 mb-4">Schema Status</h2>
+                      {schemaStatus ? (
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`w-3 h-3 rounded-full ${
+                                schemaStatus.schema_ok ? 'bg-green-500' : 'bg-red-500'
+                              }`}
+                            />
+                            <span className="text-sm text-gray-700">
+                              {schemaStatus.schema_ok ? 'Schema is healthy' : 'Schema has issues'}
+                            </span>
+                          </div>
+                          {schemaStatus.missing_tables.length > 0 && (
+                            <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+                              <p className="text-sm font-medium text-red-800 mb-1">Missing Tables:</p>
+                              <ul className="text-sm text-red-700 list-disc list-inside">
+                                {schemaStatus.missing_tables.map((table) => (
+                                  <li key={table}>{table}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          {schemaStatus.missing_columns.length > 0 && (
+                            <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                              <p className="text-sm font-medium text-yellow-800 mb-1">Missing Columns:</p>
+                              <ul className="text-sm text-yellow-700 list-disc list-inside">
+                                {schemaStatus.missing_columns.map((col) => (
+                                  <li key={col}>{col}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          <p className="text-xs text-gray-500">
+                            Last checked: {new Date(schemaStatus.checked_at).toLocaleString()}
+                          </p>
+                          <button
+                            onClick={loadSchemaStatus}
+                            className="text-sm text-blue-600 hover:text-blue-800"
+                          >
+                            Refresh Schema Status
+                          </button>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-gray-500">Loading schema status...</p>
+                      )}
+                    </section>
+
+                    {status && !status.tenants_exist && (
             <section className="bg-white shadow rounded-lg p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Bootstrap Tenant</h2>
               <p className="text-sm text-gray-500 mb-4">

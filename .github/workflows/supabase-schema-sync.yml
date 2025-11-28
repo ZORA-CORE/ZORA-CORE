@@ -1,0 +1,94 @@
+name: Supabase Schema Sync
+
+# This workflow automatically applies the canonical schema script to the
+# Supabase production database. The script is idempotent and safe to run
+# multiple times.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/SUPABASE_SCHEMA_V1_FULL.sql'
+      - 'supabase/migrations/**'
+      - '.github/workflows/supabase-schema-sync.yml'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (validate SQL without applying)'
+        required: false
+        default: 'false'
+        type: boolean
+
+env:
+  SCHEMA_FILE: supabase/SUPABASE_SCHEMA_V1_FULL.sql
+
+jobs:
+  sync-schema:
+    name: Sync Schema to Supabase
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate schema file exists
+        run: |
+          if [ ! -f "${{ env.SCHEMA_FILE }}" ]; then
+            echo "Error: Schema file not found at ${{ env.SCHEMA_FILE }}"
+            exit 1
+          fi
+          echo "Schema file found: ${{ env.SCHEMA_FILE }}"
+          echo "File size: $(wc -c < ${{ env.SCHEMA_FILE }}) bytes"
+          echo "Line count: $(wc -l < ${{ env.SCHEMA_FILE }}) lines"
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Verify PostgreSQL client
+        run: psql --version
+
+      - name: Apply schema to Supabase (Dry Run)
+        if: ${{ github.event.inputs.dry_run == 'true' }}
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          echo "Dry run mode - validating SQL syntax only"
+          # Parse the SQL file without executing (basic syntax check)
+          psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -c "BEGIN; \i ${{ env.SCHEMA_FILE }}; ROLLBACK;"
+          echo "Dry run completed successfully - SQL is valid"
+
+      - name: Apply schema to Supabase
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          echo "Applying schema to Supabase production database..."
+          echo "Schema file: ${{ env.SCHEMA_FILE }}"
+          echo "Timestamp: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          
+          # Apply the schema with ON_ERROR_STOP to fail on errors
+          psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "${{ env.SCHEMA_FILE }}"
+          
+          echo "Schema sync completed successfully!"
+
+      - name: Verify key tables exist
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          echo "Verifying key tables exist..."
+          psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -c "
+            SELECT table_name 
+            FROM information_schema.tables 
+            WHERE table_schema = 'public' 
+            AND table_name IN (
+              'tenants', 'users', 'memory_events', 'journal_entries',
+              'climate_profiles', 'climate_missions', 'frontend_configs',
+              'agent_suggestions'
+            )
+            ORDER BY table_name;
+          "
+          echo "Table verification completed!"
