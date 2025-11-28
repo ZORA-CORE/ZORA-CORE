@@ -14,6 +14,8 @@ import type {
   AgentsResponse,
   MemoryEvent,
   SemanticSearchResponse,
+  FrontendConfigResponse,
+  UpdateFrontendConfigInput,
 } from './types';
 import { getToken, clearToken } from './auth';
 
@@ -243,6 +245,20 @@ export async function semanticSearchAgentMemory(
   );
 }
 
+export async function getFrontendConfig(page: string): Promise<FrontendConfigResponse> {
+  return request<FrontendConfigResponse>(`/api/frontend/config/${page}`);
+}
+
+export async function updateFrontendConfig(
+  page: string,
+  input: UpdateFrontendConfigInput
+): Promise<FrontendConfigResponse> {
+  return request<FrontendConfigResponse>(`/api/frontend/config/${page}`, {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  });
+}
+
 export const api = {
   getStatus,
   getClimateProfiles,
@@ -258,6 +274,8 @@ export const api = {
   getAgent,
   getAgentMemory,
   semanticSearchAgentMemory,
+  getFrontendConfig,
+  updateFrontendConfig,
 };
 
 export default api;

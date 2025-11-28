@@ -1,7 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useAuth } from "@/lib/AuthContext";
+import { getFrontendConfig, getClimateMissions, getClimateProfiles } from "@/lib/api";
+import type { HomePageConfig, ClimateMission, DashboardSummary } from "@/lib/types";
 
 interface Agent {
   name: string;
@@ -19,6 +22,15 @@ interface Task {
   status: "pending" | "in_progress" | "completed" | "failed";
   priority: "low" | "medium" | "high" | "critical";
 }
+
+const DEFAULT_CONFIG: HomePageConfig = {
+  hero_title: "ZORA CORE",
+  hero_subtitle: "Climate-first AI Operating System.",
+  primary_cta_label: "Open Climate OS",
+  primary_cta_link: "/climate",
+  show_climate_dashboard: true,
+  show_missions_section: true,
+};
 
 const agents: Agent[] = [
   {
@@ -157,8 +169,136 @@ function TaskRow({ task }: { task: Task }) {
   );
 }
 
+function ClimateDashboardCard({ summary }: { summary: DashboardSummary }) {
+  return (
+    <div className="agent-card">
+      <h3 className="text-lg font-semibold mb-4">Climate OS Summary</h3>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <p className="text-gray-400 text-sm">Total Missions</p>
+          <p className="text-2xl font-bold text-emerald-500">{summary.total_missions}</p>
+        </div>
+        <div>
+          <p className="text-gray-400 text-sm">Completed</p>
+          <p className="text-2xl font-bold text-emerald-500">{summary.completed_count}</p>
+        </div>
+        <div>
+          <p className="text-gray-400 text-sm">In Progress</p>
+          <p className="text-2xl font-bold text-amber-500">{summary.in_progress_count}</p>
+        </div>
+        <div>
+          <p className="text-gray-400 text-sm">CO2 Impact</p>
+          <p className="text-2xl font-bold text-emerald-500">{summary.total_impact_kgco2} kg</p>
+        </div>
+      </div>
+      <Link href="/climate" className="mt-4 block text-center text-emerald-500 hover:text-emerald-400 text-sm">
+        View Climate OS
+      </Link>
+    </div>
+  );
+}
+
+function MissionsTeaser({ missions }: { missions: ClimateMission[] }) {
+  const recentMissions = missions.slice(0, 3);
+  
+  return (
+    <div className="agent-card">
+      <h3 className="text-lg font-semibold mb-4">Recent Missions</h3>
+      {recentMissions.length === 0 ? (
+        <p className="text-gray-400 text-sm">No missions yet. Create your first mission in Climate OS.</p>
+      ) : (
+        <div className="space-y-3">
+          {recentMissions.map((mission) => (
+            <div key={mission.id} className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">{mission.title}</p>
+                <p className="text-xs text-gray-500">{mission.category || "other"}</p>
+              </div>
+              <span className={`status-badge status-${mission.status === "in_progress" ? "active" : mission.status}`}>
+                {mission.status.replace("_", " ")}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+      <Link href="/climate" className="mt-4 block text-center text-emerald-500 hover:text-emerald-400 text-sm">
+        View All Missions
+      </Link>
+    </div>
+  );
+}
+
 export default function Dashboard() {
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState<"agents" | "tasks">("agents");
+  const [config, setConfig] = useState<HomePageConfig>(DEFAULT_CONFIG);
+  const [isDefault, setIsDefault] = useState(true);
+  const [configLoading, setConfigLoading] = useState(true);
+  const [missions, setMissions] = useState<ClimateMission[]>([]);
+  const [climateSummary, setClimateSummary] = useState<DashboardSummary>({
+    total_missions: 0,
+    completed_count: 0,
+    in_progress_count: 0,
+    total_impact_kgco2: 0,
+  });
+
+  useEffect(() => {
+    async function loadConfig() {
+      if (!isAuthenticated) {
+        setConfigLoading(false);
+        return;
+      }
+
+      try {
+        const response = await getFrontendConfig("home");
+        setConfig(response.config as HomePageConfig);
+        setIsDefault(response.is_default);
+      } catch (error) {
+        console.error("Failed to load frontend config:", error);
+      } finally {
+        setConfigLoading(false);
+      }
+    }
+
+    if (!authLoading) {
+      loadConfig();
+    }
+  }, [isAuthenticated, authLoading]);
+
+  useEffect(() => {
+    async function loadClimateData() {
+      if (!isAuthenticated || !config.show_climate_dashboard) {
+        return;
+      }
+
+      try {
+        const profilesResponse = await getClimateProfiles({ limit: 1 });
+        if (profilesResponse.data.length > 0) {
+          const profile = profilesResponse.data[0];
+          const missionsResponse = await getClimateMissions(profile.id, { limit: 10 });
+          const missionsList = missionsResponse.data;
+          setMissions(missionsList);
+
+          const summary: DashboardSummary = {
+            total_missions: missionsList.length,
+            completed_count: missionsList.filter((m) => m.status === "completed").length,
+            in_progress_count: missionsList.filter((m) => m.status === "in_progress").length,
+            total_impact_kgco2: missionsList.reduce((sum, m) => {
+              const co2 = m.estimated_impact_kgco2 ?? (m.impact_estimate?.co2_kg as number | undefined);
+              return sum + (typeof co2 === "number" ? co2 : 0);
+            }, 0),
+          };
+          setClimateSummary(summary);
+        }
+      } catch (error) {
+        console.error("Failed to load climate data:", error);
+      }
+    }
+
+    if (!authLoading && !configLoading) {
+      loadClimateData();
+    }
+  }, [isAuthenticated, authLoading, configLoading, config.show_climate_dashboard]);
 
   const stats = {
     totalAgents: agents.length,
@@ -166,6 +306,14 @@ export default function Dashboard() {
     totalTasks: mockTasks.length,
     completedTasks: mockTasks.filter((t) => t.status === "completed").length,
   };
+
+  if (authLoading || configLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-gray-400">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -191,11 +339,39 @@ export default function Dashboard() {
         </div>
       </header>
 
-      <main className="flex-1 p-6">
-        <div className="max-w-7xl mx-auto">
-          <h1 className="text-3xl font-bold mb-6">Dashboard</h1>
+            <main className="flex-1 p-6">
+              <div className="max-w-7xl mx-auto">
+                <div className="mb-8">
+                  <h1 className="text-4xl font-bold mb-2">{config.hero_title}</h1>
+                  <p className="text-xl text-gray-400">{config.hero_subtitle}</p>
+                  {isDefault && (
+                    <p className="text-xs text-gray-500 mt-2">
+                      Using default configuration.{" "}
+                      <Link href="/admin/frontend" className="text-emerald-500 hover:text-emerald-400">
+                        Customize
+                      </Link>
+                    </p>
+                  )}
+                </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                <div className="mb-6">
+                  <Link href={config.primary_cta_link} className="btn-primary inline-block">
+                    {config.primary_cta_label}
+                  </Link>
+                </div>
+
+                {(config.show_climate_dashboard || config.show_missions_section) && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                    {config.show_climate_dashboard && (
+                      <ClimateDashboardCard summary={climateSummary} />
+                    )}
+                    {config.show_missions_section && (
+                      <MissionsTeaser missions={missions} />
+                    )}
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             <div className="agent-card">
               <p className="text-gray-400 text-sm">Total Agents</p>
               <p className="text-3xl font-bold text-emerald-500">{stats.totalAgents}</p>
@@ -268,9 +444,9 @@ export default function Dashboard() {
         </div>
       </main>
 
-      <footer className="border-t border-zinc-800 p-4 text-center text-gray-500 text-sm">
-        ZORA CORE v0.4 - Climate-first AI Operating System
-      </footer>
+            <footer className="border-t border-zinc-800 p-4 text-center text-gray-500 text-sm">
+              ZORA CORE v0.6 - Climate-first AI Operating System
+            </footer>
     </div>
   );
 }
