@@ -41,6 +41,7 @@ function JournalEntryCard({ entry }: { entry: JournalEntry }) {
     agent_action: "bg-indigo-500",
     user_feedback: "bg-pink-500",
     system_event: "bg-gray-500",
+    autonomy: "bg-fuchsia-500",
   };
 
   const formatDate = (dateString: string) => {
