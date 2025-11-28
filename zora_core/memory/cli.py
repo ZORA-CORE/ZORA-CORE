@@ -4,10 +4,13 @@ ZORA CORE Memory CLI
 A simple CLI tool for testing memory operations.
 
 Usage:
+    python -m zora_core.memory.cli demo
+    python -m zora_core.memory.cli demo --backend=supabase
     python -m zora_core.memory.cli save --agent CONNOR --type decision --content "Test memory"
     python -m zora_core.memory.cli search --query "test" --limit 5
     python -m zora_core.memory.cli history --session session_123
     python -m zora_core.memory.cli stats
+    python -m zora_core.memory.cli config
 """
 
 import argparse
@@ -15,11 +18,29 @@ import asyncio
 import json
 import sys
 
-from .memory_store import MemoryStore, MemoryType
+from .base import MemoryBackend, MemoryType
+from .config import MemoryBackendType, get_memory_backend, get_backend_info
 
 
-# Global memory store instance for CLI
-_memory_store = MemoryStore()
+# Global memory store instance for CLI (initialized in main)
+_memory_store: MemoryBackend = None
+
+
+def _init_backend(backend_type: str = None) -> MemoryBackend:
+    """Initialize the memory backend based on the specified type."""
+    global _memory_store
+    
+    if backend_type:
+        try:
+            _memory_store = get_memory_backend(MemoryBackendType(backend_type))
+        except ValueError as e:
+            print(f"Error: {e}")
+            print("Falling back to in-memory backend.")
+            _memory_store = get_memory_backend(MemoryBackendType.MEMORY)
+    else:
+        _memory_store = get_memory_backend()
+    
+    return _memory_store
 
 
 async def cmd_save(args):
@@ -102,26 +123,48 @@ async def cmd_stats(args):
     """Show memory store statistics."""
     stats = _memory_store.get_stats()
     print("Memory Store Statistics:")
-    print(f"  Total memories: {stats['total_memories']}")
-    print(f"  Total sessions: {stats['total_sessions']}")
-    print(f"  Total tags: {stats['total_tags']}")
+    print(f"  Backend: {stats.get('backend', 'memory')}")
+    print(f"  Total memories: {stats.get('total_memories', 0)}")
+    
+    if 'total_sessions' in stats:
+        print(f"  Total sessions: {stats['total_sessions']}")
+    if 'total_tags' in stats:
+        print(f"  Total tags: {stats['total_tags']}")
     print()
     
-    if stats['memories_by_agent']:
+    if stats.get('memories_by_agent'):
         print("  Memories by agent:")
         for agent, count in stats['memories_by_agent'].items():
             print(f"    {agent}: {count}")
         print()
     
-    if stats['memories_by_type']:
+    if stats.get('memories_by_type'):
         print("  Memories by type:")
         for mem_type, count in stats['memories_by_type'].items():
             print(f"    {mem_type}: {count}")
 
 
+def cmd_config(args):
+    """Show backend configuration."""
+    info = get_backend_info()
+    print("Memory Backend Configuration:")
+    print(f"  Detected backend: {info['detected_backend']}")
+    print(f"  Supabase configured: {info['supabase_configured']}")
+    print(f"  Supabase URL: {info['supabase_url'] or 'not set'}")
+    print(f"  Has service key: {info['has_service_key']}")
+    print(f"  Has anon key: {info['has_anon_key']}")
+    print(f"  Supabase package available: {info['supabase_package_available']}")
+    print()
+    print("Environment variables:")
+    print("  SUPABASE_URL - Supabase project URL")
+    print("  SUPABASE_SERVICE_KEY - Service role key (recommended for backend)")
+    print("  SUPABASE_ANON_KEY - Anonymous key (alternative)")
+
+
 async def cmd_demo(args):
     """Run a demo of memory operations."""
-    print("=== ZORA CORE Memory Demo ===\n")
+    backend_name = type(_memory_store).__name__
+    print(f"=== ZORA CORE Memory Demo ({backend_name}) ===\n")
     
     # Save some memories
     print("1. Saving memories...")
@@ -194,9 +237,12 @@ async def cmd_demo(args):
     # Show stats
     print("4. Memory store statistics:")
     stats = _memory_store.get_stats()
-    print(f"   Total memories: {stats['total_memories']}")
-    print(f"   Agents: {list(stats['memories_by_agent'].keys())}")
-    print(f"   Types: {list(stats['memories_by_type'].keys())}")
+    print(f"   Backend: {stats.get('backend', 'memory')}")
+    print(f"   Total memories: {stats.get('total_memories', 0)}")
+    if stats.get('memories_by_agent'):
+        print(f"   Agents: {list(stats['memories_by_agent'].keys())}")
+    if stats.get('memories_by_type'):
+        print(f"   Types: {list(stats['memories_by_type'].keys())}")
     
     print("\n=== Demo Complete ===")
 
@@ -206,6 +252,15 @@ def main():
     parser = argparse.ArgumentParser(
         description="ZORA CORE Memory CLI - Test memory operations"
     )
+    
+    # Global backend option
+    parser.add_argument(
+        "--backend", "-b",
+        choices=["memory", "supabase"],
+        default=None,
+        help="Memory backend to use (default: auto-detect based on environment)"
+    )
+    
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
     
     # Save command
@@ -241,6 +296,9 @@ def main():
     # Stats command
     subparsers.add_parser("stats", help="Show memory store statistics")
     
+    # Config command
+    subparsers.add_parser("config", help="Show backend configuration")
+    
     # Demo command
     subparsers.add_parser("demo", help="Run a demo of memory operations")
     
@@ -249,6 +307,10 @@ def main():
     if not args.command:
         parser.print_help()
         sys.exit(1)
+    
+    # Initialize the backend (except for config command which doesn't need it)
+    if args.command != "config":
+        _init_backend(args.backend)
     
     # Run the appropriate command
     if args.command == "save":
@@ -263,6 +325,8 @@ def main():
         asyncio.run(cmd_delete(args))
     elif args.command == "stats":
         asyncio.run(cmd_stats(args))
+    elif args.command == "config":
+        cmd_config(args)
     elif args.command == "demo":
         asyncio.run(cmd_demo(args))
 
