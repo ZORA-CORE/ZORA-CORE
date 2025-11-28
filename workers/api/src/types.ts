@@ -389,3 +389,11 @@ export interface ClimateContext {
   total_impact_kgco2: number;
   categories: string[];
 }
+
+// Schema health check types
+export interface SchemaStatusResponse {
+  schema_ok: boolean;
+  missing_tables: string[];
+  missing_columns: string[];
+  checked_at: string;
+}

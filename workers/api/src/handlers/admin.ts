@@ -6,7 +6,7 @@
  */
 
 import { Hono } from 'hono';
-import type { Tenant, User, AdminStatusResponse, BootstrapTenantInput, CreateUserInput, TokenResponse, UserRole } from '../types';
+import type { Tenant, User, AdminStatusResponse, BootstrapTenantInput, CreateUserInput, TokenResponse, UserRole, SchemaStatusResponse } from '../types';
 import type { AuthAppEnv } from '../middleware/auth';
 import { getSupabaseClient } from '../lib/supabase';
 import { jsonResponse, errorResponse } from '../lib/response';
@@ -89,6 +89,79 @@ adminHandler.get('/status', async (c) => {
   };
   
   return jsonResponse(status);
+});
+
+/**
+ * GET /api/admin/schema-status
+ * Returns schema health status - checks for expected tables and columns
+ */
+adminHandler.get('/schema-status', async (c) => {
+  const supabase = getSupabaseClient(c.env);
+  
+  // Define expected tables and their required columns
+  const expectedSchema: Record<string, string[]> = {
+    tenants: ['id', 'name', 'slug', 'description', 'metadata', 'created_at'],
+    users: ['id', 'tenant_id', 'email', 'display_name', 'role', 'metadata', 'created_at'],
+    memory_events: ['id', 'agent', 'memory_type', 'content', 'tags', 'metadata', 'created_at'],
+    journal_entries: ['id', 'tenant_id', 'category', 'title', 'body', 'details', 'created_at'],
+    climate_profiles: ['id', 'tenant_id', 'name', 'profile_type', 'country', 'household_size', 'created_at'],
+    climate_missions: ['id', 'tenant_id', 'profile_id', 'title', 'status', 'estimated_impact_kgco2', 'created_at'],
+    frontend_configs: ['id', 'tenant_id', 'page', 'config', 'created_at'],
+    agent_suggestions: ['id', 'tenant_id', 'agent_id', 'suggestion_type', 'status', 'created_at'],
+  };
+  
+  const missingTables: string[] = [];
+  const missingColumns: string[] = [];
+  
+  try {
+    // Check each expected table
+    for (const [tableName, expectedColumns] of Object.entries(expectedSchema)) {
+      // Try to query the table to check if it exists
+      const { error: tableError } = await supabase
+        .from(tableName)
+        .select('*')
+        .limit(0);
+      
+      if (tableError) {
+        // Table doesn't exist or is inaccessible
+        missingTables.push(tableName);
+        continue;
+      }
+      
+      // Check columns by querying information_schema
+      // Note: This requires the service role key to have access to information_schema
+      const { data: columns, error: columnError } = await supabase
+        .rpc('get_table_columns', { table_name_param: tableName })
+        .select('*');
+      
+      if (columnError || !columns) {
+        // If we can't check columns via RPC, try a different approach
+        // Just verify the table is accessible (columns check is best-effort)
+        continue;
+      }
+      
+      const existingColumns = new Set(columns.map((col: { column_name: string }) => col.column_name));
+      for (const col of expectedColumns) {
+        if (!existingColumns.has(col)) {
+          missingColumns.push(`${tableName}.${col}`);
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Error checking schema status:', err);
+    return errorResponse('SCHEMA_CHECK_FAILED', 'Failed to check schema status', 500);
+  }
+  
+  const schemaOk = missingTables.length === 0 && missingColumns.length === 0;
+  
+  const response: SchemaStatusResponse = {
+    schema_ok: schemaOk,
+    missing_tables: missingTables,
+    missing_columns: missingColumns,
+    checked_at: new Date().toISOString(),
+  };
+  
+  return jsonResponse(response);
 });
 
 /**

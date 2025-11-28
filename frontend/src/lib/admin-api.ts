@@ -14,6 +14,7 @@ import type {
   User,
   TokenResponse,
   ApiError,
+  SchemaStatusResponse,
 } from './types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_ZORA_API_BASE_URL || 'http://localhost:8787';
@@ -81,6 +82,10 @@ export async function getAdminStatus(adminSecret: string): Promise<AdminStatusRe
   return adminRequest<AdminStatusResponse>('/api/admin/status', adminSecret);
 }
 
+export async function getSchemaStatus(adminSecret: string): Promise<SchemaStatusResponse> {
+  return adminRequest<SchemaStatusResponse>('/api/admin/schema-status', adminSecret);
+}
+
 export async function bootstrapTenant(
   adminSecret: string,
   input: BootstrapTenantInput
@@ -126,6 +131,7 @@ export async function issueToken(
 
 export const adminApi = {
   getAdminStatus,
+  getSchemaStatus,
   bootstrapTenant,
   getTenants,
   getUsers,

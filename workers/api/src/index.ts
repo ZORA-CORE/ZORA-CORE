@@ -55,14 +55,15 @@ app.get('/', (c) => {
           'GET /api/autonomy/frontend/suggestions/:id',
           'POST /api/autonomy/frontend/suggestions/:id/decision',
         ],
-    admin_endpoints: [
-      'GET /api/admin/status (requires X-ZORA-ADMIN-SECRET)',
-      'POST /api/admin/bootstrap-tenant (requires X-ZORA-ADMIN-SECRET)',
-      'GET /api/admin/tenants (requires X-ZORA-ADMIN-SECRET)',
-      'GET /api/admin/users (requires X-ZORA-ADMIN-SECRET)',
-      'POST /api/admin/users (requires X-ZORA-ADMIN-SECRET)',
-      'POST /api/admin/users/:id/token (requires X-ZORA-ADMIN-SECRET)',
-    ],
+        admin_endpoints: [
+          'GET /api/admin/status (requires X-ZORA-ADMIN-SECRET)',
+          'GET /api/admin/schema-status (requires X-ZORA-ADMIN-SECRET)',
+          'POST /api/admin/bootstrap-tenant (requires X-ZORA-ADMIN-SECRET)',
+          'GET /api/admin/tenants (requires X-ZORA-ADMIN-SECRET)',
+          'GET /api/admin/users (requires X-ZORA-ADMIN-SECRET)',
+          'POST /api/admin/users (requires X-ZORA-ADMIN-SECRET)',
+          'POST /api/admin/users/:id/token (requires X-ZORA-ADMIN-SECRET)',
+        ],
   });
 });
 

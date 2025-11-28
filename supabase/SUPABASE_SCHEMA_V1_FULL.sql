@@ -725,7 +725,25 @@ $$;
 COMMENT ON FUNCTION search_memories_by_embedding IS 'Semantic search over memory events with optional agent and tenant filtering';
 
 -- ============================================================================
--- STEP 13: VERIFY SCHEMA
+-- STEP 13: CREATE SCHEMA HEALTH CHECK FUNCTION
+-- ============================================================================
+
+-- Function to get columns for a table (used by /api/admin/schema-status)
+CREATE OR REPLACE FUNCTION get_table_columns(table_name_param TEXT)
+RETURNS TABLE (column_name TEXT) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT c.column_name::TEXT
+    FROM information_schema.columns c
+    WHERE c.table_schema = 'public'
+    AND c.table_name = table_name_param;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+COMMENT ON FUNCTION get_table_columns IS 'Returns column names for a given table - used by schema health check endpoint';
+
+-- ============================================================================
+-- STEP 14: VERIFY SCHEMA
 -- ============================================================================
 
 -- This query will show all tables that should exist
