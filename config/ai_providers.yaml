@@ -187,12 +187,77 @@ providers:
           - debugging
           - code_completion
 
+  # xAI (Grok)
+  xai:
+    name: "xAI (Grok)"
+    enabled: true
+    api_base: "https://api.x.ai/v1"
+    api_key_env: "XAI_API_KEY"
+    models:
+      grok-beta:
+        name: "Grok Beta"
+        context_window: 131072
+        max_output: 4096
+        cost_per_1k_input: 0.005
+        cost_per_1k_output: 0.015
+        capabilities:
+          - text_generation
+          - code_generation
+          - reasoning
+          - analysis
+        recommended_for:
+          - general_tasks
+          - reasoning
+          - real_time_info
+      grok-vision-beta:
+        name: "Grok Vision Beta"
+        context_window: 8192
+        max_output: 4096
+        cost_per_1k_input: 0.005
+        cost_per_1k_output: 0.015
+        capabilities:
+          - text_generation
+          - vision
+          - reasoning
+        recommended_for:
+          - multimodal
+          - image_analysis
+
+  # GitHub Copilot / Azure OpenAI
+  copilot:
+    name: "GitHub Copilot"
+    enabled: true
+    api_base: "https://api.githubcopilot.com"
+    api_key_env: "COPILOT_API_KEY"
+    notes: "Copilot uses Azure OpenAI under the hood. For direct Azure access, use AZURE_OPENAI_API_KEY."
+    models:
+      copilot-chat:
+        name: "Copilot Chat"
+        context_window: 8192
+        max_output: 4096
+        cost_per_1k_input: 0.0
+        cost_per_1k_output: 0.0
+        capabilities:
+          - text_generation
+          - code_generation
+          - code_completion
+        recommended_for:
+          - code_generation
+          - code_completion
+          - code_review
+
 # Embedding providers
+# Note: Only OpenAI has production-ready embeddings. Other providers are stubbed.
 embeddings:
+  # Default embedding provider
+  default_provider: "openai"
+  default_model: "text-embedding-3-small"
+  
   openai:
     name: "OpenAI Embeddings"
     enabled: true
     api_key_env: "OPENAI_API_KEY"
+    status: "supported"
     models:
       text-embedding-3-large:
         name: "Text Embedding 3 Large"
@@ -208,6 +273,56 @@ embeddings:
         recommended_for:
           - fast_embedding
           - high_volume
+      text-embedding-ada-002:
+        name: "Text Embedding Ada 002"
+        dimensions: 1536
+        cost_per_1k_tokens: 0.0001
+        recommended_for:
+          - legacy_compatibility
+
+  anthropic:
+    name: "Anthropic Embeddings"
+    enabled: false
+    api_key_env: "ANTHROPIC_API_KEY"
+    status: "stub"
+    notes: "Anthropic does not currently offer a public embedding API."
+    models: {}
+
+  google:
+    name: "Google Embeddings"
+    enabled: false
+    api_key_env: "GEMINI_API_KEY"
+    status: "stub"
+    notes: "Google offers text-embedding-004 via Vertex AI. Integration planned for future."
+    models:
+      text-embedding-004:
+        name: "Text Embedding 004"
+        dimensions: 768
+        cost_per_1k_tokens: 0.0001
+        recommended_for:
+          - semantic_search
+
+  xai:
+    name: "xAI Embeddings"
+    enabled: false
+    api_key_env: "XAI_API_KEY"
+    status: "stub"
+    notes: "xAI does not currently offer a public embedding API."
+    models: {}
+
+  copilot:
+    name: "Copilot Embeddings"
+    enabled: false
+    api_key_env: "AZURE_OPENAI_API_KEY"
+    status: "stub"
+    notes: "Uses Azure OpenAI embeddings if configured. Requires AZURE_OPENAI_ENDPOINT."
+    models:
+      text-embedding-ada-002:
+        name: "Azure Text Embedding Ada 002"
+        dimensions: 1536
+        cost_per_1k_tokens: 0.0001
+        recommended_for:
+          - azure_integration
 
 # Task type to model routing
 routing:
@@ -264,6 +379,12 @@ rate_limits:
       tokens_per_minute: 20000
     deepseek:
       requests_per_minute: 60
+      tokens_per_minute: 50000
+    xai:
+      requests_per_minute: 60
+      tokens_per_minute: 100000
+    copilot:
+      requests_per_minute: 30
       tokens_per_minute: 50000
 
 # Fallback configuration

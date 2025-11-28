@@ -233,29 +233,91 @@ class ModelRouter:
     async def embed(
         self,
         text: str,
-        model_override: str = None,
-    ) -> List[float]:
+        provider: str = None,
+        model: str = None,
+    ) -> tuple[List[float], Dict[str, Any]]:
         """
-        Generate embeddings for text.
+        Generate embeddings for text using the multi-provider embedding layer.
         
         Args:
             text: The text to embed
-            model_override: Optional specific model to use
+            provider: Optional provider to use (default: auto-detect from config)
+            model: Optional specific model to use
             
         Returns:
-            Embedding vector
+            Tuple of (embedding vector, metadata dict with provider/model info)
         """
-        # Get embedding model
-        embeddings = self.config.get("embeddings", {})
+        from .embedding import embed_text as embedding_embed_text
         
-        # Default to OpenAI embeddings
-        model_id = model_override or "openai/text-embedding-3-large"
+        # Get embedding configuration
+        embeddings_config = self.config.get("embeddings", {})
         
-        self.logger.info(f"Embedding call: {model_id}")
+        # Use config defaults if not specified
+        if provider is None:
+            provider = embeddings_config.get("default_provider", "openai")
+        if model is None:
+            model = embeddings_config.get("default_model", "text-embedding-3-small")
         
-        # Placeholder for MVP - return dummy embedding
-        # In production, this would call the actual embedding API
-        return [0.0] * 1536
+        self.logger.info(f"Embedding call: {provider}/{model}")
+        
+        # Use the multi-provider embedding layer
+        embedding, metadata = await embedding_embed_text(text, provider=provider, model=model)
+        
+        return embedding, metadata
+    
+    def get_default_provider(self) -> str:
+        """Get the default LLM provider from configuration."""
+        routing = self.config.get("routing", {})
+        defaults = routing.get("defaults", {})
+        
+        # Get the first default model and extract provider
+        for task_type, model_id in defaults.items():
+            if "/" in model_id:
+                return model_id.split("/")[0]
+        
+        return "openai"
+    
+    def get_default_embedding_provider(self) -> str:
+        """Get the default embedding provider from configuration."""
+        embeddings_config = self.config.get("embeddings", {})
+        return embeddings_config.get("default_provider", "openai")
+    
+    def get_configured_providers(self) -> List[str]:
+        """Get list of providers that have API keys configured."""
+        from .embedding import get_configured_providers as get_embedding_providers
+        
+        configured = []
+        providers = self.config.get("providers", {})
+        
+        for provider_id, provider_config in providers.items():
+            if not provider_config.get("enabled", True):
+                continue
+            
+            api_key_env = provider_config.get("api_key_env")
+            if api_key_env and os.environ.get(api_key_env):
+                configured.append(provider_id)
+        
+        return configured
+    
+    def get_provider_info(self, provider_id: str) -> Optional[Dict[str, Any]]:
+        """Get information about a specific provider."""
+        providers = self.config.get("providers", {})
+        provider_config = providers.get(provider_id)
+        
+        if not provider_config:
+            return None
+        
+        api_key_env = provider_config.get("api_key_env", "")
+        is_configured = bool(os.environ.get(api_key_env)) if api_key_env else False
+        
+        return {
+            "id": provider_id,
+            "name": provider_config.get("name", provider_id),
+            "enabled": provider_config.get("enabled", True),
+            "api_key_env": api_key_env,
+            "is_configured": is_configured,
+            "models": list(provider_config.get("models", {}).keys()),
+        }
 
     def _track_usage(self, provider: str, model_id: str) -> None:
         """Track model usage."""

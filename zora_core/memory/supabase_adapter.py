@@ -130,16 +130,23 @@ class SupabaseMemoryAdapter(MemoryBackend):
         """Check if embeddings are enabled."""
         return self._embeddings_enabled
     
-    async def _generate_embedding(self, text: str) -> Optional[List[float]]:
-        """Generate embedding for text, returning None on failure."""
+    async def _generate_embedding(self, text: str) -> tuple[Optional[List[float]], Optional[Dict[str, Any]]]:
+        """
+        Generate embedding for text with provider metadata.
+        
+        Returns:
+            Tuple of (embedding vector or None, metadata dict or None)
+        """
         if not self._embeddings_enabled or self._embedding_provider is None:
-            return None
+            return None, None
         
         try:
-            return await self._embedding_provider.embed_text(text)
+            embedding = await self._embedding_provider.embed_text(text)
+            metadata = self._embedding_provider.get_metadata()
+            return embedding, metadata
         except Exception as e:
             self.logger.warning(f"Failed to generate embedding: {e}")
-            return None
+            return None, None
 
     async def save_memory(
         self,
@@ -149,9 +156,11 @@ class SupabaseMemoryAdapter(MemoryBackend):
         tags: List[str] = None,
         metadata: Dict[str, Any] = None,
         session_id: str = None,
+        llm_provider: str = None,
+        llm_model: str = None,
     ) -> str:
         """
-        Save a new memory to Supabase with optional embedding.
+        Save a new memory to Supabase with optional embedding and provider metadata.
         
         Args:
             agent: The agent saving the memory
@@ -160,6 +169,8 @@ class SupabaseMemoryAdapter(MemoryBackend):
             tags: Optional tags for categorization
             metadata: Optional additional metadata
             session_id: Optional session identifier
+            llm_provider: Optional LLM provider that generated the content
+            llm_model: Optional LLM model that generated the content
             
         Returns:
             The memory ID (UUID)
@@ -170,8 +181,8 @@ class SupabaseMemoryAdapter(MemoryBackend):
         except ValueError:
             mem_type = MemoryType.ARTIFACT
         
-        # Generate embedding for the content
-        embedding = await self._generate_embedding(content)
+        # Generate embedding for the content (returns embedding and metadata)
+        embedding, embedding_metadata = await self._generate_embedding(content)
         
         # Prepare the record
         record = {
@@ -183,9 +194,18 @@ class SupabaseMemoryAdapter(MemoryBackend):
             "session_id": session_id,
         }
         
-        # Add embedding if generated successfully
+        # Add LLM provider/model metadata if provided
+        if llm_provider:
+            record["llm_provider"] = llm_provider
+        if llm_model:
+            record["llm_model"] = llm_model
+        
+        # Add embedding and embedding provider metadata if generated successfully
         if embedding is not None:
             record["embedding"] = embedding
+            if embedding_metadata:
+                record["embedding_provider"] = embedding_metadata.get("embedding_provider")
+                record["embedding_model"] = embedding_metadata.get("embedding_model")
         
         try:
             result = self.client.table(self.table_name).insert(record).execute()
@@ -195,7 +215,8 @@ class SupabaseMemoryAdapter(MemoryBackend):
                 has_embedding = embedding is not None
                 self.logger.debug(
                     f"Saved memory {memory_id} for agent {agent} "
-                    f"(embedding: {'yes' if has_embedding else 'no'})"
+                    f"(embedding: {'yes' if has_embedding else 'no'}, "
+                    f"llm: {llm_provider}/{llm_model if llm_provider else 'N/A'})"
                 )
                 return memory_id
             else:
@@ -400,6 +421,11 @@ class SupabaseMemoryAdapter(MemoryBackend):
             "session_id": row.get("session_id"),
             "created_at": row.get("created_at"),
             "updated_at": row.get("updated_at"),
+            # Provider metadata (may be None for older records)
+            "llm_provider": row.get("llm_provider"),
+            "llm_model": row.get("llm_model"),
+            "embedding_provider": row.get("embedding_provider"),
+            "embedding_model": row.get("embedding_model"),
         }
         if include_similarity and "similarity" in row:
             result["similarity"] = row["similarity"]
@@ -442,8 +468,8 @@ class SupabaseMemoryAdapter(MemoryBackend):
                 end_time=end_time,
             )
         
-        # Generate embedding for the query
-        query_embedding = await self._generate_embedding(query)
+        # Generate embedding for the query (returns tuple of embedding and metadata)
+        query_embedding, _ = await self._generate_embedding(query)
         if query_embedding is None:
             self.logger.warning(
                 "Failed to generate query embedding. Falling back to text search."
