@@ -162,7 +162,22 @@ cd frontend
 npm install
 ```
 
-### 2. Run Development Server
+### 2. Configure API Base URL
+
+Create a `.env.local` file in the `frontend` directory:
+
+```bash
+# frontend/.env.local
+NEXT_PUBLIC_ZORA_API_BASE_URL=http://localhost:8787
+```
+
+Or set the environment variable when running:
+
+```bash
+NEXT_PUBLIC_ZORA_API_BASE_URL=http://localhost:8787 npm run dev
+```
+
+### 3. Run Development Server
 
 ```bash
 npm run dev
@@ -170,11 +185,80 @@ npm run dev
 
 The frontend will be available at `http://localhost:3000`.
 
-### 3. Build for Production
+### 4. Build for Production
 
 ```bash
 npm run build
 ```
+
+## Local End-to-End Run
+
+To run the complete ZORA CORE stack locally (Supabase + Workers API + Frontend):
+
+### 1. Set Up Supabase
+
+1. Create a Supabase project at [supabase.com](https://supabase.com)
+2. Apply the database schema from `supabase/migrations/00001_initial_schema.sql`
+3. Get your Project URL and Service Role Key from Project Settings > API
+
+### 2. Start the Workers API
+
+```bash
+cd workers/api
+
+# Create .dev.vars with your Supabase credentials
+cat > .dev.vars << EOF
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_KEY=your-service-role-key
+EOF
+
+# Install dependencies and start the API
+npm install
+npm run dev
+```
+
+The API will be available at `http://localhost:8787`.
+
+### 3. Start the Frontend
+
+In a new terminal:
+
+```bash
+cd frontend
+
+# Create .env.local with the API URL
+echo "NEXT_PUBLIC_ZORA_API_BASE_URL=http://localhost:8787" > .env.local
+
+# Install dependencies and start the frontend
+npm install
+npm run dev
+```
+
+The frontend will be available at `http://localhost:3000`.
+
+### 4. Verify the Setup
+
+1. Open `http://localhost:3000` in your browser
+2. Navigate to **Climate OS** (`/climate`) - you should see a form to create your climate profile
+3. Create a profile and add missions - data will be stored in Supabase
+4. Navigate to **Journal** (`/journal`) - you should see system events (if any exist)
+
+### Troubleshooting End-to-End Setup
+
+**API returns 500 errors:**
+- Check that `.dev.vars` has correct Supabase credentials
+- Verify the database schema has been applied
+- Check the Workers API console for error details
+
+**Frontend shows "Failed to load profile":**
+- Ensure the Workers API is running on port 8787
+- Check browser console for CORS errors
+- Verify `NEXT_PUBLIC_ZORA_API_BASE_URL` is set correctly
+
+**Data not persisting:**
+- Verify Supabase project is active
+- Check that the service key has write permissions
+- Look for errors in the Supabase dashboard logs
 
 ## Project Structure
 
@@ -340,4 +424,4 @@ PYTHONPATH=. python -m zora_core.memory.cli demo
 
 ---
 
-*ZORA CORE Developer Setup Guide - Iteration 0003*
+*ZORA CORE Developer Setup Guide - Iteration 0004*
