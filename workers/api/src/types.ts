@@ -1,6 +1,7 @@
 export type Bindings = {
   SUPABASE_URL: string;
   SUPABASE_SERVICE_KEY: string;
+  OPENAI_API_KEY?: string;
   ENVIRONMENT: string;
 };
 
@@ -151,4 +152,55 @@ export interface StatusResponse {
     connected: boolean;
     url: string;
   };
+}
+
+export type AgentId = 'connor' | 'lumina' | 'eivor' | 'oracle' | 'aegis' | 'sam';
+
+export interface Agent {
+  id: AgentId;
+  name: string;
+  role: string;
+  description: string;
+  pronouns: string;
+  color: string;
+}
+
+export type MemoryType =
+  | 'decision'
+  | 'reflection'
+  | 'artifact'
+  | 'conversation'
+  | 'plan'
+  | 'result'
+  | 'research'
+  | 'design'
+  | 'safety_review'
+  | 'climate_data'
+  | 'brand_data';
+
+export interface MemoryEvent {
+  id: string;
+  agent: string;
+  memory_type: MemoryType;
+  content: string;
+  tags: string[];
+  metadata: Record<string, unknown>;
+  session_id: string | null;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface MemoryEventWithSimilarity extends MemoryEvent {
+  similarity: number;
+}
+
+export interface SemanticSearchRequest {
+  query: string;
+  limit?: number;
+}
+
+export interface SemanticSearchResponse {
+  data: MemoryEventWithSimilarity[];
+  query: string;
+  model: string;
 }

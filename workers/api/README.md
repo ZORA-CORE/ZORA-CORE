@@ -4,14 +4,15 @@ Cloudflare Workers-based HTTP API for ZORA CORE's core entities.
 
 ## Overview
 
-This API provides RESTful endpoints for managing climate profiles, climate missions, and journal entries. It connects to Supabase (Postgres) for persistent storage.
+This API provides RESTful endpoints for managing climate profiles, climate missions, journal entries, and agent memory with semantic search. It connects to Supabase (Postgres with pgvector) for persistent storage.
 
 ## Prerequisites
 
 - Node.js 18+
 - npm or yarn
 - Wrangler CLI (installed as dev dependency)
-- Supabase project with the ZORA CORE schema applied
+- Supabase project with the ZORA CORE schema applied (including pgvector migration)
+- OpenAI API key (for semantic search)
 
 ## Setup
 
@@ -29,9 +30,12 @@ Create a `.dev.vars` file in the `workers/api` directory:
 ```bash
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_KEY=your-service-role-key
+OPENAI_API_KEY=sk-your-openai-api-key
 ```
 
 **Important:** Never commit `.dev.vars` to version control. It's already in `.gitignore`.
+
+**Note:** `OPENAI_API_KEY` is required for semantic search endpoints. Without it, semantic search will return a 503 error.
 
 ### 3. Run Locally
 
@@ -57,7 +61,7 @@ Response:
 ```json
 {
   "service": "ZORA CORE API",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "environment": "dev",
   "timestamp": "2025-11-28T12:00:00.000Z",
   "supabase": {
@@ -66,6 +70,124 @@ Response:
   }
 }
 ```
+
+### Agents
+
+#### GET /api/agents
+
+List all ZORA CORE agents.
+
+```bash
+curl http://localhost:8787/api/agents
+```
+
+Response:
+```json
+{
+  "data": [
+    {
+      "id": "connor",
+      "name": "CONNOR",
+      "role": "Systems & Backend Engineer",
+      "description": "Designs and implements backend services, APIs, data models and integrations.",
+      "pronouns": "he/him",
+      "color": "bg-blue-500"
+    },
+    {
+      "id": "lumina",
+      "name": "LUMINA",
+      "role": "Orchestrator & Project Lead",
+      "description": "Coordinates multi-agent workflows, manages task distribution...",
+      "pronouns": "she/her",
+      "color": "bg-purple-500"
+    }
+  ]
+}
+```
+
+#### GET /api/agents/:agentId
+
+Get a single agent by ID.
+
+```bash
+curl http://localhost:8787/api/agents/connor
+```
+
+### Agent Memory
+
+#### GET /api/agents/:agentId/memory
+
+Fetch recent memory events for a specific agent.
+
+```bash
+# Basic request
+curl http://localhost:8787/api/agents/connor/memory
+
+# With pagination
+curl "http://localhost:8787/api/agents/connor/memory?limit=20&offset=0"
+```
+
+Response:
+```json
+{
+  "data": [
+    {
+      "id": "uuid",
+      "agent": "CONNOR",
+      "memory_type": "decision",
+      "content": "Decided to use Hono for the Workers API...",
+      "tags": ["architecture", "backend"],
+      "metadata": {},
+      "session_id": null,
+      "created_at": "2025-11-28T12:00:00.000Z",
+      "updated_at": null
+    }
+  ],
+  "pagination": {
+    "limit": 50,
+    "offset": 0,
+    "total": 10,
+    "has_more": false
+  }
+}
+```
+
+#### POST /api/agents/:agentId/memory/semantic-search
+
+Perform semantic search on an agent's memories using natural language.
+
+```bash
+curl -X POST http://localhost:8787/api/agents/connor/memory/semantic-search \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "What decisions were made about the API architecture?",
+    "limit": 10
+  }'
+```
+
+Response:
+```json
+{
+  "data": [
+    {
+      "id": "uuid",
+      "agent": "CONNOR",
+      "memory_type": "decision",
+      "content": "Decided to use Hono for the Workers API...",
+      "tags": ["architecture", "backend"],
+      "metadata": {},
+      "session_id": null,
+      "created_at": "2025-11-28T12:00:00.000Z",
+      "updated_at": null,
+      "similarity": 0.89
+    }
+  ],
+  "query": "What decisions were made about the API architecture?",
+  "model": "text-embedding-3-small"
+}
+```
+
+**Note:** Semantic search requires `OPENAI_API_KEY` to be configured. The endpoint uses the same embedding model (`text-embedding-3-small`, 1536 dimensions) as the Python backend to ensure consistency.
 
 ### Climate Profiles
 

@@ -5,6 +5,8 @@ import statusHandler from './handlers/status';
 import profilesHandler from './handlers/profiles';
 import missionsHandler from './handlers/missions';
 import journalHandler from './handlers/journal';
+import agentsHandler from './handlers/agents';
+import memoryHandler from './handlers/memory';
 
 const app = new Hono<AppEnv>();
 
@@ -17,10 +19,14 @@ app.use('*', cors({
 app.get('/', (c) => {
   return c.json({
     name: 'ZORA CORE API',
-    version: '0.3.0',
+    version: '0.4.0',
     docs: '/api/status',
     endpoints: [
       'GET /api/status',
+      'GET /api/agents',
+      'GET /api/agents/:agentId',
+      'GET /api/agents/:agentId/memory',
+      'POST /api/agents/:agentId/memory/semantic-search',
       'GET /api/climate/profiles',
       'GET /api/climate/profiles/:id',
       'POST /api/climate/profiles',
@@ -34,6 +40,8 @@ app.get('/', (c) => {
 });
 
 app.route('/api/status', statusHandler);
+app.route('/api/agents', agentsHandler);
+app.route('/api/agents', memoryHandler);
 app.route('/api/climate/profiles', profilesHandler);
 app.route('/api/climate', missionsHandler);
 app.route('/api/missions', missionsHandler);
