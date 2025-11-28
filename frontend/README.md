@@ -143,12 +143,70 @@ npm run lint
 npm run build  # Includes type checking
 ```
 
+## Production Deployment (Vercel)
+
+### Option A: Deploy via Vercel Dashboard (Recommended)
+
+1. Go to [vercel.com](https://vercel.com) and sign in
+2. Click "Add New Project"
+3. Import your GitHub repository
+4. Configure the project:
+   - **Framework Preset:** Next.js
+   - **Root Directory:** `frontend`
+   - **Build Command:** `npm run build`
+   - **Output Directory:** `.next`
+5. Add Environment Variables:
+   - `NEXT_PUBLIC_ZORA_API_BASE_URL` = `https://api.your-domain.com`
+6. Click "Deploy"
+
+### Option B: Deploy via Vercel CLI
+
+```bash
+# Install Vercel CLI
+npm install -g vercel
+
+# Deploy (follow prompts)
+vercel
+
+# For production deployment
+vercel --prod
+```
+
+### Custom Domain
+
+1. In Vercel dashboard, go to your project settings
+2. Navigate to "Domains"
+3. Add your custom domain (e.g., `app.your-domain.com`)
+4. Configure DNS as instructed by Vercel
+
+### Deployment Checklist
+
+- [ ] `NEXT_PUBLIC_ZORA_API_BASE_URL` environment variable set
+- [ ] All pages load without errors
+- [ ] Login page works (can paste JWT token)
+- [ ] Climate OS page loads profiles from API
+- [ ] Agent Dashboards show memory events
+- [ ] Custom domain configured (if using)
+
+## Authentication
+
+The frontend uses JWT tokens for authentication. Users can log in at `/login` by pasting a JWT token.
+
+Generate tokens using the Python CLI:
+
+```bash
+PYTHONPATH=. python -m zora_core.auth.cli issue-token -v
+```
+
+See [JWT Authentication Setup](../docs/DEVELOPER_SETUP.md#jwt-authentication-setup) for details.
+
 ## Learn More
 
 - [Next.js Documentation](https://nextjs.org/docs)
+- [Deployment Overview](../docs/DEPLOYMENT_OVERVIEW.md)
 - [ZORA CORE Developer Setup](../docs/DEVELOPER_SETUP.md)
 - [Workers API Documentation](../workers/api/README.md)
 
 ---
 
-*ZORA CORE Frontend - Iteration 0004*
+*ZORA CORE Frontend - Iteration 0008*
