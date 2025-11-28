@@ -184,6 +184,9 @@ export default function Dashboard() {
             <Link href="/climate" className="hover:text-emerald-500 transition-colors">
               Climate OS
             </Link>
+            <Link href="/journal" className="hover:text-emerald-500 transition-colors">
+              Journal
+            </Link>
           </nav>
         </div>
       </header>
@@ -266,7 +269,7 @@ export default function Dashboard() {
       </main>
 
       <footer className="border-t border-zinc-800 p-4 text-center text-gray-500 text-sm">
-        ZORA CORE v0.1 - Climate-first AI Operating System
+        ZORA CORE v0.4 - Climate-first AI Operating System
       </footer>
     </div>
   );
