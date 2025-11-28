@@ -194,6 +194,11 @@ export interface StatusResponse {
     connected: boolean;
     url: string;
   };
+  // Version info for deployment verification (v0.16)
+  api_version: string;
+  git_commit: string;
+  build_time: string;
+  iteration: string;
 }
 
 export interface ApiError {

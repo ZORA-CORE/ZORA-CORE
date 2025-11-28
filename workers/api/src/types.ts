@@ -5,6 +5,9 @@ export type Bindings = {
   ZORA_JWT_SECRET?: string;
   ZORA_BOOTSTRAP_SECRET?: string;
   ENVIRONMENT: string;
+  // Version info bindings (v0.16) - optional, can be set in Cloudflare dashboard
+  ZORA_API_GIT_COMMIT?: string;
+  ZORA_API_BUILD_TIME?: string;
 };
 
 export type UserRole = 'founder' | 'brand_admin' | 'viewer';
@@ -253,6 +256,11 @@ export interface StatusResponse {
     connected: boolean;
     url: string;
   };
+  // Version info for deployment verification (v0.16)
+  api_version: string;
+  git_commit: string;
+  build_time: string;
+  iteration: string;
 }
 
 export type AgentId = 'connor' | 'lumina' | 'eivor' | 'oracle' | 'aegis' | 'sam';

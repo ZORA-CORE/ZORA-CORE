@@ -20,6 +20,8 @@ import type {
   UserRole,
   TokenResponse,
 } from '@/lib/types';
+import { VersionInfo } from '@/components/VersionInfo';
+import { getLatestReleaseNotes } from '@/lib/release-notes';
 
 type StatusIndicatorProps = {
   status: boolean;
@@ -424,6 +426,36 @@ export default function AdminSetupPage() {
                       ) : (
                         <p className="text-sm text-gray-500">Loading schema status...</p>
                       )}
+                    </section>
+
+                    <section className="bg-white shadow rounded-lg p-6">
+                      <h2 className="text-lg font-semibold text-gray-900 mb-4">Version Info</h2>
+                      <p className="text-sm text-gray-500 mb-4">
+                        Compare these versions with what you see in Vercel/Cloudflare to verify deployments.
+                      </p>
+                      <VersionInfo showDetailed className="text-gray-700" />
+                    </section>
+
+                    <section className="bg-white shadow rounded-lg p-6">
+                      <h2 className="text-lg font-semibold text-gray-900 mb-4">What&apos;s New</h2>
+                      <div className="space-y-4">
+                        {getLatestReleaseNotes(3).map((note) => (
+                          <div key={note.iteration} className="border-l-4 border-blue-500 pl-4">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-sm font-semibold text-gray-900">
+                                Iteration {note.iteration}: {note.title}
+                              </span>
+                              <span className="text-xs text-gray-500">{note.date}</span>
+                            </div>
+                            <p className="text-sm text-gray-600 mb-2">{note.description}</p>
+                            <ul className="text-xs text-gray-500 list-disc list-inside">
+                              {note.highlights.slice(0, 2).map((highlight, idx) => (
+                                <li key={idx}>{highlight}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        ))}
+                      </div>
                     </section>
 
                     {status && !status.tenants_exist && (
