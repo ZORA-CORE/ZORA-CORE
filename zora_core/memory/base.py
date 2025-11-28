@@ -180,3 +180,29 @@ class MemoryBackend(ABC):
     def clear(self) -> None:
         """Clear all memories (for testing)."""
         pass
+
+    @abstractmethod
+    async def semantic_search(
+        self,
+        query: str,
+        k: int = 10,
+        agent: str = None,
+        tags: List[str] = None,
+        start_time: datetime = None,
+        end_time: datetime = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Search memories by semantic similarity.
+        
+        Args:
+            query: Natural language query to search for
+            k: Maximum number of results to return
+            agent: Filter by agent name
+            tags: Filter by tags (any match)
+            start_time: Filter by start time
+            end_time: Filter by end time
+            
+        Returns:
+            List of matching memories with similarity scores, ordered by relevance
+        """
+        pass

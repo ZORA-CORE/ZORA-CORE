@@ -2,6 +2,7 @@
 ZORA CORE Supabase Memory Adapter
 
 Provides persistent memory storage using Supabase (Postgres).
+Supports semantic search via pgvector embeddings.
 """
 
 import json
@@ -9,7 +10,7 @@ import logging
 import os
 import uuid
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 from .base import Memory, MemoryBackend, MemoryType
 
@@ -21,18 +22,25 @@ except ImportError:
     SUPABASE_AVAILABLE = False
     Client = None
 
+# Embedding provider import - optional dependency
+if TYPE_CHECKING:
+    from ..models.embedding import EmbeddingProvider
+
 
 class SupabaseMemoryAdapter(MemoryBackend):
     """
     Supabase-backed memory storage for EIVOR.
     
     This adapter connects to a Supabase Postgres database and provides
-    persistent storage for agent memories.
+    persistent storage for agent memories with optional semantic search
+    via pgvector embeddings.
     
     Configuration via environment variables:
     - SUPABASE_URL: The Supabase project URL
     - SUPABASE_SERVICE_KEY: The service role key (for backend use)
     - SUPABASE_ANON_KEY: The anon key (alternative to service key)
+    - OPENAI_API_KEY: Required for embeddings (optional)
+    - ZORA_EMBEDDINGS_ENABLED: Enable/disable embeddings (default: true if API key present)
     """
 
     def __init__(
@@ -40,6 +48,8 @@ class SupabaseMemoryAdapter(MemoryBackend):
         url: str = None,
         key: str = None,
         table_name: str = "memory_events",
+        enable_embeddings: bool = None,
+        embedding_provider: "EmbeddingProvider" = None,
     ):
         """
         Initialize the Supabase memory adapter.
@@ -48,6 +58,8 @@ class SupabaseMemoryAdapter(MemoryBackend):
             url: Supabase project URL (or set SUPABASE_URL env var)
             key: Supabase API key (or set SUPABASE_SERVICE_KEY/SUPABASE_ANON_KEY env var)
             table_name: Name of the memory table (default: memory_events)
+            enable_embeddings: Enable embedding generation (default: auto-detect based on API key)
+            embedding_provider: Custom embedding provider (default: auto-create based on config)
         """
         if not SUPABASE_AVAILABLE:
             raise ImportError(
@@ -67,7 +79,67 @@ class SupabaseMemoryAdapter(MemoryBackend):
         
         self.client: Client = create_client(self.url, self.key)
         self.logger = logging.getLogger("zora.memory.supabase")
-        self.logger.info(f"SupabaseMemoryAdapter initialized for {self.url}")
+        
+        # Initialize embedding provider
+        self._embedding_provider = embedding_provider
+        self._embeddings_enabled = self._init_embeddings(enable_embeddings)
+        
+        self.logger.info(
+            f"SupabaseMemoryAdapter initialized for {self.url} "
+            f"(embeddings: {'enabled' if self._embeddings_enabled else 'disabled'})"
+        )
+    
+    def _init_embeddings(self, enable_embeddings: bool = None) -> bool:
+        """Initialize embedding provider and determine if embeddings are enabled."""
+        # Check environment variable override
+        env_enabled = os.environ.get("ZORA_EMBEDDINGS_ENABLED", "").lower()
+        if env_enabled == "false":
+            self.logger.info("Embeddings disabled via ZORA_EMBEDDINGS_ENABLED=false")
+            return False
+        
+        # If explicitly disabled, return False
+        if enable_embeddings is False:
+            return False
+        
+        # If provider already set, use it
+        if self._embedding_provider is not None:
+            return True
+        
+        # Try to create embedding provider
+        try:
+            from ..models.embedding import get_embedding_provider, is_embedding_configured
+            
+            if is_embedding_configured():
+                self._embedding_provider = get_embedding_provider()
+                return True
+            else:
+                self.logger.warning(
+                    "Embeddings not configured (no OPENAI_API_KEY). "
+                    "Semantic search will not be available."
+                )
+                return False
+        except ImportError as e:
+            self.logger.warning(f"Could not import embedding provider: {e}")
+            return False
+        except Exception as e:
+            self.logger.warning(f"Failed to initialize embedding provider: {e}")
+            return False
+    
+    @property
+    def embeddings_enabled(self) -> bool:
+        """Check if embeddings are enabled."""
+        return self._embeddings_enabled
+    
+    async def _generate_embedding(self, text: str) -> Optional[List[float]]:
+        """Generate embedding for text, returning None on failure."""
+        if not self._embeddings_enabled or self._embedding_provider is None:
+            return None
+        
+        try:
+            return await self._embedding_provider.embed_text(text)
+        except Exception as e:
+            self.logger.warning(f"Failed to generate embedding: {e}")
+            return None
 
     async def save_memory(
         self,
@@ -79,7 +151,7 @@ class SupabaseMemoryAdapter(MemoryBackend):
         session_id: str = None,
     ) -> str:
         """
-        Save a new memory to Supabase.
+        Save a new memory to Supabase with optional embedding.
         
         Args:
             agent: The agent saving the memory
@@ -98,6 +170,9 @@ class SupabaseMemoryAdapter(MemoryBackend):
         except ValueError:
             mem_type = MemoryType.ARTIFACT
         
+        # Generate embedding for the content
+        embedding = await self._generate_embedding(content)
+        
         # Prepare the record
         record = {
             "agent": agent,
@@ -108,12 +183,20 @@ class SupabaseMemoryAdapter(MemoryBackend):
             "session_id": session_id,
         }
         
+        # Add embedding if generated successfully
+        if embedding is not None:
+            record["embedding"] = embedding
+        
         try:
             result = self.client.table(self.table_name).insert(record).execute()
             
             if result.data and len(result.data) > 0:
                 memory_id = result.data[0]["id"]
-                self.logger.debug(f"Saved memory {memory_id} for agent {agent}")
+                has_embedding = embedding is not None
+                self.logger.debug(
+                    f"Saved memory {memory_id} for agent {agent} "
+                    f"(embedding: {'yes' if has_embedding else 'no'})"
+                )
                 return memory_id
             else:
                 raise Exception("No data returned from insert")
@@ -305,9 +388,9 @@ class SupabaseMemoryAdapter(MemoryBackend):
             self.logger.error(f"Failed to clear memories: {e}")
             raise
 
-    def _row_to_dict(self, row: Dict[str, Any]) -> Dict[str, Any]:
+    def _row_to_dict(self, row: Dict[str, Any], include_similarity: bool = False) -> Dict[str, Any]:
         """Convert a database row to a memory dictionary."""
-        return {
+        result = {
             "id": row["id"],
             "agent": row["agent"],
             "memory_type": row["memory_type"],
@@ -318,6 +401,98 @@ class SupabaseMemoryAdapter(MemoryBackend):
             "created_at": row.get("created_at"),
             "updated_at": row.get("updated_at"),
         }
+        if include_similarity and "similarity" in row:
+            result["similarity"] = row["similarity"]
+        return result
+
+    async def semantic_search(
+        self,
+        query: str,
+        k: int = 10,
+        agent: str = None,
+        tags: List[str] = None,
+        start_time: datetime = None,
+        end_time: datetime = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Search memories by semantic similarity using pgvector.
+        
+        Args:
+            query: Natural language query to search for
+            k: Maximum number of results to return
+            agent: Filter by agent name
+            tags: Filter by tags (any match)
+            start_time: Filter by start time
+            end_time: Filter by end time
+            
+        Returns:
+            List of matching memories with similarity scores, ordered by relevance
+        """
+        if not self._embeddings_enabled:
+            self.logger.warning(
+                "Semantic search called but embeddings are not enabled. "
+                "Falling back to text search."
+            )
+            return await self.search_memory(
+                agent=agent,
+                query=query,
+                tags=tags,
+                limit=k,
+                start_time=start_time,
+                end_time=end_time,
+            )
+        
+        # Generate embedding for the query
+        query_embedding = await self._generate_embedding(query)
+        if query_embedding is None:
+            self.logger.warning(
+                "Failed to generate query embedding. Falling back to text search."
+            )
+            return await self.search_memory(
+                agent=agent,
+                query=query,
+                tags=tags,
+                limit=k,
+                start_time=start_time,
+                end_time=end_time,
+            )
+        
+        try:
+            # Call the RPC function for semantic search
+            params = {
+                "query_embedding": query_embedding,
+                "match_count": k,
+            }
+            
+            # Add optional filters
+            if agent:
+                params["filter_agent"] = agent
+            if tags:
+                params["filter_tags"] = tags
+            if start_time:
+                params["filter_start_time"] = start_time.isoformat()
+            if end_time:
+                params["filter_end_time"] = end_time.isoformat()
+            
+            result = self.client.rpc("search_memories_by_embedding", params).execute()
+            
+            if result.data:
+                return [self._row_to_dict(row, include_similarity=True) for row in result.data]
+            
+            return []
+            
+        except Exception as e:
+            self.logger.error(f"Semantic search failed: {e}")
+            # Fall back to text search on error
+            self.logger.info("Falling back to text search due to semantic search error")
+            return await self.search_memory(
+                agent=agent,
+                query=query,
+                tags=tags,
+                limit=k,
+                start_time=start_time,
+                end_time=end_time,
+            )
 
 
 def is_supabase_configured() -> bool:

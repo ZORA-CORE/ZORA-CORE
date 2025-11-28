@@ -260,3 +260,40 @@ class MemoryStore(MemoryBackend):
         self._tag_index.clear()
         self._agent_index.clear()
         self._type_index.clear()
+
+    async def semantic_search(
+        self,
+        query: str,
+        k: int = 10,
+        agent: str = None,
+        tags: List[str] = None,
+        start_time: datetime = None,
+        end_time: datetime = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Search memories by semantic similarity.
+        
+        Note: The in-memory backend does not support true semantic search.
+        This implementation falls back to simple text search on the query.
+        For semantic search, use the Supabase backend with pgvector.
+        
+        Args:
+            query: Natural language query to search for
+            k: Maximum number of results to return
+            agent: Filter by agent name
+            tags: Filter by tags (any match)
+            start_time: Filter by start time
+            end_time: Filter by end time
+            
+        Returns:
+            List of matching memories (using text search fallback)
+        """
+        # Fall back to text search for in-memory backend
+        return await self.search_memory(
+            agent=agent,
+            query=query,
+            tags=tags,
+            limit=k,
+            start_time=start_time,
+            end_time=end_time,
+        )
