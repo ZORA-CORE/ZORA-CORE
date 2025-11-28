@@ -47,6 +47,13 @@ import type {
   AgentInsightResponse,
   AgentInsightStatus,
   AgentInsightCategory,
+  AgentCommand,
+  AgentCommandListItem,
+  CreateAgentCommandInput,
+  AgentCommandsListResponse,
+  AgentCommandResponse,
+  AgentCommandDetailResponse,
+  AgentCommandStatus,
 } from './types';
 import { getToken, clearToken } from './auth';
 
@@ -553,6 +560,31 @@ export async function decideAgentInsight(
   });
 }
 
+// Agent Commands API (v0.23)
+export async function getAgentCommands(options?: {
+  status?: AgentCommandStatus;
+  limit?: number;
+  offset?: number;
+}): Promise<AgentCommandsListResponse> {
+  const params = new URLSearchParams();
+  if (options?.status) params.append('status', options.status);
+  if (options?.limit) params.append('limit', options.limit.toString());
+  if (options?.offset) params.append('offset', options.offset.toString());
+  const queryString = params.toString();
+  return request<AgentCommandsListResponse>(`/api/agents/commands${queryString ? `?${queryString}` : ''}`);
+}
+
+export async function getAgentCommand(id: string): Promise<AgentCommandDetailResponse> {
+  return request<AgentCommandDetailResponse>(`/api/agents/commands/${id}`);
+}
+
+export async function createAgentCommand(input: CreateAgentCommandInput): Promise<AgentCommandResponse> {
+  return request<AgentCommandResponse>('/api/agents/commands', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
 export const api = {
   getStatus,
   getClimateProfiles,
@@ -599,6 +631,10 @@ export const api = {
   getAgentInsights,
   getAgentInsight,
   decideAgentInsight,
+  // Agent Commands API (v0.23)
+  getAgentCommands,
+  getAgentCommand,
+  createAgentCommand,
 };
 
 export default api;

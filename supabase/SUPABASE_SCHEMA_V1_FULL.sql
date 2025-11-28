@@ -14,12 +14,13 @@
 -- After running:
 --   - All required tables will exist: tenants, users, memory_events, 
 --     journal_entries, climate_profiles, climate_missions, frontend_configs,
---     agent_suggestions, brands, products, product_brands, agent_tasks, agent_insights
+--     agent_suggestions, brands, products, product_brands, agent_tasks, agent_insights,
+--     agent_commands
 --   - The search_memories_by_embedding function will be correctly defined
 --   - /admin/setup will work correctly
 -- 
 -- Date: 2025-11-28
--- Version: 1.7.0 (Agent Insights v1 - Domain-Specific Intelligence)
+-- Version: 1.8.0 (Agent Command Console v1 - Prompt-to-Tasks Launcher)
 -- ============================================================================
 
 -- ============================================================================
@@ -976,7 +977,67 @@ CREATE POLICY "Allow all for service role" ON agent_insights
 COMMENT ON TABLE agent_insights IS 'Agent insights - structured, actionable suggestions from agents for Climate OS, Mashup Shop, and frontend';
 
 -- ============================================================================
--- STEP 17: FIX DUPLICATE search_memories_by_embedding FUNCTIONS
+-- STEP 17: CREATE AGENT_COMMANDS TABLE (Agent Command Console v1)
+-- ============================================================================
+-- Agent commands store freeform prompts from the Founder that LUMINA
+-- translates into structured agent_tasks
+
+-- Agent command status enum
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'agent_command_status') THEN
+        CREATE TYPE agent_command_status AS ENUM (
+            'received',
+            'parsing',
+            'tasks_created',
+            'failed'
+        );
+    END IF;
+END$$;
+
+CREATE TABLE IF NOT EXISTS agent_commands (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ,
+    created_by_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    raw_prompt TEXT NOT NULL,
+    target_agents TEXT[] DEFAULT NULL,
+    status agent_command_status NOT NULL DEFAULT 'received',
+    parsed_summary TEXT,
+    tasks_created_count INTEGER DEFAULT 0,
+    error_message TEXT,
+    metadata JSONB DEFAULT '{}'
+);
+
+-- Indexes for agent_commands
+CREATE INDEX IF NOT EXISTS idx_agent_commands_tenant ON agent_commands(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_agent_commands_status ON agent_commands(status);
+CREATE INDEX IF NOT EXISTS idx_agent_commands_created_at ON agent_commands(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_agent_commands_tenant_status ON agent_commands(tenant_id, status);
+CREATE INDEX IF NOT EXISTS idx_agent_commands_created_by ON agent_commands(created_by_user_id);
+
+-- Trigger for updated_at
+DROP TRIGGER IF EXISTS update_agent_commands_updated_at ON agent_commands;
+CREATE TRIGGER update_agent_commands_updated_at
+    BEFORE UPDATE ON agent_commands
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Enable RLS
+ALTER TABLE agent_commands ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy
+DROP POLICY IF EXISTS "Allow all for service role" ON agent_commands;
+CREATE POLICY "Allow all for service role" ON agent_commands
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE agent_commands IS 'Agent commands - freeform prompts from Founder that LUMINA translates into agent_tasks';
+
+-- ============================================================================
+-- STEP 18: FIX DUPLICATE search_memories_by_embedding FUNCTIONS
 -- ============================================================================
 -- This is the critical fix for ERROR 42725: function name is not unique
 
@@ -1085,11 +1146,11 @@ DECLARE
     table_count INTEGER;
     function_count INTEGER;
 BEGIN
-    -- Count required tables (now 13 with agent_insights for Agent Insights v1)
-    SELECT COUNT(*) INTO table_count
-    FROM information_schema.tables 
-    WHERE table_schema = 'public' 
-    AND table_name IN ('tenants', 'users', 'memory_events', 'journal_entries', 'climate_profiles', 'climate_missions', 'frontend_configs', 'agent_suggestions', 'brands', 'products', 'product_brands', 'agent_tasks', 'agent_insights');
+        -- Count required tables (now 14 with agent_commands for Agent Command Console v1)
+        SELECT COUNT(*) INTO table_count
+        FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name IN ('tenants', 'users', 'memory_events', 'journal_entries', 'climate_profiles', 'climate_missions', 'frontend_configs', 'agent_suggestions', 'brands', 'products', 'product_brands', 'agent_tasks', 'agent_insights', 'agent_commands');
     
     -- Count search_memories_by_embedding functions (should be exactly 1)
     SELECT COUNT(*) INTO function_count
@@ -1097,10 +1158,10 @@ BEGIN
     WHERE proname = 'search_memories_by_embedding';
     
     RAISE NOTICE '=== ZORA CORE Schema Verification ===';
-    RAISE NOTICE 'Required tables found: % of 13', table_count;
-    RAISE NOTICE 'search_memories_by_embedding functions: % (should be 1)', function_count;
+        RAISE NOTICE 'Required tables found: % of 14', table_count;
+        RAISE NOTICE 'search_memories_by_embedding functions: % (should be 1)', function_count;
     
-    IF table_count = 13 AND function_count = 1 THEN
+        IF table_count = 14 AND function_count = 1 THEN
         RAISE NOTICE 'Schema is correctly configured!';
     ELSE
         RAISE WARNING 'Schema may have issues. Please check the tables and functions.';
