@@ -16,6 +16,12 @@ import type {
   SemanticSearchResponse,
   FrontendConfigResponse,
   UpdateFrontendConfigInput,
+  AgentSuggestion,
+  AgentSuggestionListItem,
+  AgentSuggestionsListResponse,
+  CreateSuggestionInput,
+  SuggestionDecisionInput,
+  SuggestionDecisionResponse,
 } from './types';
 import { getToken, clearToken } from './auth';
 
@@ -259,6 +265,47 @@ export async function updateFrontendConfig(
   });
 }
 
+// Agent Autonomy Layer API functions
+export async function createSuggestion(
+  input: CreateSuggestionInput
+): Promise<AgentSuggestion> {
+  return request<AgentSuggestion>('/api/autonomy/frontend/suggest', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export async function getSuggestions(params?: {
+  status?: string;
+  page?: string;
+}): Promise<AgentSuggestionsListResponse> {
+  const searchParams = new URLSearchParams();
+  if (params?.status) searchParams.set('status', params.status);
+  if (params?.page) searchParams.set('page', params.page);
+
+  const query = searchParams.toString();
+  return request<AgentSuggestionsListResponse>(
+    `/api/autonomy/frontend/suggestions${query ? `?${query}` : ''}`
+  );
+}
+
+export async function getSuggestion(id: string): Promise<AgentSuggestion> {
+  return request<AgentSuggestion>(`/api/autonomy/frontend/suggestions/${id}`);
+}
+
+export async function decideSuggestion(
+  id: string,
+  input: SuggestionDecisionInput
+): Promise<SuggestionDecisionResponse> {
+  return request<SuggestionDecisionResponse>(
+    `/api/autonomy/frontend/suggestions/${id}/decision`,
+    {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }
+  );
+}
+
 export const api = {
   getStatus,
   getClimateProfiles,
@@ -276,6 +323,10 @@ export const api = {
   semanticSearchAgentMemory,
   getFrontendConfig,
   updateFrontendConfig,
+  createSuggestion,
+  getSuggestions,
+  getSuggestion,
+  decideSuggestion,
 };
 
 export default api;

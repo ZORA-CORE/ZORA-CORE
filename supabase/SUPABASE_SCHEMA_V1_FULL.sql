@@ -13,12 +13,13 @@
 -- 
 -- After running:
 --   - All required tables will exist: tenants, users, memory_events, 
---     journal_entries, climate_profiles, climate_missions, frontend_configs
+--     journal_entries, climate_profiles, climate_missions, frontend_configs,
+--     agent_suggestions
 --   - The search_memories_by_embedding function will be correctly defined
 --   - /admin/setup will work correctly
 -- 
 -- Date: 2025-11-28
--- Version: 1.2.0 (Frontend Config Layer v0)
+-- Version: 1.3.0 (Agent Autonomy Layer v0)
 -- ============================================================================
 
 -- ============================================================================
@@ -67,9 +68,24 @@ BEGIN
             'config_change',
             'agent_action',
             'user_feedback',
-            'system_event'
+            'system_event',
+            'autonomy'
         );
     END IF;
+END$$;
+
+-- Add 'autonomy' to journal_category enum if it doesn't exist
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_enum 
+        WHERE enumtypid = 'journal_category'::regtype 
+        AND enumlabel = 'autonomy'
+    ) THEN
+        ALTER TYPE journal_category ADD VALUE 'autonomy';
+    END IF;
+EXCEPTION WHEN duplicate_object THEN
+    -- Value already exists
 END$$;
 
 -- Profile type enum
@@ -568,7 +584,67 @@ CREATE POLICY "Allow all for service role" ON frontend_configs
 COMMENT ON TABLE frontend_configs IS 'Frontend configuration per tenant and page - drives config-driven UI';
 
 -- ============================================================================
--- STEP 11: FIX DUPLICATE search_memories_by_embedding FUNCTIONS
+-- STEP 11: CREATE AGENT_SUGGESTIONS TABLE
+-- ============================================================================
+
+-- Suggestion status enum
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'suggestion_status') THEN
+        CREATE TYPE suggestion_status AS ENUM (
+            'proposed',
+            'applied',
+            'rejected'
+        );
+    END IF;
+END$$;
+
+CREATE TABLE IF NOT EXISTS agent_suggestions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    agent_id VARCHAR(50) NOT NULL,
+    suggestion_type VARCHAR(100) NOT NULL DEFAULT 'frontend_config_change',
+    target_page VARCHAR(100),
+    current_config JSONB,
+    suggested_config JSONB NOT NULL,
+    diff_summary TEXT,
+    status suggestion_status NOT NULL DEFAULT 'proposed',
+    decision_by_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    decision_reason TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ
+);
+
+-- Indexes for agent_suggestions
+CREATE INDEX IF NOT EXISTS idx_agent_suggestions_tenant ON agent_suggestions(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_agent_suggestions_agent ON agent_suggestions(agent_id);
+CREATE INDEX IF NOT EXISTS idx_agent_suggestions_status ON agent_suggestions(status);
+CREATE INDEX IF NOT EXISTS idx_agent_suggestions_type ON agent_suggestions(suggestion_type);
+CREATE INDEX IF NOT EXISTS idx_agent_suggestions_tenant_status ON agent_suggestions(tenant_id, status);
+CREATE INDEX IF NOT EXISTS idx_agent_suggestions_tenant_page ON agent_suggestions(tenant_id, target_page);
+CREATE INDEX IF NOT EXISTS idx_agent_suggestions_created_at ON agent_suggestions(created_at DESC);
+
+-- Trigger for updated_at
+DROP TRIGGER IF EXISTS update_agent_suggestions_updated_at ON agent_suggestions;
+CREATE TRIGGER update_agent_suggestions_updated_at
+    BEFORE UPDATE ON agent_suggestions
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Enable RLS
+ALTER TABLE agent_suggestions ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy
+DROP POLICY IF EXISTS "Allow all for service role" ON agent_suggestions;
+CREATE POLICY "Allow all for service role" ON agent_suggestions
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE agent_suggestions IS 'Agent-generated suggestions for frontend config changes - requires human approval';
+
+-- ============================================================================
+-- STEP 12: FIX DUPLICATE search_memories_by_embedding FUNCTIONS
 -- ============================================================================
 -- This is the critical fix for ERROR 42725: function name is not unique
 
@@ -649,7 +725,7 @@ $$;
 COMMENT ON FUNCTION search_memories_by_embedding IS 'Semantic search over memory events with optional agent and tenant filtering';
 
 -- ============================================================================
--- STEP 12: VERIFY SCHEMA
+-- STEP 13: VERIFY SCHEMA
 -- ============================================================================
 
 -- This query will show all tables that should exist
@@ -659,11 +735,11 @@ DECLARE
     table_count INTEGER;
     function_count INTEGER;
 BEGIN
-    -- Count required tables (now 7 with frontend_configs)
+    -- Count required tables (now 8 with agent_suggestions)
     SELECT COUNT(*) INTO table_count
     FROM information_schema.tables 
     WHERE table_schema = 'public' 
-    AND table_name IN ('tenants', 'users', 'memory_events', 'journal_entries', 'climate_profiles', 'climate_missions', 'frontend_configs');
+    AND table_name IN ('tenants', 'users', 'memory_events', 'journal_entries', 'climate_profiles', 'climate_missions', 'frontend_configs', 'agent_suggestions');
     
     -- Count search_memories_by_embedding functions (should be exactly 1)
     SELECT COUNT(*) INTO function_count
@@ -671,10 +747,10 @@ BEGIN
     WHERE proname = 'search_memories_by_embedding';
     
     RAISE NOTICE '=== ZORA CORE Schema Verification ===';
-    RAISE NOTICE 'Required tables found: % of 7', table_count;
+    RAISE NOTICE 'Required tables found: % of 8', table_count;
     RAISE NOTICE 'search_memories_by_embedding functions: % (should be 1)', function_count;
     
-    IF table_count = 7 AND function_count = 1 THEN
+    IF table_count = 8 AND function_count = 1 THEN
         RAISE NOTICE 'Schema is correctly configured!';
     ELSE
         RAISE WARNING 'Schema may have issues. Please check the tables and functions.';
