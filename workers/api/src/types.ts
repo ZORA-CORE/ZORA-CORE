@@ -80,6 +80,7 @@ export type JournalCategory =
 
 export interface ClimateProfile {
   id: string;
+  tenant_id: string;
   owner_id: string | null;
   profile_type: ProfileType;
   name: string;
@@ -90,6 +91,11 @@ export interface ClimateProfile {
   location_type: string | null;
   climate_score: number | null;
   estimated_footprint_kg: number | null;
+  country: string | null;
+  city_or_region: string | null;
+  household_size: number | null;
+  primary_energy_source: string | null;
+  notes: string | null;
   metadata: Record<string, unknown>;
   created_at: string;
   updated_at: string | null;
@@ -106,6 +112,11 @@ export interface CreateProfileInput {
   location_type?: string;
   climate_score?: number;
   estimated_footprint_kg?: number;
+  country?: string;
+  city_or_region?: string;
+  household_size?: number;
+  primary_energy_source?: string;
+  notes?: string;
   metadata?: Record<string, unknown>;
 }
 
@@ -120,11 +131,17 @@ export interface UpdateProfileInput {
   location_type?: string;
   climate_score?: number;
   estimated_footprint_kg?: number;
+  country?: string;
+  city_or_region?: string;
+  household_size?: number;
+  primary_energy_source?: string;
+  notes?: string;
   metadata?: Record<string, unknown>;
 }
 
 export interface ClimateMission {
   id: string;
+  tenant_id: string;
   profile_id: string;
   title: string;
   description: string | null;
@@ -133,6 +150,8 @@ export interface ClimateMission {
   started_at: string | null;
   completed_at: string | null;
   impact_estimate: Record<string, unknown>;
+  estimated_impact_kgco2: number | null;
+  due_date: string | null;
   verified: boolean;
   verified_by: string | null;
   verification_notes: string | null;
@@ -147,6 +166,8 @@ export interface CreateMissionInput {
   category?: string;
   status?: MissionStatus;
   impact_estimate?: Record<string, unknown>;
+  estimated_impact_kgco2?: number;
+  due_date?: string;
   metadata?: Record<string, unknown>;
 }
 
@@ -158,6 +179,8 @@ export interface UpdateMissionInput {
   started_at?: string;
   completed_at?: string;
   impact_estimate?: Record<string, unknown>;
+  estimated_impact_kgco2?: number;
+  due_date?: string;
   verified?: boolean;
   verified_by?: string;
   verification_notes?: string;

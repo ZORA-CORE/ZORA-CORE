@@ -8,6 +8,7 @@ import {
   createClimateProfile,
   createClimateMission,
   updateMissionStatus,
+  bootstrapMissions,
   ZoraApiError,
 } from "@/lib/api";
 import type {
@@ -15,6 +16,8 @@ import type {
   ClimateMission,
   MissionStatus,
   CreateMissionInput,
+  CreateProfileInput,
+  DashboardSummary,
 } from "@/lib/types";
 
 function LoadingSpinner() {
@@ -58,14 +61,16 @@ function MissionCard({
 
   const categoryColors: Record<string, string> = {
     energy: "bg-amber-500",
-    waste: "bg-purple-500",
-    food: "bg-emerald-500",
     transport: "bg-blue-500",
+    food: "bg-emerald-500",
+    products: "bg-purple-500",
+    other: "bg-gray-500",
   };
 
-  const formatImpact = (impact: Record<string, unknown>) => {
-    if (impact.co2_kg) return `~${impact.co2_kg} kg CO2`;
-    if (impact.description) return String(impact.description);
+  const formatImpact = (mission: ClimateMission) => {
+    if (mission.estimated_impact_kgco2) return `~${mission.estimated_impact_kgco2} kg CO2`;
+    if (mission.impact_estimate?.co2_kg) return `~${mission.impact_estimate.co2_kg} kg CO2`;
+    if (mission.impact_estimate?.description) return String(mission.impact_estimate.description);
     return "Impact TBD";
   };
 
@@ -99,7 +104,7 @@ function MissionCard({
         <div>
           <span className="text-xs text-gray-500">Estimated Impact</span>
           <p className="text-emerald-400 font-medium">
-            {formatImpact(mission.impact_estimate)}
+            {formatImpact(mission)}
           </p>
         </div>
         {nextStatus[mission.status] && (
@@ -133,7 +138,7 @@ function CreateMissionForm({
       title,
       description: description || undefined,
       category,
-      impact_estimate: co2Impact ? { co2_kg: parseFloat(co2Impact) } : {},
+      estimated_impact_kgco2: co2Impact ? parseFloat(co2Impact) : undefined,
     });
   };
 
@@ -173,7 +178,8 @@ function CreateMissionForm({
               <option value="energy">Energy</option>
               <option value="transport">Transport</option>
               <option value="food">Food</option>
-              <option value="waste">Waste</option>
+              <option value="products">Products</option>
+              <option value="other">Other</option>
             </select>
           </div>
           <div>
@@ -211,13 +217,25 @@ function CreateMissionForm({
 function CreateProfileForm({
   onSubmit,
 }: {
-  onSubmit: (name: string) => void;
+  onSubmit: (input: CreateProfileInput) => void;
 }) {
   const [name, setName] = useState("");
+  const [profileType, setProfileType] = useState<"person" | "brand" | "organization">("person");
+  const [country, setCountry] = useState("");
+  const [cityOrRegion, setCityOrRegion] = useState("");
+  const [householdSize, setHouseholdSize] = useState("");
+  const [primaryEnergySource, setPrimaryEnergySource] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(name);
+    onSubmit({
+      name,
+      profile_type: profileType,
+      country: country || undefined,
+      city_or_region: cityOrRegion || undefined,
+      household_size: householdSize ? parseInt(householdSize) : undefined,
+      primary_energy_source: primaryEnergySource || undefined,
+    });
   };
 
   return (
@@ -226,22 +244,94 @@ function CreateProfileForm({
       <p className="text-gray-400 mb-4">
         Get started by creating your climate profile to track your environmental impact.
       </p>
-      <form onSubmit={handleSubmit} className="flex gap-2">
-        <input
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          required
-          className="flex-1 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded focus:border-emerald-500 focus:outline-none"
-          placeholder="Enter your name or organization"
-        />
-        <button
-          type="submit"
-          disabled={!name}
-          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded text-white transition-colors"
-        >
-          Create Profile
-        </button>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm text-gray-400 mb-1">Name *</label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded focus:border-emerald-500 focus:outline-none"
+              placeholder="Enter your name or organization"
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-gray-400 mb-1">Profile Type</label>
+            <select
+              value={profileType}
+              onChange={(e) => setProfileType(e.target.value as "person" | "brand" | "organization")}
+              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded focus:border-emerald-500 focus:outline-none"
+            >
+              <option value="person">Individual / Household</option>
+              <option value="brand">Brand</option>
+              <option value="organization">Organization</option>
+            </select>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm text-gray-400 mb-1">Country</label>
+            <input
+              type="text"
+              value={country}
+              onChange={(e) => setCountry(e.target.value)}
+              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded focus:border-emerald-500 focus:outline-none"
+              placeholder="e.g., Denmark"
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-gray-400 mb-1">City / Region</label>
+            <input
+              type="text"
+              value={cityOrRegion}
+              onChange={(e) => setCityOrRegion(e.target.value)}
+              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded focus:border-emerald-500 focus:outline-none"
+              placeholder="e.g., Copenhagen"
+            />
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm text-gray-400 mb-1">Household Size</label>
+            <input
+              type="number"
+              min="1"
+              value={householdSize}
+              onChange={(e) => setHouseholdSize(e.target.value)}
+              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded focus:border-emerald-500 focus:outline-none"
+              placeholder="Number of people"
+            />
+          </div>
+          <div>
+            <label className="block text-sm text-gray-400 mb-1">Primary Energy Source</label>
+            <select
+              value={primaryEnergySource}
+              onChange={(e) => setPrimaryEnergySource(e.target.value)}
+              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded focus:border-emerald-500 focus:outline-none"
+            >
+              <option value="">Select...</option>
+              <option value="grid_mixed">Grid (Mixed)</option>
+              <option value="grid_renewable">Grid (Renewable)</option>
+              <option value="solar">Solar</option>
+              <option value="wind">Wind</option>
+              <option value="natural_gas">Natural Gas</option>
+              <option value="oil">Oil</option>
+              <option value="coal">Coal</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+        </div>
+        <div className="flex justify-end">
+          <button
+            type="submit"
+            disabled={!name}
+            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded text-white transition-colors"
+          >
+            Create Profile
+          </button>
+        </div>
       </form>
     </div>
   );
@@ -295,13 +385,10 @@ export default function ClimatePage() {
     }
   }, [profile, loadMissions]);
 
-  const handleCreateProfile = async (name: string) => {
+  const handleCreateProfile = async (input: CreateProfileInput) => {
     try {
       setLoading(true);
-      const newProfile = await createClimateProfile({
-        name,
-        profile_type: "person",
-      });
+      const newProfile = await createClimateProfile(input);
       setProfile(newProfile);
     } catch (err) {
       const message = err instanceof ZoraApiError ? err.message : "Failed to create profile";
@@ -333,11 +420,32 @@ export default function ClimatePage() {
     }
   };
 
-  const completedMissions = missions.filter((m) => m.status === "completed").length;
-  const totalImpact = missions.reduce((sum, m) => {
-    const co2 = m.impact_estimate?.co2_kg;
-    return sum + (typeof co2 === "number" ? co2 : 0);
-  }, 0);
+  const dashboardSummary: DashboardSummary = {
+    total_missions: missions.length,
+    completed_count: missions.filter((m) => m.status === "completed").length,
+    in_progress_count: missions.filter((m) => m.status === "in_progress").length,
+    total_impact_kgco2: missions.reduce((sum, m) => {
+      const co2 = m.estimated_impact_kgco2 ?? (m.impact_estimate?.co2_kg as number | undefined);
+      return sum + (typeof co2 === "number" ? co2 : 0);
+    }, 0),
+  };
+
+  const [bootstrapping, setBootstrapping] = useState(false);
+
+  const handleBootstrapMissions = async () => {
+    if (!profile) return;
+    try {
+      setBootstrapping(true);
+      const result = await bootstrapMissions();
+      if (result.created && result.missions) {
+        setMissions(result.missions);
+      }
+    } catch (err) {
+      console.error("Failed to bootstrap missions:", err);
+    } finally {
+      setBootstrapping(false);
+    }
+  };
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -381,25 +489,32 @@ export default function ClimatePage() {
             <CreateProfileForm onSubmit={handleCreateProfile} />
           ) : (
             <>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
                 <div className="agent-card text-center">
-                  <p className="text-gray-400 text-sm mb-1">Climate Score</p>
+                  <p className="text-gray-400 text-sm mb-1">Total Missions</p>
                   <p className="text-4xl font-bold text-emerald-500">
-                    {profile.climate_score ?? "--"}
+                    {dashboardSummary.total_missions}
                   </p>
-                  <p className="text-xs text-gray-500">out of 100</p>
+                  <p className="text-xs text-gray-500">climate actions</p>
                 </div>
                 <div className="agent-card text-center">
-                  <p className="text-gray-400 text-sm mb-1">Missions Completed</p>
+                  <p className="text-gray-400 text-sm mb-1">Completed</p>
                   <p className="text-4xl font-bold text-emerald-500">
-                    {completedMissions}/{missions.length}
+                    {dashboardSummary.completed_count}
                   </p>
-                  <p className="text-xs text-gray-500">this quarter</p>
+                  <p className="text-xs text-gray-500">missions done</p>
+                </div>
+                <div className="agent-card text-center">
+                  <p className="text-gray-400 text-sm mb-1">In Progress</p>
+                  <p className="text-4xl font-bold text-amber-500">
+                    {dashboardSummary.in_progress_count}
+                  </p>
+                  <p className="text-xs text-gray-500">active now</p>
                 </div>
                 <div className="agent-card text-center">
                   <p className="text-gray-400 text-sm mb-1">Total Impact</p>
                   <p className="text-4xl font-bold text-emerald-500">
-                    {totalImpact > 0 ? `${totalImpact} kg` : "--"}
+                    {dashboardSummary.total_impact_kgco2 > 0 ? `${dashboardSummary.total_impact_kgco2} kg` : "--"}
                   </p>
                   <p className="text-xs text-gray-500">CO2 reduction</p>
                 </div>
@@ -428,8 +543,15 @@ export default function ClimatePage() {
                 {missionsLoading ? (
                   <LoadingSpinner />
                 ) : missions.length === 0 ? (
-                  <div className="agent-card text-center text-gray-400">
-                    <p>No missions yet. Create your first climate mission!</p>
+                  <div className="agent-card text-center">
+                    <p className="text-gray-400 mb-4">No missions yet. Get started with some recommended climate actions!</p>
+                    <button
+                      onClick={handleBootstrapMissions}
+                      disabled={bootstrapping}
+                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded text-white transition-colors"
+                    >
+                      {bootstrapping ? "Creating..." : "Create Starter Missions"}
+                    </button>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -446,7 +568,7 @@ export default function ClimatePage() {
 
               <div className="agent-card">
                 <h2 className="text-xl font-semibold mb-4">Climate Profile</h2>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                   <div>
                     <p className="text-gray-400 text-sm">Name</p>
                     <p className="font-medium">{profile.name}</p>
@@ -456,12 +578,30 @@ export default function ClimatePage() {
                     <p className="font-medium capitalize">{profile.profile_type}</p>
                   </div>
                   <div>
-                    <p className="text-gray-400 text-sm">Energy Source</p>
-                    <p className="font-medium">{profile.energy_source || "Not set"}</p>
+                    <p className="text-gray-400 text-sm">Country</p>
+                    <p className="font-medium">{profile.country || "Not set"}</p>
                   </div>
                   <div>
-                    <p className="text-gray-400 text-sm">Transport</p>
+                    <p className="text-gray-400 text-sm">City / Region</p>
+                    <p className="font-medium">{profile.city_or_region || "Not set"}</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div>
+                    <p className="text-gray-400 text-sm">Household Size</p>
+                    <p className="font-medium">{profile.household_size ? `${profile.household_size} people` : "Not set"}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-400 text-sm">Primary Energy</p>
+                    <p className="font-medium">{profile.primary_energy_source?.replace(/_/g, " ") || "Not set"}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-400 text-sm">Transport Mode</p>
                     <p className="font-medium">{profile.transport_mode || "Not set"}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-400 text-sm">Diet Type</p>
+                    <p className="font-medium">{profile.diet_type || "Not set"}</p>
                   </div>
                 </div>
               </div>
@@ -471,7 +611,7 @@ export default function ClimatePage() {
       </main>
 
       <footer className="border-t border-zinc-800 p-4 text-center text-gray-500 text-sm">
-        ZORA CORE v0.4 - Climate-first AI Operating System
+        ZORA CORE v0.5 - Climate OS v0.2
       </footer>
     </div>
   );

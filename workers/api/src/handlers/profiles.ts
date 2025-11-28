@@ -3,6 +3,7 @@ import type { ClimateProfile, CreateProfileInput, UpdateProfileInput } from '../
 import type { AuthAppEnv } from '../middleware/auth';
 import { getTenantId } from '../middleware/auth';
 import { getSupabaseClient } from '../lib/supabase';
+import { insertJournalEntry } from '../lib/journal';
 import {
   jsonResponse,
   paginatedResponse,
@@ -101,6 +102,11 @@ app.post('/', async (c) => {
         location_type: body.location_type || null,
         climate_score: body.climate_score || null,
         estimated_footprint_kg: body.estimated_footprint_kg || null,
+        country: body.country || null,
+        city_or_region: body.city_or_region || null,
+        household_size: body.household_size || null,
+        primary_energy_source: body.primary_energy_source || null,
+        notes: body.notes || null,
         metadata: body.metadata || {},
       })
       .select()
@@ -110,6 +116,18 @@ app.post('/', async (c) => {
       console.error('Error creating profile:', error);
       return serverErrorResponse('Failed to create climate profile');
     }
+    
+    await insertJournalEntry(supabase, {
+      tenantId,
+      eventType: 'climate_profile_created',
+      summary: `Climate profile created: ${data.name}`,
+      metadata: {
+        profile_id: data.id,
+        profile_type: data.profile_type,
+        country: data.country,
+      },
+      relatedEntityIds: [data.id],
+    });
     
     return jsonResponse<ClimateProfile>(data, 201);
   } catch (error) {
@@ -128,7 +146,7 @@ app.put('/:id', async (c) => {
     
     const { data: existing } = await supabase
       .from('climate_profiles')
-      .select('id')
+      .select('id, name')
       .eq('id', id)
       .eq('tenant_id', tenantId)
       .single();
@@ -148,6 +166,11 @@ app.put('/:id', async (c) => {
     if (body.location_type !== undefined) updateData.location_type = body.location_type;
     if (body.climate_score !== undefined) updateData.climate_score = body.climate_score;
     if (body.estimated_footprint_kg !== undefined) updateData.estimated_footprint_kg = body.estimated_footprint_kg;
+    if (body.country !== undefined) updateData.country = body.country;
+    if (body.city_or_region !== undefined) updateData.city_or_region = body.city_or_region;
+    if (body.household_size !== undefined) updateData.household_size = body.household_size;
+    if (body.primary_energy_source !== undefined) updateData.primary_energy_source = body.primary_energy_source;
+    if (body.notes !== undefined) updateData.notes = body.notes;
     if (body.metadata !== undefined) updateData.metadata = body.metadata;
     
     const { data, error } = await supabase
@@ -162,6 +185,17 @@ app.put('/:id', async (c) => {
       console.error('Error updating profile:', error);
       return serverErrorResponse('Failed to update climate profile');
     }
+    
+    await insertJournalEntry(supabase, {
+      tenantId,
+      eventType: 'climate_profile_updated',
+      summary: `Climate profile updated: ${data.name}`,
+      metadata: {
+        profile_id: data.id,
+        updated_fields: Object.keys(updateData),
+      },
+      relatedEntityIds: [data.id],
+    });
     
     return jsonResponse<ClimateProfile>(data);
   } catch (error) {

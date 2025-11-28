@@ -18,7 +18,7 @@
 --   - /admin/setup will work correctly
 -- 
 -- Date: 2025-11-28
--- Version: 1.0.0
+-- Version: 1.1.0 (Climate OS v0.2)
 -- ============================================================================
 
 -- ============================================================================
@@ -400,6 +400,13 @@ CREATE TABLE IF NOT EXISTS climate_profiles (
 -- Add tenant_id column if not exists
 ALTER TABLE climate_profiles ADD COLUMN IF NOT EXISTS tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE;
 
+-- Add new Climate OS v0.2 columns for richer profiles
+ALTER TABLE climate_profiles ADD COLUMN IF NOT EXISTS country VARCHAR(100);
+ALTER TABLE climate_profiles ADD COLUMN IF NOT EXISTS city_or_region VARCHAR(255);
+ALTER TABLE climate_profiles ADD COLUMN IF NOT EXISTS household_size INTEGER CHECK (household_size IS NULL OR household_size >= 1);
+ALTER TABLE climate_profiles ADD COLUMN IF NOT EXISTS primary_energy_source VARCHAR(100);
+ALTER TABLE climate_profiles ADD COLUMN IF NOT EXISTS notes TEXT;
+
 -- Set default tenant_id for existing records
 UPDATE climate_profiles SET tenant_id = '00000000-0000-0000-0000-000000000001' WHERE tenant_id IS NULL;
 
@@ -464,6 +471,10 @@ CREATE TABLE IF NOT EXISTS climate_missions (
 
 -- Add tenant_id column if not exists
 ALTER TABLE climate_missions ADD COLUMN IF NOT EXISTS tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE;
+
+-- Add new Climate OS v0.2 columns for missions
+ALTER TABLE climate_missions ADD COLUMN IF NOT EXISTS estimated_impact_kgco2 NUMERIC(12, 2);
+ALTER TABLE climate_missions ADD COLUMN IF NOT EXISTS due_date DATE;
 
 -- Set default tenant_id for existing records
 UPDATE climate_missions SET tenant_id = '00000000-0000-0000-0000-000000000001' WHERE tenant_id IS NULL;

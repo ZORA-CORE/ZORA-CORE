@@ -5,6 +5,7 @@ import type {
   ClimateMission,
   CreateMissionInput,
   UpdateMissionInput,
+  BootstrapMissionsResponse,
   JournalEntry,
   PaginatedResponse,
   StatusResponse,
@@ -179,6 +180,12 @@ export async function updateMissionStatus(
   });
 }
 
+export async function bootstrapMissions(): Promise<BootstrapMissionsResponse> {
+  return request<BootstrapMissionsResponse>('/api/climate/missions/bootstrap', {
+    method: 'POST',
+  });
+}
+
 export async function getJournalEntries(params?: {
   limit?: number;
   offset?: number;
@@ -245,6 +252,7 @@ export const api = {
   getClimateMissions,
   createClimateMission,
   updateMissionStatus,
+  bootstrapMissions,
   getJournalEntries,
   getAgents,
   getAgent,
