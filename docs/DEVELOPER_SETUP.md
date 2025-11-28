@@ -474,6 +474,54 @@ npm run build
 npm run lint
 ```
 
+## Multi-Provider Configuration
+
+ZORA CORE supports multiple AI providers for LLM and embedding tasks. See [MODEL_PROVIDERS.md](MODEL_PROVIDERS.md) for detailed documentation.
+
+### Quick Setup
+
+Set API keys for the providers you want to use:
+
+```bash
+# Required for semantic memory (embeddings)
+export OPENAI_API_KEY="sk-proj-..."
+
+# Optional: Additional LLM providers
+export ANTHROPIC_API_KEY="sk-ant-..."
+export GEMINI_API_KEY="AIza..."
+export XAI_API_KEY="xai-..."
+export COPILOT_API_KEY="..."
+```
+
+### Verify Provider Configuration
+
+```bash
+# List all providers and their status
+PYTHONPATH=. python -m zora_core.models.cli list-providers
+
+# Test embedding generation
+PYTHONPATH=. python -m zora_core.models.cli embed-demo --provider=openai --text="Hello world"
+
+# Test chat/LLM (placeholder in MVP)
+PYTHONPATH=. python -m zora_core.models.cli chat-demo --provider=openai
+```
+
+### Where to Set API Keys
+
+| Component | Location | Notes |
+|-----------|----------|-------|
+| Python Backend/CLI | `.env` file or shell export | Use `python-dotenv` or export directly |
+| Cloudflare Workers | `.dev.vars` (local) or `wrangler secret put` (production) | Never commit `.dev.vars` |
+| Next.js Frontend | `.env.local` | Only for public keys; keep secrets server-side |
+
+### Provider Metadata in Memory
+
+When memories are saved, ZORA CORE tracks which provider/model was used:
+- `llm_provider` / `llm_model`: Which LLM generated the content
+- `embedding_provider` / `embedding_model`: Which provider generated the embedding
+
+This metadata is stored in the `memory_events` table and returned in search results.
+
 ## Environment Variables Reference
 
 | Variable | Description | Required | Default |
@@ -482,6 +530,10 @@ npm run lint
 | `SUPABASE_SERVICE_KEY` | Service role key | For Supabase backend | - |
 | `SUPABASE_ANON_KEY` | Anonymous key | Alternative to service key | - |
 | `OPENAI_API_KEY` | OpenAI API key | For semantic memory | - |
+| `ANTHROPIC_API_KEY` | Anthropic API key | For Claude models | - |
+| `GEMINI_API_KEY` | Google API key | For Gemini models | - |
+| `XAI_API_KEY` | xAI API key | For Grok models | - |
+| `COPILOT_API_KEY` | GitHub Copilot API key | For Copilot | - |
 | `ZORA_EMBEDDING_MODEL` | Embedding model name | No | `text-embedding-3-small` |
 
 ## Troubleshooting
