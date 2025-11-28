@@ -38,11 +38,29 @@ This guide covers deploying ZORA CORE to production using Cloudflare Workers (AP
 
 Before deploying, ensure you have:
 
-1. **Supabase Project** - With all migrations applied
+1. **Supabase Project** - With schema applied (see [Supabase Setup Guide](./SUPABASE_SETUP_NO_CLI.md))
 2. **Cloudflare Account** - For Workers deployment
 3. **Vercel Account** - For frontend deployment
 4. **OpenAI API Key** - For semantic search embeddings
 5. **Custom Domains** (optional) - For branded URLs
+
+## Part 0: Supabase Schema Setup
+
+Before deploying the API and frontend, ensure your Supabase database has the correct schema.
+
+### One-Click Schema Setup (Recommended)
+
+1. Go to your Supabase project dashboard
+2. Open **SQL Editor**
+3. Copy the contents of `supabase/SUPABASE_SCHEMA_V1_FULL.sql` from the repository
+4. Paste and click **Run**
+
+This script is idempotent and can be run multiple times safely. It will:
+- Create all required tables (tenants, users, memory_events, journal_entries, climate_profiles, climate_missions)
+- Set up the `search_memories_by_embedding` function for semantic search
+- Fix any duplicate function issues from partial migrations
+
+For detailed step-by-step instructions, see [SUPABASE_SETUP_NO_CLI.md](./SUPABASE_SETUP_NO_CLI.md).
 
 ## Part 1: Deploy Workers API to Cloudflare
 
@@ -267,6 +285,7 @@ app.your-domain.com -> CNAME -> cname.vercel-dns.com
 ## Related Documentation
 
 - [Developer Setup](./DEVELOPER_SETUP.md) - Local development guide
+- [Supabase Setup (No CLI)](./SUPABASE_SETUP_NO_CLI.md) - Browser-based database setup guide
 - [Database Schema](./DATABASE_SCHEMA_v0_1.md) - Database structure
 - [JWT Authentication](./STATUS_REPORT_ITERATION_0008.md) - Auth implementation details
 - [Workers API README](../workers/api/README.md) - API documentation
