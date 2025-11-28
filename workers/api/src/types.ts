@@ -440,6 +440,7 @@ export type AgentTaskStatus = 'pending' | 'in_progress' | 'completed' | 'failed'
 export interface AgentTask {
   id: string;
   tenant_id: string;
+  command_id: string | null;  // FK to agent_commands.id (Task Execution Engine v1.0)
   agent_id: string;
   task_type: string;
   status: AgentTaskStatus;
@@ -447,6 +448,7 @@ export interface AgentTask {
   title: string;
   description: string | null;
   payload: Record<string, unknown>;
+  result: Record<string, unknown> | null;  // Structured execution result (Task Execution Engine v1.0)
   result_summary: string | null;
   error_message: string | null;
   started_at: string | null;
@@ -472,6 +474,7 @@ export interface AgentTaskListItem {
   status: AgentTaskStatus;
   priority: number;
   title: string;
+  command_id: string | null;  // FK to agent_commands.id (Task Execution Engine v1.0)
   created_at: string;
   started_at: string | null;
   completed_at: string | null;

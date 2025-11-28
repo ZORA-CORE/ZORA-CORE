@@ -396,17 +396,14 @@ Return ONLY the JSON object, no other text.
             # Create agent_tasks from the plan
             created_tasks = []
             for task in plan_result.tasks:
-                # Add command reference to payload
-                task_payload = task.payload.copy()
-                task_payload["source_command_id"] = command_id
-                
                 task_data = {
                     "tenant_id": tenant_id,
+                    "command_id": command_id,  # FK to agent_commands
                     "agent_id": task.agent_id,
                     "task_type": task.task_type,
                     "title": task.title,
                     "description": task.description,
-                    "payload": task_payload,
+                    "payload": task.payload,
                     "priority": task.priority,
                     "status": "pending",
                     "created_by_user_id": created_by_user_id,
