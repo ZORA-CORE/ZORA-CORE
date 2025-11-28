@@ -9,6 +9,7 @@ import journalHandler from './handlers/journal';
 import agentsHandler from './handlers/agents';
 import memoryHandler from './handlers/memory';
 import adminHandler from './handlers/admin';
+import authHandler from './handlers/auth';
 import frontendConfigHandler from './handlers/frontend-config';
 import agentSuggestionsHandler from './handlers/agent-suggestions';
 import brandsHandler from './handlers/brands';
@@ -50,8 +51,11 @@ app.get('/', (c) => {
       'GET /api/public/mashups/products/:id',
       'GET /api/public/mashups/brands',
       'GET /api/public/mashups/stats',
+      'POST /api/auth/register',
+      'POST /api/auth/login',
     ],
     authenticated_endpoints: [
+      'GET /api/auth/me',
       'GET /api/agents',
       'GET /api/agents/:agentId',
       'GET /api/agents/:agentId/memory',
@@ -104,6 +108,7 @@ app.get('/', (c) => {
 
 app.route('/api/status', statusHandler);
 app.route('/api/admin', adminHandler);
+app.route('/api/auth', authHandler);
 app.route('/api/agents', agentsHandler);
 app.route('/api/agents', memoryHandler);
 app.route('/api/agents', agentTasksHandler);

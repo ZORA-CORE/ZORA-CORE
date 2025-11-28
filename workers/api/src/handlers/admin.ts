@@ -279,19 +279,24 @@ adminHandler.get('/tenants', async (c) => {
 
 /**
  * GET /api/admin/users
- * Lists users, optionally filtered by tenant_id
+ * Lists users, optionally filtered by tenant_id and/or role
  */
 adminHandler.get('/users', async (c) => {
   const supabase = getSupabaseClient(c.env);
   const tenantId = c.req.query('tenant_id');
+  const role = c.req.query('role');
   
   let query = supabase
     .from('users')
-    .select('*')
+    .select('id, tenant_id, email, display_name, role, account_type, last_login_at, created_at, updated_at')
     .order('created_at', { ascending: false });
   
   if (tenantId) {
     query = query.eq('tenant_id', tenantId);
+  }
+  
+  if (role) {
+    query = query.eq('role', role);
   }
   
   const { data: users, error } = await query;
@@ -303,28 +308,45 @@ adminHandler.get('/users', async (c) => {
   return jsonResponse({ data: users || [] });
 });
 
+// Extended CreateUserInput with password support
+interface CreateUserInputExtended {
+  tenant_id: string;
+  email?: string;
+  display_name: string;
+  role: UserRole;
+  account_type?: string;
+  password?: string;
+}
+
 /**
  * POST /api/admin/users
- * Creates a new user
+ * Creates a new user with optional password
  */
 adminHandler.post('/users', async (c) => {
   const supabase = getSupabaseClient(c.env);
   
-  let input: CreateUserInput;
+  let input: CreateUserInputExtended;
   try {
     input = await c.req.json();
   } catch {
     return errorResponse('INVALID_JSON', 'Request body must be valid JSON', 400);
   }
   
-  if (!input.tenant_id || !input.email || !input.role) {
-    return errorResponse('MISSING_FIELDS', 'tenant_id, email, and role are required', 400);
+  if (!input.tenant_id || !input.display_name || !input.role) {
+    return errorResponse('MISSING_FIELDS', 'tenant_id, display_name, and role are required', 400);
   }
   
-  // Validate role
-  const validRoles: UserRole[] = ['founder', 'brand_admin', 'viewer'];
+  // Validate role (now includes 'member')
+  const validRoles: UserRole[] = ['founder', 'brand_admin', 'member', 'viewer'];
   if (!validRoles.includes(input.role)) {
     return errorResponse('INVALID_ROLE', `Role must be one of: ${validRoles.join(', ')}`, 400);
+  }
+  
+  // Validate account_type if provided
+  const validAccountTypes = ['private', 'company'];
+  const accountType = input.account_type || 'private';
+  if (!validAccountTypes.includes(accountType)) {
+    return errorResponse('INVALID_ACCOUNT_TYPE', `account_type must be one of: ${validAccountTypes.join(', ')}`, 400);
   }
   
   // Verify tenant exists
@@ -338,36 +360,66 @@ adminHandler.post('/users', async (c) => {
     return errorResponse('TENANT_NOT_FOUND', 'Tenant not found', 404);
   }
   
-  // Check if email already exists for this tenant
+  // Check if display_name already exists for this tenant
   const { data: existingUser } = await supabase
     .from('users')
     .select('id')
     .eq('tenant_id', input.tenant_id)
-    .eq('email', input.email)
+    .eq('display_name', input.display_name)
     .single();
   
   if (existingUser) {
-    return errorResponse('USER_EXISTS', 'A user with this email already exists for this tenant', 409);
+    return errorResponse('USER_EXISTS', 'A user with this display name already exists for this tenant', 409);
   }
+  
+  // Hash password if provided
+  let passwordHash: string | null = null;
+  if (input.password) {
+    if (input.password.length < 8) {
+      return errorResponse('INVALID_PASSWORD', 'password must be at least 8 characters', 400);
+    }
+    const bcrypt = await import('bcryptjs');
+    passwordHash = await bcrypt.hash(input.password, 10);
+  }
+  
+  // Generate email if not provided
+  const email = input.email || `${input.display_name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}@zora.local`;
   
   // Create user
   const { data: user, error: userError } = await supabase
     .from('users')
     .insert({
       tenant_id: input.tenant_id,
-      email: input.email,
-      display_name: input.display_name || null,
+      email: email,
+      display_name: input.display_name,
       role: input.role,
+      account_type: accountType,
+      password_hash: passwordHash,
       metadata: {},
     })
-    .select()
+    .select('id, tenant_id, email, display_name, role, account_type, last_login_at, created_at, updated_at')
     .single();
   
   if (userError || !user) {
     return errorResponse('USER_CREATE_FAILED', `Failed to create user: ${userError?.message}`, 500);
   }
   
-  return jsonResponse({ data: user as User }, 201);
+  // Create journal entry
+  await supabase.from('journal_entries').insert({
+    tenant_id: input.tenant_id,
+    category: 'system_event',
+    event_type: 'user_created_by_admin',
+    title: 'User Created by Admin',
+    body: `Admin created user: ${input.display_name} (${input.role})`,
+    details: {
+      user_id: user.id,
+      display_name: input.display_name,
+      role: input.role,
+      account_type: accountType,
+    },
+  });
+  
+  return jsonResponse({ data: user }, 201);
 });
 
 /**
@@ -417,12 +469,13 @@ adminHandler.post('/users/:id/token', async (c) => {
     // No body or invalid JSON, use default expiration
   }
   
-  // Create token
+  // Create token (includes account_type for Auth Backend v1.0)
   const token = await createToken(
     {
       tenant_id: user.tenant_id,
       user_id: user.id,
-      role: user.role as 'founder' | 'brand_admin' | 'viewer',
+      role: user.role as 'founder' | 'brand_admin' | 'member' | 'viewer',
+      account_type: user.account_type || 'private',
     },
     jwtSecret,
     expiresInSeconds

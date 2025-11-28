@@ -20,7 +20,7 @@
 --   - /admin/setup will work correctly
 -- 
 -- Date: 2025-11-28
--- Version: 1.8.0 (Agent Command Console v1 - Prompt-to-Tasks Launcher)
+-- Version: 1.9.0 (Auth Backend v1.0 - Password Login + Roles)
 -- ============================================================================
 
 -- ============================================================================
@@ -122,7 +122,33 @@ BEGIN
         CREATE TYPE user_role AS ENUM (
             'founder',
             'brand_admin',
+            'member',
             'viewer'
+        );
+    END IF;
+END$$;
+
+-- Add 'member' to user_role enum if it doesn't exist
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_enum 
+        WHERE enumtypid = 'user_role'::regtype 
+        AND enumlabel = 'member'
+    ) THEN
+        ALTER TYPE user_role ADD VALUE 'member';
+    END IF;
+EXCEPTION WHEN duplicate_object THEN
+    -- Value already exists
+END$$;
+
+-- Account type enum (private or company)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'account_type') THEN
+        CREATE TYPE account_type AS ENUM (
+            'private',
+            'company'
         );
     END IF;
 END$$;
@@ -175,6 +201,10 @@ CREATE POLICY "Allow all for service role" ON tenants
     WITH CHECK (true);
 
 COMMENT ON TABLE tenants IS 'Multi-tenant registry - organizations, brands, or individuals using ZORA CORE';
+
+-- Add tenant_type column if not exists (Auth Backend v1.0)
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS tenant_type TEXT DEFAULT 'private';
+COMMENT ON COLUMN tenants.tenant_type IS 'Type of tenant: private (individual) or company (organization/brand)';
 
 -- ============================================================================
 -- STEP 5: CREATE USERS TABLE
@@ -229,6 +259,17 @@ CREATE POLICY "Allow all for service role" ON users
     WITH CHECK (true);
 
 COMMENT ON TABLE users IS 'Users belonging to tenants with role-based access';
+
+-- Add account_type column if not exists (Auth Backend v1.0)
+ALTER TABLE users ADD COLUMN IF NOT EXISTS account_type TEXT DEFAULT 'private';
+COMMENT ON COLUMN users.account_type IS 'Type of account: private (individual) or company (organization/brand)';
+
+-- Add password_hash column if not exists (Auth Backend v1.0)
+ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash TEXT;
+COMMENT ON COLUMN users.password_hash IS 'Bcrypt-hashed password for password-based authentication';
+
+-- Add index for display_name lookups (used in login)
+CREATE INDEX IF NOT EXISTS idx_users_display_name ON users(display_name);
 
 -- ============================================================================
 -- STEP 6: CREATE MEMORY_EVENTS TABLE

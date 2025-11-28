@@ -84,7 +84,7 @@ export async function authMiddleware(c: Context<AuthAppEnv>, next: Next) {
  * 
  * Use after authMiddleware to restrict access to specific roles.
  */
-export function requireRole(...roles: Array<'founder' | 'brand_admin' | 'viewer'>) {
+export function requireRole(...roles: Array<'founder' | 'brand_admin' | 'member' | 'viewer'>) {
   return async (c: Context<AuthAppEnv>, next: Next) => {
     const auth = c.get('auth');
     
@@ -99,7 +99,7 @@ export function requireRole(...roles: Array<'founder' | 'brand_admin' | 'viewer'
       );
     }
     
-    if (!roles.includes(auth.role)) {
+    if (!roles.includes(auth.role as 'founder' | 'brand_admin' | 'member' | 'viewer')) {
       return jsonResponse(
         {
           error: 'FORBIDDEN',
