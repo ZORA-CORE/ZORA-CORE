@@ -394,7 +394,7 @@ export default function AgentInsightsPage() {
     );
   }
 
-  const hasWriteAccess = user && canWrite(user.role);
+  const hasWriteAccess = user && canWrite(user);
 
   return (
     <div className="min-h-screen bg-black text-white">
