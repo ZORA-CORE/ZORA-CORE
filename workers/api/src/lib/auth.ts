@@ -8,7 +8,8 @@
 export interface JWTPayload {
   tenant_id: string;
   user_id: string;
-  role: 'founder' | 'brand_admin' | 'viewer';
+  role: 'founder' | 'brand_admin' | 'member' | 'viewer';
+  account_type?: string;  // 'private' or 'company'
   iat: number;  // Issued at (Unix timestamp)
   exp: number;  // Expiration (Unix timestamp)
 }
@@ -16,7 +17,8 @@ export interface JWTPayload {
 export interface AuthContext {
   tenantId: string;
   userId: string;
-  role: 'founder' | 'brand_admin' | 'viewer';
+  role: 'founder' | 'brand_admin' | 'member' | 'viewer';
+  accountType?: string;
 }
 
 export class AuthError extends Error {
@@ -201,6 +203,7 @@ export async function verifyAuthHeader(
     tenantId: payload.tenant_id,
     userId: payload.user_id,
     role: payload.role,
+    accountType: payload.account_type,
   };
 }
 
@@ -209,7 +212,7 @@ export async function verifyAuthHeader(
  */
 export function hasRole(
   context: AuthContext,
-  requiredRoles: Array<'founder' | 'brand_admin' | 'viewer'>
+  requiredRoles: Array<'founder' | 'brand_admin' | 'member' | 'viewer'>
 ): boolean {
   return requiredRoles.includes(context.role);
 }

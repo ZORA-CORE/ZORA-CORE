@@ -12,13 +12,15 @@ export type Bindings = {
   PUBLIC_TENANT_SLUG?: string;
 };
 
-export type UserRole = 'founder' | 'brand_admin' | 'viewer';
+export type UserRole = 'founder' | 'brand_admin' | 'member' | 'viewer';
+export type AccountType = 'private' | 'company';
 
 export interface Tenant {
   id: string;
   name: string;
   slug: string;
   description: string | null;
+  tenant_type: string | null;
   metadata: Record<string, unknown>;
   created_at: string;
   updated_at: string | null;
@@ -30,6 +32,8 @@ export interface User {
   email: string;
   display_name: string | null;
   role: UserRole;
+  account_type: string | null;
+  password_hash?: string;
   metadata: Record<string, unknown>;
   last_login_at: string | null;
   created_at: string;
