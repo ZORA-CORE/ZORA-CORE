@@ -107,6 +107,52 @@ PYTHONPATH=. python -m zora_core.memory.cli config
 PYTHONPATH=. python -m zora_core.memory.cli --backend=supabase demo
 ```
 
+## Cloudflare Workers API Setup
+
+The ZORA CORE API is built with Cloudflare Workers and provides HTTP endpoints for climate profiles, missions, and journal entries.
+
+### 1. Install Dependencies
+
+```bash
+cd workers/api
+npm install
+```
+
+### 2. Configure Environment Variables
+
+Create a `.dev.vars` file in the `workers/api` directory:
+
+```bash
+# workers/api/.dev.vars
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_KEY=your-service-role-key
+```
+
+### 3. Run the API Locally
+
+```bash
+npm run dev
+```
+
+The API will be available at `http://localhost:8787`.
+
+### 4. Test the API
+
+```bash
+# Check status
+curl http://localhost:8787/api/status
+
+# List climate profiles
+curl http://localhost:8787/api/climate/profiles
+
+# Create a climate profile
+curl -X POST http://localhost:8787/api/climate/profiles \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Test Profile", "profile_type": "person"}'
+```
+
+For full API documentation, see [workers/api/README.md](../workers/api/README.md).
+
 ## Frontend Setup
 
 ### 1. Install Dependencies
@@ -153,6 +199,11 @@ ZORA-CORE/
 ├── supabase/                  # Supabase configuration
 │   └── migrations/            # Database migrations
 │       └── 00001_initial_schema.sql
+├── workers/                   # Cloudflare Workers
+│   └── api/                   # ZORA CORE API
+│       ├── src/               # TypeScript source
+│       ├── wrangler.toml      # Cloudflare config
+│       └── README.md          # API documentation
 ├── tests/                     # Test suite
 │   ├── agents/                # Agent tests
 │   └── memory/                # Memory backend tests
@@ -289,4 +340,4 @@ PYTHONPATH=. python -m zora_core.memory.cli demo
 
 ---
 
-*ZORA CORE Developer Setup Guide - Iteration 0002*
+*ZORA CORE Developer Setup Guide - Iteration 0003*

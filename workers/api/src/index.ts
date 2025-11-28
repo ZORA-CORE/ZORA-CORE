@@ -1,0 +1,59 @@
+import { Hono } from 'hono';
+import { cors } from 'hono/cors';
+import type { AppEnv } from './types';
+import statusHandler from './handlers/status';
+import profilesHandler from './handlers/profiles';
+import missionsHandler from './handlers/missions';
+import journalHandler from './handlers/journal';
+
+const app = new Hono<AppEnv>();
+
+app.use('*', cors({
+  origin: '*',
+  allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowHeaders: ['Content-Type', 'Authorization'],
+}));
+
+app.get('/', (c) => {
+  return c.json({
+    name: 'ZORA CORE API',
+    version: '0.3.0',
+    docs: '/api/status',
+    endpoints: [
+      'GET /api/status',
+      'GET /api/climate/profiles',
+      'GET /api/climate/profiles/:id',
+      'POST /api/climate/profiles',
+      'PUT /api/climate/profiles/:id',
+      'GET /api/climate/profiles/:id/missions',
+      'POST /api/climate/profiles/:id/missions',
+      'PATCH /api/missions/:id',
+      'GET /api/journal',
+    ],
+  });
+});
+
+app.route('/api/status', statusHandler);
+app.route('/api/climate/profiles', profilesHandler);
+app.route('/api/climate', missionsHandler);
+app.route('/api/missions', missionsHandler);
+app.route('/api/journal', journalHandler);
+
+app.notFound((c) => {
+  return c.json({
+    error: 'NOT_FOUND',
+    message: 'The requested endpoint does not exist',
+    status: 404,
+  }, 404);
+});
+
+app.onError((err, c) => {
+  console.error('Unhandled error:', err);
+  return c.json({
+    error: 'INTERNAL_ERROR',
+    message: 'An unexpected error occurred',
+    status: 500,
+  }, 500);
+});
+
+export default app;
