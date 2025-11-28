@@ -424,30 +424,53 @@ class OracleAgent(BaseAgent):
             )
 
     async def _handle_propose_climate_missions(self, task: Any, ctx: Any) -> Any:
-        """Propose new climate missions based on research."""
+        """Propose new climate missions based on research and create agent insights."""
         from ...autonomy.runtime import AgentTaskResult
+        import json
         
         focus_area = task.payload.get("focus_area", "general")
         
+        # Fetch existing climate profiles and missions for context
+        profiles = await ctx.get_climate_profiles(limit=20)
+        existing_missions = await ctx.get_climate_missions(limit=50)
+        
+        # Build context about existing data
+        profile_summary = f"{len(profiles)} climate profiles" if profiles else "No climate profiles yet"
+        existing_categories = set()
+        for m in existing_missions:
+            if m.get("category"):
+                existing_categories.add(m["category"])
+        existing_categories_str = ", ".join(existing_categories) if existing_categories else "none"
+        
         prompt = f"""You are ORACLE, the Research & Foresight Engine for ZORA CORE.
 
-Based on current climate science and best practices, propose 3-5 new climate missions for the "{focus_area}" focus area.
+Current tenant context:
+- {profile_summary}
+- {len(existing_missions)} existing climate missions
+- Existing mission categories: {existing_categories_str}
 
-For each mission, provide:
-1. Title - A clear, actionable mission name
-2. Description - What the mission involves
-3. Category - (energy, transport, food, consumption, advocacy)
-4. Estimated Impact - Approximate CO2 reduction in kg/year
-5. Difficulty - (easy, medium, hard)
-6. Time to Complete - Estimated duration
+Based on current climate science and best practices, propose 3-5 NEW climate missions for the "{focus_area}" focus area.
+Avoid duplicating existing missions. Focus on gaps and opportunities.
+
+Return your response as a JSON array with this structure:
+[
+  {{
+    "title": "Clear, actionable mission name",
+    "description": "What the mission involves and why it matters",
+    "category": "energy|transport|food|consumption|advocacy|products",
+    "impact_kgco2": 100,
+    "difficulty": "easy|medium|hard",
+    "duration": "1 week|1 month|3 months|ongoing"
+  }}
+]
 
 Focus on:
 - Practical, achievable actions
-- Measurable impact where possible
+- Measurable impact where possible (kg CO2 per year)
 - No greenwashing - be honest about limitations
 - Actions that align with ZORA CORE's climate-first values
 
-Speak with wisdom and foresight, as befitting ORACLE.
+Return ONLY the JSON array, no other text.
 """
         
         response = await self.call_model(
@@ -455,7 +478,76 @@ Speak with wisdom and foresight, as befitting ORACLE.
             prompt=prompt,
         )
         
-        summary = f"Proposed climate missions for {focus_area}: {response[:200]}..."
+        # Parse the LLM response to extract mission suggestions
+        insights_created = 0
+        try:
+            # Try to parse JSON from response
+            response_clean = response.strip()
+            if response_clean.startswith("```"):
+                # Remove markdown code blocks if present
+                lines = response_clean.split("\n")
+                response_clean = "\n".join(lines[1:-1] if lines[-1] == "```" else lines[1:])
+            
+            missions = json.loads(response_clean)
+            
+            if isinstance(missions, list):
+                for mission in missions[:5]:  # Limit to 5 suggestions
+                    title = mission.get("title", "Untitled Mission")
+                    description = mission.get("description", "")
+                    category = mission.get("category", "general")
+                    impact = mission.get("impact_kgco2")
+                    difficulty = mission.get("difficulty", "medium")
+                    duration = mission.get("duration", "1 month")
+                    
+                    # Build the insight body with full details
+                    body = f"""## {title}
+
+{description}
+
+**Category:** {category}
+**Difficulty:** {difficulty}
+**Duration:** {duration}
+**Estimated Impact:** {impact} kg CO2/year
+
+---
+*Proposed by ORACLE based on climate science research and gap analysis.*
+"""
+                    
+                    # Create the agent insight
+                    insight_id = await ctx.create_agent_insight(
+                        agent_id="ORACLE",
+                        category="climate_mission_suggestion",
+                        title=title,
+                        body=body,
+                        source_task_id=task.id,
+                        related_entity_type="climate_mission",
+                        impact_estimate_kgco2=float(impact) if impact else None,
+                        metadata={
+                            "category": category,
+                            "difficulty": difficulty,
+                            "duration": duration,
+                            "focus_area": focus_area,
+                        },
+                    )
+                    
+                    if insight_id:
+                        insights_created += 1
+                        
+        except json.JSONDecodeError as e:
+            self.logger.warning(f"Failed to parse LLM response as JSON: {e}")
+            # Fallback: create a single insight with the raw response
+            await ctx.create_agent_insight(
+                agent_id="ORACLE",
+                category="climate_mission_suggestion",
+                title=f"Climate mission suggestions for {focus_area}",
+                body=response,
+                source_task_id=task.id,
+                related_entity_type="climate_mission",
+                metadata={"focus_area": focus_area, "raw_response": True},
+            )
+            insights_created = 1
+        
+        summary = f"Proposed {insights_created} new climate mission(s) for {focus_area}. Insights stored for review in Agent Insights."
         
         return AgentTaskResult(
             status="completed",
@@ -463,7 +555,7 @@ Speak with wisdom and foresight, as befitting ORACLE.
         )
 
     async def _handle_research_topic(self, task: Any, ctx: Any) -> Any:
-        """Research a specific topic."""
+        """Research a specific topic and create an insight."""
         from ...autonomy.runtime import AgentTaskResult
         
         topic = task.payload.get("topic", task.title)
@@ -471,7 +563,42 @@ Speak with wisdom and foresight, as befitting ORACLE.
         
         findings = await self.research(topic, depth=depth)
         
-        summary = f"Research on '{topic}': {findings['summary']}. Key insights: {len(findings['key_insights'])}"
+        # Build insight body from research findings
+        body = f"""## Research: {topic}
+
+**Depth:** {depth}
+**Confidence:** {findings.get('confidence', 0) * 100:.0f}%
+
+### Summary
+{findings.get('summary', 'No summary available.')}
+
+### Key Insights
+"""
+        for insight in findings.get('key_insights', []):
+            body += f"- {insight}\n"
+        
+        body += "\n### Recommendations\n"
+        for rec in findings.get('recommendations', []):
+            body += f"- {rec}\n"
+        
+        body += "\n---\n*Research conducted by ORACLE.*"
+        
+        # Create agent insight
+        await ctx.create_agent_insight(
+            agent_id="ORACLE",
+            category="plan",
+            title=f"Research: {topic}",
+            body=body,
+            source_task_id=task.id,
+            metadata={
+                "topic": topic,
+                "depth": depth,
+                "confidence": findings.get('confidence', 0),
+                "key_insights_count": len(findings.get('key_insights', [])),
+            },
+        )
+        
+        summary = f"Research on '{topic}': {findings['summary']}. Key insights: {len(findings['key_insights'])}. Insight stored for review."
         
         return AgentTaskResult(
             status="completed",

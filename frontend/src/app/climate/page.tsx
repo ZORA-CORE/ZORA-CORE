@@ -12,6 +12,7 @@ import {
   bootstrapMissions,
   setProfileAsPrimary,
   getFrontendConfig,
+  createAgentTask,
   ZoraApiError,
 } from "@/lib/api";
 import type {
@@ -1010,9 +1011,45 @@ export default function ClimatePage() {
     }, 0),
   };
 
-  const [bootstrapping, setBootstrapping] = useState(false);
+    const [bootstrapping, setBootstrapping] = useState(false);
+    const [askingOracle, setAskingOracle] = useState(false);
+    const [oracleMessage, setOracleMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  const handleBootstrapMissions = async () => {
+    const handleAskOracle = async () => {
+      if (!selectedProfile) return;
+      try {
+        setAskingOracle(true);
+        setOracleMessage(null);
+        await createAgentTask({
+          agent_id: "ORACLE",
+          task_type: "propose_new_climate_missions",
+          title: `Suggest climate missions for ${selectedProfile.name}`,
+          description: `ORACLE should analyze the profile "${selectedProfile.name}" (scope: ${selectedProfile.scope}) and suggest new climate missions tailored to their situation.`,
+          payload: {
+            profile_id: selectedProfile.id,
+            profile_name: selectedProfile.name,
+            profile_scope: selectedProfile.scope,
+            country: selectedProfile.country,
+            sector: selectedProfile.sector,
+          },
+          priority: 1,
+        });
+        setOracleMessage({
+          type: "success",
+          text: "ORACLE task created! Check /admin/agents/insights soon for new mission suggestions.",
+        });
+      } catch (err) {
+        console.error("Failed to ask ORACLE:", err);
+        setOracleMessage({
+          type: "error",
+          text: err instanceof Error ? err.message : "Failed to create ORACLE task",
+        });
+      } finally {
+        setAskingOracle(false);
+      }
+    };
+
+    const handleBootstrapMissions = async () => {
     if (!selectedProfile) return;
     try {
       setBootstrapping(true);
@@ -1115,19 +1152,65 @@ export default function ClimatePage() {
                 </div>
               )}
 
-              {config.show_missions_section && (
-                <div className="mb-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-xl font-semibold">
-                      Missions for {selectedProfile.name}
-                    </h2>
-                    <button
-                      onClick={() => setShowCreateMission(true)}
-                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 rounded text-white transition-colors"
-                    >
-                      + New Mission
-                    </button>
-                  </div>
+                            {config.show_missions_section && (
+                              <div className="mb-6">
+                                <div className="flex items-center justify-between mb-4">
+                                  <h2 className="text-xl font-semibold">
+                                    Missions for {selectedProfile.name}
+                                  </h2>
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      onClick={handleAskOracle}
+                                      disabled={askingOracle}
+                                      className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded text-white transition-colors flex items-center gap-2"
+                                      title="Ask ORACLE to suggest new climate missions"
+                                    >
+                                      {askingOracle ? (
+                                        <>
+                                          <span className="animate-spin">&#9696;</span>
+                                          Asking...
+                                        </>
+                                      ) : (
+                                        <>
+                                          <span>&#9733;</span>
+                                          Ask ORACLE
+                                        </>
+                                      )}
+                                    </button>
+                                    <button
+                                      onClick={() => setShowCreateMission(true)}
+                                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 rounded text-white transition-colors"
+                                    >
+                                      + New Mission
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {oracleMessage && (
+                                  <div
+                                    className={`mb-4 p-3 rounded border ${
+                                      oracleMessage.type === "success"
+                                        ? "bg-emerald-900/20 border-emerald-800 text-emerald-400"
+                                        : "bg-red-900/20 border-red-800 text-red-400"
+                                    }`}
+                                  >
+                                    {oracleMessage.text}
+                                    {oracleMessage.type === "success" && (
+                                      <Link
+                                        href="/admin/agents/insights"
+                                        className="ml-2 underline hover:no-underline"
+                                      >
+                                        View Insights
+                                      </Link>
+                                    )}
+                                    <button
+                                      onClick={() => setOracleMessage(null)}
+                                      className="float-right text-sm opacity-70 hover:opacity-100"
+                                    >
+                                      Dismiss
+                                    </button>
+                                  </div>
+                                )}
 
                   {showCreateMission && (
                     <div className="mb-4">

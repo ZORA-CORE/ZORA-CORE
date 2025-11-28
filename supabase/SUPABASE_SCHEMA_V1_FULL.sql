@@ -14,12 +14,12 @@
 -- After running:
 --   - All required tables will exist: tenants, users, memory_events, 
 --     journal_entries, climate_profiles, climate_missions, frontend_configs,
---     agent_suggestions, brands, products, product_brands, agent_tasks
+--     agent_suggestions, brands, products, product_brands, agent_tasks, agent_insights
 --   - The search_memories_by_embedding function will be correctly defined
 --   - /admin/setup will work correctly
 -- 
 -- Date: 2025-11-28
--- Version: 1.6.0 (Agent Runtime v1 - Task Queue)
+-- Version: 1.7.0 (Agent Insights v1 - Domain-Specific Intelligence)
 -- ============================================================================
 
 -- ============================================================================
@@ -911,7 +911,72 @@ CREATE POLICY "Allow all for service role" ON agent_tasks
 COMMENT ON TABLE agent_tasks IS 'Agent task queue - stores tasks for the 6 core agents to process via Agent Runtime v1';
 
 -- ============================================================================
--- STEP 16: FIX DUPLICATE search_memories_by_embedding FUNCTIONS
+-- STEP 16: CREATE AGENT_INSIGHTS TABLE
+-- ============================================================================
+-- Agent insights store structured, actionable suggestions from agents
+-- tied to Climate OS, Mashup Shop, and frontend domains
+
+-- Agent insight status enum
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'agent_insight_status') THEN
+        CREATE TYPE agent_insight_status AS ENUM (
+            'proposed',
+            'accepted',
+            'rejected',
+            'implemented'
+        );
+    END IF;
+END$$;
+
+CREATE TABLE IF NOT EXISTS agent_insights (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ,
+    agent_id VARCHAR(50) NOT NULL CHECK (agent_id IN ('CONNOR', 'LUMINA', 'EIVOR', 'ORACLE', 'AEGIS', 'SAM')),
+    source_task_id UUID REFERENCES agent_tasks(id) ON DELETE SET NULL,
+    category VARCHAR(100) NOT NULL,
+    title VARCHAR(500) NOT NULL,
+    body TEXT,
+    status agent_insight_status NOT NULL DEFAULT 'proposed',
+    related_entity_type VARCHAR(100),
+    related_entity_ref VARCHAR(500),
+    impact_estimate_kgco2 NUMERIC,
+    metadata JSONB DEFAULT '{}'
+);
+
+-- Indexes for agent_insights
+CREATE INDEX IF NOT EXISTS idx_agent_insights_tenant ON agent_insights(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_agent_insights_agent ON agent_insights(agent_id);
+CREATE INDEX IF NOT EXISTS idx_agent_insights_category ON agent_insights(category);
+CREATE INDEX IF NOT EXISTS idx_agent_insights_status ON agent_insights(status);
+CREATE INDEX IF NOT EXISTS idx_agent_insights_source_task ON agent_insights(source_task_id);
+CREATE INDEX IF NOT EXISTS idx_agent_insights_tenant_category_status ON agent_insights(tenant_id, category, status);
+CREATE INDEX IF NOT EXISTS idx_agent_insights_agent_status ON agent_insights(agent_id, status);
+CREATE INDEX IF NOT EXISTS idx_agent_insights_created_at ON agent_insights(created_at DESC);
+
+-- Trigger for updated_at
+DROP TRIGGER IF EXISTS update_agent_insights_updated_at ON agent_insights;
+CREATE TRIGGER update_agent_insights_updated_at
+    BEFORE UPDATE ON agent_insights
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Enable RLS
+ALTER TABLE agent_insights ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy
+DROP POLICY IF EXISTS "Allow all for service role" ON agent_insights;
+CREATE POLICY "Allow all for service role" ON agent_insights
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE agent_insights IS 'Agent insights - structured, actionable suggestions from agents for Climate OS, Mashup Shop, and frontend';
+
+-- ============================================================================
+-- STEP 17: FIX DUPLICATE search_memories_by_embedding FUNCTIONS
 -- ============================================================================
 -- This is the critical fix for ERROR 42725: function name is not unique
 
@@ -1020,11 +1085,11 @@ DECLARE
     table_count INTEGER;
     function_count INTEGER;
 BEGIN
-    -- Count required tables (now 12 with agent_tasks for Agent Runtime v1)
+    -- Count required tables (now 13 with agent_insights for Agent Insights v1)
     SELECT COUNT(*) INTO table_count
     FROM information_schema.tables 
     WHERE table_schema = 'public' 
-    AND table_name IN ('tenants', 'users', 'memory_events', 'journal_entries', 'climate_profiles', 'climate_missions', 'frontend_configs', 'agent_suggestions', 'brands', 'products', 'product_brands', 'agent_tasks');
+    AND table_name IN ('tenants', 'users', 'memory_events', 'journal_entries', 'climate_profiles', 'climate_missions', 'frontend_configs', 'agent_suggestions', 'brands', 'products', 'product_brands', 'agent_tasks', 'agent_insights');
     
     -- Count search_memories_by_embedding functions (should be exactly 1)
     SELECT COUNT(*) INTO function_count
@@ -1032,10 +1097,10 @@ BEGIN
     WHERE proname = 'search_memories_by_embedding';
     
     RAISE NOTICE '=== ZORA CORE Schema Verification ===';
-    RAISE NOTICE 'Required tables found: % of 12', table_count;
+    RAISE NOTICE 'Required tables found: % of 13', table_count;
     RAISE NOTICE 'search_memories_by_embedding functions: % (should be 1)', function_count;
     
-    IF table_count = 12 AND function_count = 1 THEN
+    IF table_count = 13 AND function_count = 1 THEN
         RAISE NOTICE 'Schema is correctly configured!';
     ELSE
         RAISE WARNING 'Schema may have issues. Please check the tables and functions.';

@@ -478,3 +478,46 @@ export interface AgentTaskFilters {
   status?: AgentTaskStatus;
   task_type?: string;
 }
+
+// Agent Insights v1 types (Iteration 0022)
+export type AgentInsightStatus = 'proposed' | 'accepted' | 'rejected' | 'implemented';
+
+export interface AgentInsight {
+  id: string;
+  tenant_id: string;
+  created_at: string;
+  updated_at: string | null;
+  agent_id: string;
+  source_task_id: string | null;
+  category: string;
+  title: string;
+  body: string | null;
+  status: AgentInsightStatus;
+  related_entity_type: string | null;
+  related_entity_ref: string | null;
+  impact_estimate_kgco2: number | null;
+  metadata: Record<string, unknown>;
+}
+
+export interface AgentInsightListItem {
+  id: string;
+  agent_id: string;
+  category: string;
+  title: string;
+  status: AgentInsightStatus;
+  related_entity_type: string | null;
+  impact_estimate_kgco2: number | null;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface AgentInsightDecisionInput {
+  decision: 'accept' | 'reject';
+  reason?: string;
+}
+
+export interface AgentInsightFilters {
+  agent_id?: string;
+  status?: AgentInsightStatus;
+  category?: string;
+}

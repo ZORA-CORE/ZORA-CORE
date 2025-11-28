@@ -207,6 +207,118 @@ class AgentRuntimeContext:
             self.logger.error(f"Failed to get recent agent tasks: {e}")
             return []
 
+    async def create_agent_insight(
+        self,
+        *,
+        agent_id: str,
+        category: str,
+        title: str,
+        body: str = "",
+        source_task_id: Optional[str] = None,
+        related_entity_type: Optional[str] = None,
+        related_entity_ref: Optional[str] = None,
+        impact_estimate_kgco2: Optional[float] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> Optional[str]:
+        """
+        Create an agent insight record.
+        
+        Agent insights are structured, actionable suggestions from agents
+        tied to Climate OS, Mashup Shop, and frontend domains.
+        
+        Args:
+            agent_id: The agent creating the insight (CONNOR, LUMINA, etc.)
+            category: Insight category (climate_mission_suggestion, frontend_improvement, etc.)
+            title: Short human-readable title
+            body: Longer markdown/text description
+            source_task_id: Optional FK to agent_tasks.id
+            related_entity_type: e.g. climate_profile, climate_mission, frontend_page
+            related_entity_ref: Flexible reference like "profile:<uuid>", "page:home"
+            impact_estimate_kgco2: For climate-related insights
+            metadata: Any extra structured data
+            
+        Returns:
+            The insight ID or None on failure.
+        """
+        try:
+            insert_data = {
+                "tenant_id": self.tenant_id,
+                "agent_id": agent_id,
+                "category": category,
+                "title": title,
+                "body": body,
+                "status": "proposed",
+                "metadata": metadata or {},
+            }
+            
+            if source_task_id:
+                insert_data["source_task_id"] = source_task_id
+            if related_entity_type:
+                insert_data["related_entity_type"] = related_entity_type
+            if related_entity_ref:
+                insert_data["related_entity_ref"] = related_entity_ref
+            if impact_estimate_kgco2 is not None:
+                insert_data["impact_estimate_kgco2"] = impact_estimate_kgco2
+            
+            result = self.supabase.table("agent_insights").insert(insert_data).execute()
+            
+            if result.data and len(result.data) > 0:
+                insight_id = result.data[0]["id"]
+                self.logger.info(f"Created agent insight {insight_id}: {category}/{title}")
+                return insight_id
+            return None
+        except Exception as e:
+            self.logger.error(f"Failed to create agent insight: {e}")
+            return None
+
+    async def get_climate_profiles(self, limit: int = 50) -> List[Dict[str, Any]]:
+        """Get climate profiles for the tenant."""
+        try:
+            result = (
+                self.supabase.table("climate_profiles")
+                .select("*")
+                .eq("tenant_id", self.tenant_id)
+                .limit(limit)
+                .execute()
+            )
+            return result.data or []
+        except Exception as e:
+            self.logger.error(f"Failed to get climate profiles: {e}")
+            return []
+
+    async def get_climate_missions(self, limit: int = 100) -> List[Dict[str, Any]]:
+        """Get climate missions for the tenant."""
+        try:
+            result = (
+                self.supabase.table("climate_missions")
+                .select("*")
+                .eq("tenant_id", self.tenant_id)
+                .limit(limit)
+                .execute()
+            )
+            return result.data or []
+        except Exception as e:
+            self.logger.error(f"Failed to get climate missions: {e}")
+            return []
+
+    async def get_frontend_config(self, page_key: str) -> Optional[Dict[str, Any]]:
+        """Get frontend config for a specific page."""
+        try:
+            result = (
+                self.supabase.table("frontend_configs")
+                .select("*")
+                .eq("tenant_id", self.tenant_id)
+                .eq("page_key", page_key)
+                .limit(1)
+                .execute()
+            )
+            if result.data and len(result.data) > 0:
+                return result.data[0]
+            return None
+        except Exception as e:
+            self.logger.error(f"Failed to get frontend config for {page_key}: {e}")
+            return None
+
 
 # =============================================================================
 # Agent Runtime

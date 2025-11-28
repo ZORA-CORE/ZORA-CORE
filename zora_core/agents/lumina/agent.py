@@ -407,26 +407,32 @@ class LuminaAgent(BaseAgent):
             )
 
     async def _handle_plan_frontend_improvements(self, task: Any, ctx: Any) -> Any:
-        """Plan frontend improvements for a page."""
+        """Plan frontend improvements for a page, creating insights."""
         from ...autonomy.runtime import AgentTaskResult
+        import json
         
         page = task.payload.get("page", "dashboard")
         
         prompt = f"""You are LUMINA, the Planner/Orchestrator for ZORA CORE.
         
-Analyze the frontend page "{page}" and suggest 3-5 improvements that would enhance:
+Analyze the frontend page "{page}" and suggest 3-5 improvements as a JSON array:
+[
+  {{
+    "title": "Improvement title",
+    "description": "What to change and why",
+    "impact": "low|medium|high",
+    "assignee": "SAM|CONNOR",
+    "category": "ux|climate_messaging|visual|accessibility"
+  }}
+]
+
+Focus on:
 1. User experience and usability
 2. Climate-first messaging and engagement
 3. Visual clarity and information hierarchy
 4. Accessibility and responsiveness
 
-For each improvement, provide:
-- A clear title
-- A brief description of the change
-- Expected impact (low/medium/high)
-- Which agent should implement it (SAM for frontend, CONNOR for backend)
-
-Keep suggestions practical and aligned with ZORA CORE's climate-first mission.
+Return ONLY the JSON array, no other text.
 """
         
         response = await self.call_model(
@@ -434,7 +440,69 @@ Keep suggestions practical and aligned with ZORA CORE's climate-first mission.
             prompt=prompt,
         )
         
-        summary = f"Planned {page} improvements: {response[:200]}..."
+        # Parse and create insights
+        insights_created = 0
+        try:
+            response_clean = response.strip()
+            if response_clean.startswith("```"):
+                lines = response_clean.split("\n")
+                response_clean = "\n".join(lines[1:-1] if lines[-1] == "```" else lines[1:])
+            
+            improvements = json.loads(response_clean)
+            
+            if isinstance(improvements, list):
+                for imp in improvements[:5]:
+                    title = imp.get("title", "Frontend Improvement")
+                    description = imp.get("description", "")
+                    impact = imp.get("impact", "medium")
+                    assignee = imp.get("assignee", "SAM")
+                    category = imp.get("category", "ux")
+                    
+                    body = f"""## {title}
+
+{description}
+
+**Impact:** {impact}
+**Assignee:** {assignee}
+**Category:** {category}
+**Page:** {page}
+
+---
+*Planned by LUMINA for coordinated implementation.*
+"""
+                    
+                    await ctx.create_agent_insight(
+                        agent_id="LUMINA",
+                        category="plan",
+                        title=title,
+                        body=body,
+                        source_task_id=task.id,
+                        related_entity_type="frontend_page",
+                        related_entity_ref=f"page:{page}",
+                        metadata={
+                            "impact": impact,
+                            "assignee": assignee,
+                            "improvement_category": category,
+                            "page": page,
+                        },
+                    )
+                    insights_created += 1
+                    
+        except json.JSONDecodeError:
+            # Fallback: create single insight with raw response
+            await ctx.create_agent_insight(
+                agent_id="LUMINA",
+                category="plan",
+                title=f"Frontend Improvement Plan: {page}",
+                body=response,
+                source_task_id=task.id,
+                related_entity_type="frontend_page",
+                related_entity_ref=f"page:{page}",
+                metadata={"page": page, "raw_response": True},
+            )
+            insights_created = 1
+        
+        summary = f"Planned {page} improvements: Created {insights_created} plan insight(s). Review in Agent Insights."
         
         return AgentTaskResult(
             status="completed",
@@ -442,14 +510,44 @@ Keep suggestions practical and aligned with ZORA CORE's climate-first mission.
         )
 
     async def _handle_plan_workflow(self, task: Any, ctx: Any) -> Any:
-        """Create a workflow plan for a goal."""
+        """Create a workflow plan for a goal, creating an insight."""
         from ...autonomy.runtime import AgentTaskResult
         
         goal = task.payload.get("goal", task.title)
         
         plan = await self.plan(goal, {"source": "agent_runtime"})
         
-        summary = f"Created workflow plan '{plan.plan_id}' with {len(plan.steps)} steps for: {goal}"
+        # Build insight body from plan
+        body = f"""## Workflow Plan: {goal}
+
+**Plan ID:** {plan.plan_id}
+**Total Steps:** {len(plan.steps)}
+**Risk Level:** {plan.risk_level.value}
+**Estimated Duration:** {plan.estimated_duration}
+
+### Steps
+"""
+        for i, step in enumerate(plan.steps, 1):
+            body += f"{i}. **{step.description}** (Assignee: {step.assignee})\n"
+        
+        body += "\n---\n*Workflow planned by LUMINA.*"
+        
+        # Create insight
+        await ctx.create_agent_insight(
+            agent_id="LUMINA",
+            category="plan",
+            title=f"Workflow: {goal[:100]}",
+            body=body,
+            source_task_id=task.id,
+            metadata={
+                "plan_id": plan.plan_id,
+                "steps_count": len(plan.steps),
+                "risk_level": plan.risk_level.value,
+                "goal": goal,
+            },
+        )
+        
+        summary = f"Created workflow plan '{plan.plan_id}' with {len(plan.steps)} steps for: {goal}. Insight stored for review."
         
         return AgentTaskResult(
             status="completed",

@@ -40,6 +40,13 @@ import type {
   AgentTasksListResponse,
   AgentTaskResponse,
   AgentTaskStatus,
+  AgentInsight,
+  AgentInsightListItem,
+  AgentInsightDecisionInput,
+  AgentInsightsListResponse,
+  AgentInsightResponse,
+  AgentInsightStatus,
+  AgentInsightCategory,
 } from './types';
 import { getToken, clearToken } from './auth';
 
@@ -511,6 +518,41 @@ export async function createAgentTask(input: CreateAgentTaskInput): Promise<Agen
   });
 }
 
+// Agent Insights API functions (v0.22)
+export async function getAgentInsights(params?: {
+  agent_id?: string;
+  status?: AgentInsightStatus;
+  category?: AgentInsightCategory;
+  limit?: number;
+  offset?: number;
+}): Promise<AgentInsightsListResponse> {
+  const searchParams = new URLSearchParams();
+  if (params?.agent_id) searchParams.set('agent_id', params.agent_id);
+  if (params?.status) searchParams.set('status', params.status);
+  if (params?.category) searchParams.set('category', params.category);
+  if (params?.limit) searchParams.set('limit', params.limit.toString());
+  if (params?.offset) searchParams.set('offset', params.offset.toString());
+
+  const query = searchParams.toString();
+  return request<AgentInsightsListResponse>(
+    `/api/agents/insights${query ? `?${query}` : ''}`
+  );
+}
+
+export async function getAgentInsight(id: string): Promise<AgentInsightResponse> {
+  return request<AgentInsightResponse>(`/api/agents/insights/${id}`);
+}
+
+export async function decideAgentInsight(
+  id: string,
+  input: AgentInsightDecisionInput
+): Promise<AgentInsightResponse> {
+  return request<AgentInsightResponse>(`/api/agents/insights/${id}/decision`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
 export const api = {
   getStatus,
   getClimateProfiles,
@@ -553,6 +595,10 @@ export const api = {
   getAgentTasks,
   getAgentTask,
   createAgentTask,
+  // Agent Insights API (v0.22)
+  getAgentInsights,
+  getAgentInsight,
+  decideAgentInsight,
 };
 
 export default api;

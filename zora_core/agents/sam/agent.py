@@ -514,35 +514,39 @@ class SamAgent(BaseAgent):
             )
 
     async def _handle_review_climate_page(self, task: Any, ctx: Any) -> Any:
-        """Review and suggest UX improvements for climate pages."""
+        """Review and suggest UX improvements for climate pages, creating insights."""
         from ...autonomy.runtime import AgentTaskResult
+        import json
         
         page = task.payload.get("page", "climate")
         
+        # Fetch frontend config for context
+        frontend_config = await ctx.get_frontend_config(page)
+        config_summary = f"Current config: {json.dumps(frontend_config.get('config', {}))[:200]}..." if frontend_config else "No config found"
+        
         prompt = f"""You are SAM, the Frontend & Experience Architect for ZORA CORE.
 
-Review the "{page}" page from a UX perspective and provide:
+Review the "{page}" page from a UX perspective.
 
-1. Visual Design Assessment
-   - Color usage and contrast
-   - Typography hierarchy
-   - Spacing and layout balance
+{config_summary}
 
-2. User Experience Analysis
-   - Information architecture
-   - Call-to-action clarity
-   - User flow efficiency
+Provide 3-5 specific, actionable improvements as a JSON array:
+[
+  {{
+    "title": "Short improvement title",
+    "description": "Detailed description of the improvement and why it matters",
+    "priority": "high|medium|low",
+    "category": "visual_design|user_experience|climate_messaging|accessibility"
+  }}
+]
 
-3. Climate-First Messaging
-   - How well does the page communicate climate impact?
-   - Are sustainability metrics clear and engaging?
-   - Does it inspire action without greenwashing?
+Focus on:
+- Visual Design: Color usage, typography, spacing
+- User Experience: Information architecture, CTAs, user flow
+- Climate-First Messaging: Clear impact communication, no greenwashing
+- Accessibility: WCAG compliance, keyboard navigation
 
-4. Specific Recommendations
-   - List 3-5 concrete improvements
-   - Prioritize by impact (high/medium/low)
-
-Keep suggestions practical and aligned with ZORA CORE's climate-first, accessible design principles.
+Return ONLY the JSON array, no other text.
 """
         
         response = await self.call_model(
@@ -550,7 +554,66 @@ Keep suggestions practical and aligned with ZORA CORE's climate-first, accessibl
             prompt=prompt,
         )
         
-        summary = f"UX review for {page}: {response[:200]}..."
+        # Parse and create insights
+        insights_created = 0
+        try:
+            response_clean = response.strip()
+            if response_clean.startswith("```"):
+                lines = response_clean.split("\n")
+                response_clean = "\n".join(lines[1:-1] if lines[-1] == "```" else lines[1:])
+            
+            improvements = json.loads(response_clean)
+            
+            if isinstance(improvements, list):
+                for imp in improvements[:5]:
+                    title = imp.get("title", "UX Improvement")
+                    description = imp.get("description", "")
+                    priority = imp.get("priority", "medium")
+                    category = imp.get("category", "user_experience")
+                    
+                    body = f"""## {title}
+
+{description}
+
+**Priority:** {priority}
+**Category:** {category}
+**Page:** {page}
+
+---
+*Suggested by SAM based on UX analysis.*
+"""
+                    
+                    await ctx.create_agent_insight(
+                        agent_id="SAM",
+                        category="frontend_improvement",
+                        title=title,
+                        body=body,
+                        source_task_id=task.id,
+                        related_entity_type="frontend_page",
+                        related_entity_ref=f"page:{page}",
+                        metadata={
+                            "priority": priority,
+                            "improvement_category": category,
+                            "page": page,
+                        },
+                    )
+                    insights_created += 1
+                    
+        except json.JSONDecodeError:
+            # Fallback: create single insight with raw response
+            await ctx.create_agent_insight(
+                agent_id="SAM",
+                category="frontend_improvement",
+                title=f"UX Review: {page} page",
+                body=response,
+                source_task_id=task.id,
+                related_entity_type="frontend_page",
+                related_entity_ref=f"page:{page}",
+                metadata={"page": page, "raw_response": True},
+            )
+            insights_created = 1
+        
+        summary = f"UX review for {page}: Created {insights_created} improvement suggestion(s). Review in Agent Insights."
         
         return AgentTaskResult(
             status="completed",
@@ -558,14 +621,54 @@ Keep suggestions practical and aligned with ZORA CORE's climate-first, accessibl
         )
 
     async def _handle_review_accessibility(self, task: Any, ctx: Any) -> Any:
-        """Check accessibility compliance for a page or component."""
+        """Check accessibility compliance for a page or component, creating insights."""
         from ...autonomy.runtime import AgentTaskResult
         
         target = task.payload.get("target", "dashboard")
         
         report = await self.check_accessibility(target)
         
-        summary = f"Accessibility review for {target}: WCAG {report['wcag_level']}, Score: {report['score']}/100"
+        # Build insight body from accessibility report
+        body = f"""## Accessibility Review: {target}
+
+**WCAG Level:** {report['wcag_level']}
+**Score:** {report['score']}/100
+
+### Passed Checks
+"""
+        for check in report.get('passed_checks', []):
+            body += f"- {check.replace('_', ' ').title()}\n"
+        
+        if report.get('issues'):
+            body += "\n### Issues Found\n"
+            for issue in report['issues']:
+                body += f"- {issue}\n"
+        
+        if report.get('warnings'):
+            body += "\n### Warnings\n"
+            for warning in report['warnings']:
+                body += f"- {warning}\n"
+        
+        body += "\n---\n*Accessibility audit by SAM.*"
+        
+        # Create insight
+        await ctx.create_agent_insight(
+            agent_id="SAM",
+            category="frontend_improvement",
+            title=f"Accessibility Audit: {target}",
+            body=body,
+            source_task_id=task.id,
+            related_entity_type="frontend_page",
+            related_entity_ref=f"page:{target}",
+            metadata={
+                "wcag_level": report['wcag_level'],
+                "score": report['score'],
+                "issues_count": len(report.get('issues', [])),
+                "warnings_count": len(report.get('warnings', [])),
+            },
+        )
+        
+        summary = f"Accessibility review for {target}: WCAG {report['wcag_level']}, Score: {report['score']}/100. Insight stored for review."
         
         return AgentTaskResult(
             status="completed",
