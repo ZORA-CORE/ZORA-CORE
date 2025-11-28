@@ -1,0 +1,17 @@
+# ZORA CORE API - Cloudflare Workers Configuration
+name = "zora-core-api"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+# Development settings
+[dev]
+port = 8787
+local_protocol = "http"
+
+# Environment variables (secrets should be set via wrangler secret)
+[vars]
+ENVIRONMENT = "dev"
+
+# For local development, create a .dev.vars file with:
+# SUPABASE_URL=https://your-project.supabase.co
+# SUPABASE_SERVICE_KEY=your-service-role-key
