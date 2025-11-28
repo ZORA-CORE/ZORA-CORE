@@ -1,5 +1,5 @@
 # ZORA CORE API - Cloudflare Workers Configuration
-name = "zora-core-api"
+name = "zora2"
 main = "src/index.ts"
 compatibility_date = "2024-01-01"
 
@@ -23,7 +23,7 @@ ENVIRONMENT = "dev"
 # 5. Deploy: npm run deploy (or wrangler deploy --env production)
 
 [env.production]
-name = "zora-core-api"
+name = "zora2"
 # Uncomment and update with your custom domain:
 # routes = [
 #   { pattern = "api.zora-core.example.com/*", zone_name = "zora-core.example.com" }
