@@ -691,3 +691,64 @@ export interface AgentTaskStatusCounts {
   failed: number;
   total: number;
 }
+
+// Agent Insights v1 types (Iteration 0022)
+export type AgentInsightStatus = 'proposed' | 'accepted' | 'rejected' | 'implemented';
+export type AgentInsightCategory = 'climate_mission_suggestion' | 'frontend_improvement' | 'plan' | 'summary' | 'system_health' | 'safety_warning';
+
+export interface AgentInsight {
+  id: string;
+  tenant_id: string;
+  created_at: string;
+  updated_at: string | null;
+  agent_id: string;
+  source_task_id: string | null;
+  category: AgentInsightCategory;
+  title: string;
+  body: string | null;
+  status: AgentInsightStatus;
+  related_entity_type: string | null;
+  related_entity_ref: string | null;
+  impact_estimate_kgco2: number | null;
+  metadata: Record<string, unknown>;
+}
+
+export interface AgentInsightListItem {
+  id: string;
+  agent_id: string;
+  category: AgentInsightCategory;
+  title: string;
+  status: AgentInsightStatus;
+  related_entity_type: string | null;
+  impact_estimate_kgco2: number | null;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface AgentInsightDecisionInput {
+  decision: 'accept' | 'reject';
+  reason?: string;
+}
+
+export interface AgentInsightsListResponse {
+  data: AgentInsightListItem[];
+  pagination: {
+    limit: number;
+    offset: number;
+    total: number;
+    has_more: boolean;
+  };
+}
+
+export interface AgentInsightResponse {
+  data: AgentInsight;
+  created_mission_id?: string | null;
+}
+
+export interface AgentInsightStatusCounts {
+  proposed: number;
+  accepted: number;
+  rejected: number;
+  implemented: number;
+  total: number;
+}

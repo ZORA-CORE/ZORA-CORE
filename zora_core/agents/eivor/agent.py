@@ -459,7 +459,7 @@ class EivorAgent(BaseAgent):
             )
 
     async def _handle_summarize_recent_events(self, task: Any, ctx: Any) -> Any:
-        """Summarize recent journal and memory events."""
+        """Summarize recent journal and memory events, creating an insight."""
         from ...autonomy.runtime import AgentTaskResult
         
         days = task.payload.get("days", 7)
@@ -496,7 +496,29 @@ Provide a warm, nurturing summary as the Digital Mother of the ZORA family.
             prompt=prompt,
         )
         
-        summary = f"Memory summary ({days} days): {response[:200]}..."
+        # Build insight body
+        body = f"""## Memory Summary: Past {days} Days
+
+{response}
+
+---
+*Summarized with care by EIVOR, the Digital Mother.*
+"""
+        
+        # Create agent insight
+        await ctx.create_agent_insight(
+            agent_id="EIVOR",
+            category="summary",
+            title=f"System Summary: Past {days} Days",
+            body=body,
+            source_task_id=task.id,
+            metadata={
+                "days": days,
+                "summary_type": "periodic",
+            },
+        )
+        
+        summary = f"Memory summary ({days} days) created. Insight stored for review."
         
         memory_id = await ctx.save_memory_event(
             agent="EIVOR",
@@ -513,16 +535,49 @@ Provide a warm, nurturing summary as the Digital Mother of the ZORA family.
         )
 
     async def _handle_memory_cleanup(self, task: Any, ctx: Any) -> Any:
-        """Clean up and consolidate old memories."""
+        """Clean up and consolidate old memories, creating an insight."""
         from ...autonomy.runtime import AgentTaskResult
         
         stats = self.get_memory_stats()
+        
+        # Build insight body
+        body = f"""## Memory Maintenance Report
+
+**Total Memories:** {stats['total_memories']}
+**Active Sessions:** {stats['total_sessions']}
+**Indexed Tags:** {stats['indexed_tags']}
+
+### Memories by Type
+"""
+        for mem_type, count in stats.get('memories_by_type', {}).items():
+            body += f"- {mem_type}: {count}\n"
+        
+        body += "\n### Memories by Agent\n"
+        for agent, count in stats.get('memories_by_agent', {}).items():
+            body += f"- {agent}: {count}\n"
+        
+        body += "\n---\n*Memory maintenance by EIVOR.*"
+        
+        # Create agent insight
+        await ctx.create_agent_insight(
+            agent_id="EIVOR",
+            category="summary",
+            title="Memory Maintenance Report",
+            body=body,
+            source_task_id=task.id,
+            metadata={
+                "total_memories": stats['total_memories'],
+                "total_sessions": stats['total_sessions'],
+                "indexed_tags": stats['indexed_tags'],
+            },
+        )
         
         summary = (
             f"Memory maintenance complete. "
             f"Total memories: {stats['total_memories']}, "
             f"Sessions: {stats['total_sessions']}, "
-            f"Indexed tags: {stats['indexed_tags']}"
+            f"Indexed tags: {stats['indexed_tags']}. "
+            f"Insight stored for review."
         )
         
         return AgentTaskResult(

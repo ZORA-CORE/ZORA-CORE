@@ -532,7 +532,7 @@ class AegisAgent(BaseAgent):
             )
 
     async def _handle_review_recent_agent_tasks(self, task: Any, ctx: Any) -> Any:
-        """Review recent agent tasks for risky activities."""
+        """Review recent agent tasks for risky activities, creating an insight."""
         from ...autonomy.runtime import AgentTaskResult
         
         hours = task.payload.get("hours", 24)
@@ -569,7 +569,29 @@ Speak with authority and vigilance, as befitting AEGIS - the shield of ZORA CORE
             prompt=prompt,
         )
         
-        summary = f"Safety review ({hours}h): {response[:200]}..."
+        # Build insight body
+        body = f"""## Safety Review: Past {hours} Hours
+
+{response}
+
+---
+*Safety assessment by AEGIS, the Guardian of ZORA CORE.*
+"""
+        
+        # Create agent insight
+        await ctx.create_agent_insight(
+            agent_id="AEGIS",
+            category="safety_warning",
+            title=f"Safety Review: Past {hours} Hours",
+            body=body,
+            source_task_id=task.id,
+            metadata={
+                "hours": hours,
+                "review_type": "periodic_safety",
+            },
+        )
+        
+        summary = f"Safety review ({hours}h) completed. Insight stored for review."
         
         return AgentTaskResult(
             status="completed",
@@ -577,7 +599,7 @@ Speak with authority and vigilance, as befitting AEGIS - the shield of ZORA CORE
         )
 
     async def _handle_check_climate_claims(self, task: Any, ctx: Any) -> Any:
-        """Check climate claims for greenwashing."""
+        """Check climate claims for greenwashing, creating an insight."""
         from ...autonomy.runtime import AgentTaskResult
         
         claim = task.payload.get("claim", "")
@@ -588,7 +610,41 @@ Speak with authority and vigilance, as befitting AEGIS - the shield of ZORA CORE
         status = "verified" if result["verified"] else "needs_review"
         warnings_count = len(result["warnings"])
         
-        summary = f"Climate claim check: {status}, {warnings_count} warnings. {result['recommendation']}"
+        # Build insight body
+        body = f"""## Climate Claim Verification
+
+**Claim:** {claim}
+
+**Status:** {status.replace('_', ' ').title()}
+**Sources Provided:** {result['source_count']}
+**Warnings:** {warnings_count}
+
+"""
+        if result["warnings"]:
+            body += "### Warnings\n"
+            for warning in result["warnings"]:
+                body += f"- {warning}\n"
+            body += "\n"
+        
+        body += f"### Recommendation\n{result['recommendation']}\n"
+        body += "\n---\n*Climate claim verification by AEGIS.*"
+        
+        # Create agent insight
+        await ctx.create_agent_insight(
+            agent_id="AEGIS",
+            category="safety_warning",
+            title=f"Climate Claim: {claim[:50]}..." if len(claim) > 50 else f"Climate Claim: {claim}",
+            body=body,
+            source_task_id=task.id,
+            metadata={
+                "claim": claim,
+                "verified": result["verified"],
+                "warnings_count": warnings_count,
+                "source_count": result["source_count"],
+            },
+        )
+        
+        summary = f"Climate claim check: {status}, {warnings_count} warnings. Insight stored for review."
         
         return AgentTaskResult(
             status="completed",

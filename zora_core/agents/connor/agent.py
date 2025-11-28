@@ -388,7 +388,7 @@ class ConnorAgent(BaseAgent):
             )
 
     async def _handle_review_system_health(self, task: Any, ctx: Any) -> Any:
-        """Review system health by checking status endpoints."""
+        """Review system health by checking status endpoints, creating an insight."""
         from ...autonomy.runtime import AgentTaskResult
         
         endpoints = task.payload.get("endpoints", ["/api/status"])
@@ -426,7 +426,30 @@ Speak with precision and authority, as befitting CONNOR.
             prompt=prompt,
         )
         
-        summary = f"System health review: {response[:200]}..."
+        # Build insight body
+        body = f"""## System Health Review
+
+**Endpoints Checked:** {', '.join(endpoints)}
+
+{response}
+
+---
+*Health assessment by CONNOR.*
+"""
+        
+        # Create agent insight
+        await ctx.create_agent_insight(
+            agent_id="CONNOR",
+            category="system_health",
+            title="System Health Review",
+            body=body,
+            source_task_id=task.id,
+            metadata={
+                "endpoints": endpoints,
+            },
+        )
+        
+        summary = f"System health review completed. Insight stored for review."
         
         return AgentTaskResult(
             status="completed",
@@ -434,7 +457,7 @@ Speak with precision and authority, as befitting CONNOR.
         )
 
     async def _handle_analyze_codebase(self, task: Any, ctx: Any) -> Any:
-        """Analyze codebase for quality and patterns."""
+        """Analyze codebase for quality and patterns, creating an insight."""
         from ...autonomy.runtime import AgentTaskResult
         
         target = task.payload.get("target", "general")
@@ -448,7 +471,39 @@ Speak with precision and authority, as befitting CONNOR.
             {"target": target}
         )
         
-        summary = f"Code analysis for {target}: patterns found, complexity score {analysis.output.get('complexity_score', 'N/A')}"
+        output = analysis.output or {}
+        
+        # Build insight body
+        body = f"""## Codebase Analysis: {target}
+
+**Complexity Score:** {output.get('complexity_score', 'N/A')}
+
+### Patterns Found
+"""
+        for pattern in output.get('patterns_found', []):
+            body += f"- {pattern.replace('_', ' ').title()}\n"
+        
+        body += "\n### Recommendations\n"
+        for rec in output.get('recommendations', []):
+            body += f"- {rec}\n"
+        
+        body += "\n---\n*Code analysis by CONNOR.*"
+        
+        # Create agent insight
+        await ctx.create_agent_insight(
+            agent_id="CONNOR",
+            category="system_health",
+            title=f"Codebase Analysis: {target}",
+            body=body,
+            source_task_id=task.id,
+            metadata={
+                "target": target,
+                "complexity_score": output.get('complexity_score'),
+                "patterns_count": len(output.get('patterns_found', [])),
+            },
+        )
+        
+        summary = f"Code analysis for {target}: complexity score {output.get('complexity_score', 'N/A')}. Insight stored for review."
         
         return AgentTaskResult(
             status="completed",
