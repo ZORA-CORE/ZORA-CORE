@@ -642,3 +642,239 @@ export interface ClimatePlanFilters {
   status?: ClimatePlanStatus;
   plan_type?: ClimatePlanType;
 }
+
+// ============================================================================
+// ZORA SHOP Backend v1.0 types (Iteration 00B3)
+// ============================================================================
+
+// Brand types
+export interface Brand {
+  id: string;
+  tenant_id: string;
+  name: string;
+  slug: string | null;
+  description: string | null;
+  country: string | null;
+  sector: string | null;
+  climate_tagline: string | null;
+  website_url: string | null;
+  logo_url: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface CreateBrandInput {
+  name: string;
+  slug?: string;
+  description?: string;
+  country?: string;
+  sector?: string;
+  climate_tagline?: string;
+  website_url?: string;
+  logo_url?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface UpdateBrandInput {
+  name?: string;
+  slug?: string;
+  description?: string;
+  country?: string;
+  sector?: string;
+  climate_tagline?: string;
+  website_url?: string;
+  logo_url?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface BrandFilters {
+  sector?: string;
+  country?: string;
+}
+
+// Material types
+export interface Material {
+  id: string;
+  tenant_id: string;
+  name: string;
+  description: string | null;
+  category: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface CreateMaterialInput {
+  name: string;
+  description?: string;
+  category?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface UpdateMaterialInput {
+  name?: string;
+  description?: string;
+  category?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface MaterialFilters {
+  category?: string;
+}
+
+// Product types
+export type ProductStatus = 'draft' | 'published' | 'archived';
+
+export interface Product {
+  id: string;
+  tenant_id: string;
+  brand_id: string | null;
+  name: string;
+  slug: string | null;
+  description: string | null;
+  short_description: string | null;
+  long_description: string | null;
+  price_currency: string;
+  price_amount: number | null;
+  primary_image_url: string | null;
+  status: string;
+  climate_score: number | null;
+  estimated_impact_kgco2: number | null;
+  notes: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface ProductMaterial {
+  id: string;
+  tenant_id: string;
+  product_id: string;
+  material_id: string;
+  percentage: number | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface ProductClimateMeta {
+  id: string;
+  tenant_id: string;
+  product_id: string;
+  climate_label: string | null;
+  estimated_impact_kgco2: number | null;
+  certifications: string | null;
+  notes: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface ProductMaterialInput {
+  material_id: string;
+  percentage?: number;
+  notes?: string;
+}
+
+export interface ProductClimateMetaInput {
+  climate_label?: string;
+  estimated_impact_kgco2?: number;
+  certifications?: string;
+  notes?: string;
+}
+
+export interface CreateProductInput {
+  brand_id: string;
+  name: string;
+  slug?: string;
+  description?: string;
+  price_currency?: string;
+  price_amount?: number;
+  primary_image_url?: string;
+  status?: ProductStatus;
+  materials?: ProductMaterialInput[];
+  climate_meta?: ProductClimateMetaInput;
+  metadata?: Record<string, unknown>;
+}
+
+export interface UpdateProductInput {
+  brand_id?: string;
+  name?: string;
+  slug?: string;
+  description?: string;
+  price_currency?: string;
+  price_amount?: number;
+  primary_image_url?: string;
+  status?: ProductStatus;
+  materials?: ProductMaterialInput[];
+  climate_meta?: ProductClimateMetaInput;
+  metadata?: Record<string, unknown>;
+}
+
+export interface ProductFilters {
+  brand_id?: string;
+  status?: ProductStatus;
+}
+
+export interface ProductWithDetails extends Product {
+  brand?: Brand | null;
+  materials?: (ProductMaterial & { material: Material })[];
+  climate_meta?: ProductClimateMeta | null;
+}
+
+// ZORA SHOP Project types
+export type ZoraShopProjectStatus = 'idea' | 'brief' | 'concept' | 'review' | 'launched' | 'archived';
+
+export interface ZoraShopProject {
+  id: string;
+  tenant_id: string;
+  title: string;
+  description: string | null;
+  status: string;
+  primary_brand_id: string;
+  secondary_brand_id: string | null;
+  theme: string | null;
+  target_launch_date: string | null;
+  launched_at: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface CreateZoraShopProjectInput {
+  title: string;
+  description?: string;
+  status?: ZoraShopProjectStatus;
+  primary_brand_id: string;
+  secondary_brand_id?: string;
+  theme?: string;
+  target_launch_date?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface UpdateZoraShopProjectInput {
+  title?: string;
+  description?: string;
+  status?: ZoraShopProjectStatus;
+  primary_brand_id?: string;
+  secondary_brand_id?: string;
+  theme?: string;
+  target_launch_date?: string;
+  launched_at?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface ZoraShopProjectFilters {
+  status?: ZoraShopProjectStatus;
+  primary_brand_id?: string;
+}
+
+export interface ZoraShopProjectWithBrands extends ZoraShopProject {
+  primary_brand?: Brand | null;
+  secondary_brand?: Brand | null;
+}
+
+export interface UpdateProjectStatusInput {
+  status: ZoraShopProjectStatus;
+}
