@@ -569,3 +569,76 @@ export interface AgentCommandResponse {
 export interface AgentCommandFilters {
   status?: AgentCommandStatus;
 }
+
+// Climate OS Backend v1.0 types (Iteration 00B2)
+export type ClimatePlanStatus = 'proposed' | 'active' | 'archived';
+export type ClimatePlanItemStatus = 'planned' | 'completed' | 'skipped';
+export type ClimatePlanType = 'weekly' | 'monthly';
+
+export interface ClimatePlan {
+  id: string;
+  tenant_id: string;
+  profile_id: string;
+  plan_type: ClimatePlanType;
+  period_start: string;
+  period_end: string;
+  status: ClimatePlanStatus;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface ClimatePlanItem {
+  id: string;
+  plan_id: string;
+  mission_id: string | null;
+  title: string;
+  description: string | null;
+  category: string | null;
+  estimated_impact_kgco2: number | null;
+  status: ClimatePlanItemStatus;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface ClimatePlanWithItems extends ClimatePlan {
+  items: ClimatePlanItem[];
+}
+
+export interface ProfileSummary {
+  profile_id: string;
+  total_missions: number;
+  missions_completed: number;
+  missions_in_progress: number;
+  missions_planned: number;
+  missions_cancelled: number;
+  missions_failed: number;
+  total_estimated_impact_kgco2: number;
+}
+
+export interface TimeseriesPoint {
+  period_start: string;
+  missions_completed: number;
+  estimated_impact_kgco2_completed: number;
+}
+
+export interface ProfileTimeseries {
+  profile_id: string;
+  granularity: 'day' | 'week' | 'month';
+  points: TimeseriesPoint[];
+}
+
+export interface SuggestWeeklyPlanInput {
+  period_start?: string;
+  period_end?: string;
+}
+
+export interface ApplyPlanInput {
+  create_missions?: boolean;
+}
+
+export interface ClimatePlanFilters {
+  status?: ClimatePlanStatus;
+  plan_type?: ClimatePlanType;
+}

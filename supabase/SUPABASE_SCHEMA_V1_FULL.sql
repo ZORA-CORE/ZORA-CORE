@@ -13,14 +13,14 @@
 -- 
 -- After running:
 --   - All required tables will exist: tenants, users, memory_events, 
---     journal_entries, climate_profiles, climate_missions, frontend_configs,
---     agent_suggestions, brands, products, product_brands, agent_tasks, agent_insights,
---     agent_commands
+--     journal_entries, climate_profiles, climate_missions, climate_plans,
+--     climate_plan_items, frontend_configs, agent_suggestions, brands, products,
+--     product_brands, agent_tasks, agent_insights, agent_commands
 --   - The search_memories_by_embedding function will be correctly defined
 --   - /admin/setup will work correctly
 -- 
 -- Date: 2025-11-28
--- Version: 1.9.0 (Auth Backend v1.0 - Password Login + Roles)
+-- Version: 2.0.0 (Climate OS Backend v1.0 - Multi-Profile, Summaries & Weekly Plans)
 -- ============================================================================
 
 -- ============================================================================
@@ -600,6 +600,117 @@ CREATE POLICY "Allow all for service role" ON climate_missions
     WITH CHECK (true);
 
 COMMENT ON TABLE climate_missions IS 'Climate missions and their tracked impact';
+
+-- ============================================================================
+-- STEP 9B: CREATE CLIMATE_PLANS TABLE (Climate OS Backend v1.0)
+-- ============================================================================
+
+-- Plan status enum
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'plan_status') THEN
+        CREATE TYPE plan_status AS ENUM (
+            'proposed',
+            'active',
+            'archived'
+        );
+    END IF;
+END$$;
+
+-- Plan item status enum
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'plan_item_status') THEN
+        CREATE TYPE plan_item_status AS ENUM (
+            'planned',
+            'completed',
+            'skipped'
+        );
+    END IF;
+END$$;
+
+CREATE TABLE IF NOT EXISTS climate_plans (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    profile_id UUID NOT NULL REFERENCES climate_profiles(id) ON DELETE CASCADE,
+    plan_type VARCHAR(50) NOT NULL DEFAULT 'weekly',
+    period_start DATE NOT NULL,
+    period_end DATE NOT NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'proposed',
+    metadata JSONB DEFAULT '{}',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ
+);
+
+-- Indexes for climate_plans
+CREATE INDEX IF NOT EXISTS idx_climate_plans_tenant ON climate_plans(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_climate_plans_profile ON climate_plans(profile_id);
+CREATE INDEX IF NOT EXISTS idx_climate_plans_status ON climate_plans(status);
+CREATE INDEX IF NOT EXISTS idx_climate_plans_period ON climate_plans(period_start, period_end);
+CREATE INDEX IF NOT EXISTS idx_climate_plans_tenant_profile ON climate_plans(tenant_id, profile_id);
+CREATE INDEX IF NOT EXISTS idx_climate_plans_tenant_status ON climate_plans(tenant_id, status);
+
+-- Trigger for updated_at
+DROP TRIGGER IF EXISTS update_climate_plans_updated_at ON climate_plans;
+CREATE TRIGGER update_climate_plans_updated_at
+    BEFORE UPDATE ON climate_plans
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Enable RLS
+ALTER TABLE climate_plans ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy
+DROP POLICY IF EXISTS "Allow all for service role" ON climate_plans;
+CREATE POLICY "Allow all for service role" ON climate_plans
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE climate_plans IS 'Weekly/monthly climate plans for profiles';
+
+-- ============================================================================
+-- STEP 9C: CREATE CLIMATE_PLAN_ITEMS TABLE (Climate OS Backend v1.0)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS climate_plan_items (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    plan_id UUID NOT NULL REFERENCES climate_plans(id) ON DELETE CASCADE,
+    mission_id UUID REFERENCES climate_missions(id) ON DELETE SET NULL,
+    title VARCHAR(500) NOT NULL,
+    description TEXT,
+    category VARCHAR(100),
+    estimated_impact_kgco2 NUMERIC(12, 2),
+    status VARCHAR(50) NOT NULL DEFAULT 'planned',
+    metadata JSONB DEFAULT '{}',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ
+);
+
+-- Indexes for climate_plan_items
+CREATE INDEX IF NOT EXISTS idx_climate_plan_items_plan ON climate_plan_items(plan_id);
+CREATE INDEX IF NOT EXISTS idx_climate_plan_items_mission ON climate_plan_items(mission_id);
+CREATE INDEX IF NOT EXISTS idx_climate_plan_items_status ON climate_plan_items(status);
+CREATE INDEX IF NOT EXISTS idx_climate_plan_items_category ON climate_plan_items(category);
+
+-- Trigger for updated_at
+DROP TRIGGER IF EXISTS update_climate_plan_items_updated_at ON climate_plan_items;
+CREATE TRIGGER update_climate_plan_items_updated_at
+    BEFORE UPDATE ON climate_plan_items
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Enable RLS
+ALTER TABLE climate_plan_items ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy
+DROP POLICY IF EXISTS "Allow all for service role" ON climate_plan_items;
+CREATE POLICY "Allow all for service role" ON climate_plan_items
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE climate_plan_items IS 'Individual items within a climate plan';
 
 -- ============================================================================
 -- STEP 10: CREATE FRONTEND_CONFIGS TABLE
@@ -1187,11 +1298,11 @@ DECLARE
     table_count INTEGER;
     function_count INTEGER;
 BEGIN
-        -- Count required tables (now 14 with agent_commands for Agent Command Console v1)
+        -- Count required tables (now 16 with climate_plans and climate_plan_items for Climate OS Backend v1.0)
         SELECT COUNT(*) INTO table_count
         FROM information_schema.tables 
         WHERE table_schema = 'public' 
-        AND table_name IN ('tenants', 'users', 'memory_events', 'journal_entries', 'climate_profiles', 'climate_missions', 'frontend_configs', 'agent_suggestions', 'brands', 'products', 'product_brands', 'agent_tasks', 'agent_insights', 'agent_commands');
+        AND table_name IN ('tenants', 'users', 'memory_events', 'journal_entries', 'climate_profiles', 'climate_missions', 'climate_plans', 'climate_plan_items', 'frontend_configs', 'agent_suggestions', 'brands', 'products', 'product_brands', 'agent_tasks', 'agent_insights', 'agent_commands');
     
     -- Count search_memories_by_embedding functions (should be exactly 1)
     SELECT COUNT(*) INTO function_count
