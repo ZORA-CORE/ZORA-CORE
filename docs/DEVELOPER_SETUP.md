@@ -202,17 +202,19 @@ To run the complete ZORA CORE stack locally (Supabase + Workers API + Frontend):
 
 1. Create a Supabase project at [supabase.com](https://supabase.com)
 2. Apply the database schema from `supabase/migrations/00001_initial_schema.sql`
-3. Get your Project URL and Service Role Key from Project Settings > API
+3. For semantic memory, also apply `supabase/migrations/00002_pgvector_semantic_memory.sql`
+4. Get your Project URL and Service Role Key from Project Settings > API
 
 ### 2. Start the Workers API
 
 ```bash
 cd workers/api
 
-# Create .dev.vars with your Supabase credentials
+# Create .dev.vars with your Supabase credentials and OpenAI key
 cat > .dev.vars << EOF
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_KEY=your-service-role-key
+OPENAI_API_KEY=sk-your-openai-api-key
 EOF
 
 # Install dependencies and start the API
@@ -221,6 +223,8 @@ npm run dev
 ```
 
 The API will be available at `http://localhost:8787`.
+
+**Note:** `OPENAI_API_KEY` is required for semantic search in Agent Dashboards. Without it, semantic search will return a 503 error.
 
 ### 3. Start the Frontend
 
@@ -245,6 +249,44 @@ The frontend will be available at `http://localhost:3000`.
 2. Navigate to **Climate OS** (`/climate`) - you should see a form to create your climate profile
 3. Create a profile and add missions - data will be stored in Supabase
 4. Navigate to **Journal** (`/journal`) - you should see system events (if any exist)
+5. Navigate to **Agents** (`/agents`) - you should see the 6 ZORA agents with memory and semantic search
+
+## Semantic Agent Dashboards
+
+The Agent Dashboards provide a "Founder view" to inspect the inner life of ZORA CORE by viewing agent memories and performing semantic searches.
+
+### Features
+
+- **Agent List**: View all 6 ZORA agents (CONNOR, LUMINA, EIVOR, ORACLE, AEGIS, SAM)
+- **Recent Memory**: View recent memory events for each agent
+- **Semantic Search**: Search an agent's memory using natural language queries
+
+### Requirements
+
+1. **Supabase with pgvector**: Apply both migrations:
+   - `supabase/migrations/00001_initial_schema.sql`
+   - `supabase/migrations/00002_pgvector_semantic_memory.sql`
+
+2. **OpenAI API Key**: Required for semantic search (embedding generation)
+
+### How to Use
+
+1. Start the Workers API with `OPENAI_API_KEY` configured in `.dev.vars`
+2. Start the frontend
+3. Navigate to `/agents`
+4. Click on an agent to view their recent memories
+5. Use the search box to perform semantic searches on that agent's memory
+
+### API Endpoints
+
+The Agent Dashboards use the following API endpoints:
+
+- `GET /api/agents` - List all agents
+- `GET /api/agents/:agentId` - Get a single agent
+- `GET /api/agents/:agentId/memory` - Get recent memories for an agent
+- `POST /api/agents/:agentId/memory/semantic-search` - Semantic search on agent memory
+
+For full API documentation, see [workers/api/README.md](../workers/api/README.md).
 
 ### Troubleshooting End-to-End Setup
 

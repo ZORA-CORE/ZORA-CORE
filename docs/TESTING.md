@@ -216,6 +216,43 @@ async def test_save_memory(self, store):
     memory_id = await store.save_memory(...)
 ```
 
+## Workers API Tests
+
+The Workers API has its own test suite using Vitest.
+
+### Running Workers API Tests
+
+```bash
+cd workers/api
+npm test
+```
+
+The tests cover:
+- **Agents Handler**: Tests for the static agent list, `getAgentById()`, and `isValidAgentId()` functions
+- **OpenAI Client**: Tests for embedding model and dimension constants
+
+### Test Files
+
+```
+workers/api/src/__tests__/
+├── agents.test.ts    # Tests for agents handler
+└── openai.test.ts    # Tests for OpenAI client
+```
+
+### Adding New Workers API Tests
+
+Create test files in `workers/api/src/__tests__/` with the `.test.ts` extension:
+
+```typescript
+import { describe, it, expect } from 'vitest';
+
+describe('MyFeature', () => {
+  it('should work correctly', () => {
+    expect(true).toBe(true);
+  });
+});
+```
+
 ## Writing New Tests
 
 When adding new tests:

@@ -15,3 +15,4 @@ ENVIRONMENT = "dev"
 # For local development, create a .dev.vars file with:
 # SUPABASE_URL=https://your-project.supabase.co
 # SUPABASE_SERVICE_KEY=your-service-role-key
+# OPENAI_API_KEY=sk-your-openai-api-key (required for semantic search)

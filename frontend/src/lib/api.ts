@@ -9,6 +9,10 @@ import type {
   PaginatedResponse,
   StatusResponse,
   ApiError,
+  Agent,
+  AgentsResponse,
+  MemoryEvent,
+  SemanticSearchResponse,
 } from './types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_ZORA_API_BASE_URL || 'http://localhost:8787';
@@ -170,6 +174,45 @@ export async function getJournalEntries(params?: {
   );
 }
 
+export async function getAgents(): Promise<AgentsResponse> {
+  return request<AgentsResponse>('/api/agents');
+}
+
+export async function getAgent(agentId: string): Promise<Agent> {
+  return request<Agent>(`/api/agents/${agentId}`);
+}
+
+export async function getAgentMemory(
+  agentId: string,
+  params?: {
+    limit?: number;
+    offset?: number;
+  }
+): Promise<PaginatedResponse<MemoryEvent>> {
+  const searchParams = new URLSearchParams();
+  if (params?.limit) searchParams.set('limit', params.limit.toString());
+  if (params?.offset) searchParams.set('offset', params.offset.toString());
+
+  const query = searchParams.toString();
+  return request<PaginatedResponse<MemoryEvent>>(
+    `/api/agents/${agentId}/memory${query ? `?${query}` : ''}`
+  );
+}
+
+export async function semanticSearchAgentMemory(
+  agentId: string,
+  query: string,
+  limit?: number
+): Promise<SemanticSearchResponse> {
+  return request<SemanticSearchResponse>(
+    `/api/agents/${agentId}/memory/semantic-search`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ query, limit }),
+    }
+  );
+}
+
 export const api = {
   getStatus,
   getClimateProfiles,
@@ -180,6 +223,10 @@ export const api = {
   createClimateMission,
   updateMissionStatus,
   getJournalEntries,
+  getAgents,
+  getAgent,
+  getAgentMemory,
+  semanticSearchAgentMemory,
 };
 
 export default api;
