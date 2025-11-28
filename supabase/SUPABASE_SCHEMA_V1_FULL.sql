@@ -20,7 +20,7 @@
 --   - /admin/setup will work correctly
 -- 
 -- Date: 2025-11-28
--- Version: 2.2.0 (Agent Task Execution Engine v1.0 - Enhanced task execution with command linking)
+-- Version: 2.3.0 (Safety + Scheduling v1 - Task approval policies and autonomy schedules)
 -- ============================================================================
 
 -- ============================================================================
@@ -1281,6 +1281,73 @@ BEGIN
     END IF;
 END$$;
 
+-- Add approval-related columns for Safety Layer v1 (Iteration 00B5)
+-- requires_approval: whether this task needs manual approval before execution
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'agent_tasks' AND column_name = 'requires_approval'
+    ) THEN
+        ALTER TABLE agent_tasks ADD COLUMN requires_approval BOOLEAN NOT NULL DEFAULT false;
+    END IF;
+END$$;
+
+-- approved_by_user_id: FK to users.id for who approved the task
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'agent_tasks' AND column_name = 'approved_by_user_id'
+    ) THEN
+        ALTER TABLE agent_tasks ADD COLUMN approved_by_user_id UUID REFERENCES users(id) ON DELETE SET NULL;
+    END IF;
+END$$;
+
+-- approved_at: timestamp when the task was approved
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'agent_tasks' AND column_name = 'approved_at'
+    ) THEN
+        ALTER TABLE agent_tasks ADD COLUMN approved_at TIMESTAMPTZ;
+    END IF;
+END$$;
+
+-- rejected_by_user_id: FK to users.id for who rejected the task
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'agent_tasks' AND column_name = 'rejected_by_user_id'
+    ) THEN
+        ALTER TABLE agent_tasks ADD COLUMN rejected_by_user_id UUID REFERENCES users(id) ON DELETE SET NULL;
+    END IF;
+END$$;
+
+-- rejected_at: timestamp when the task was rejected
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'agent_tasks' AND column_name = 'rejected_at'
+    ) THEN
+        ALTER TABLE agent_tasks ADD COLUMN rejected_at TIMESTAMPTZ;
+    END IF;
+END$$;
+
+-- decision_reason: human-readable reason for approval/rejection
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'agent_tasks' AND column_name = 'decision_reason'
+    ) THEN
+        ALTER TABLE agent_tasks ADD COLUMN decision_reason TEXT;
+    END IF;
+END$$;
+
 -- Indexes for agent_tasks
 CREATE INDEX IF NOT EXISTS idx_agent_tasks_tenant ON agent_tasks(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_agent_tasks_agent ON agent_tasks(agent_id);
@@ -1294,6 +1361,9 @@ CREATE INDEX IF NOT EXISTS idx_agent_tasks_created_at ON agent_tasks(created_at 
 CREATE INDEX IF NOT EXISTS idx_agent_tasks_pending_priority ON agent_tasks(tenant_id, status, priority DESC, created_at ASC) WHERE status = 'pending';
 -- Index for command_id (linking tasks to commands)
 CREATE INDEX IF NOT EXISTS idx_agent_tasks_command_id ON agent_tasks(command_id) WHERE command_id IS NOT NULL;
+-- Index for tasks requiring approval (Safety Layer v1)
+CREATE INDEX IF NOT EXISTS idx_agent_tasks_pending_approval ON agent_tasks(tenant_id, status, requires_approval) 
+    WHERE status = 'pending' AND requires_approval = true AND approved_by_user_id IS NULL AND rejected_by_user_id IS NULL;
 
 -- Trigger for updated_at
 DROP TRIGGER IF EXISTS update_agent_tasks_updated_at ON agent_tasks;
@@ -1455,7 +1525,119 @@ BEGIN
 END$$;
 
 -- ============================================================================
--- STEP 18: FIX DUPLICATE search_memories_by_embedding FUNCTIONS
+-- STEP 18: CREATE AGENT_TASK_POLICIES TABLE (Safety Layer v1)
+-- ============================================================================
+-- Defines default policies per task_type and optionally per tenant
+-- Controls whether tasks auto-execute or require manual approval
+
+CREATE TABLE IF NOT EXISTS agent_task_policies (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE,
+    task_type VARCHAR(100) NOT NULL,
+    auto_execute BOOLEAN NOT NULL DEFAULT false,
+    max_risk_level INTEGER,
+    description TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ
+);
+
+-- Indexes for agent_task_policies
+CREATE INDEX IF NOT EXISTS idx_agent_task_policies_task_type ON agent_task_policies(task_type);
+CREATE INDEX IF NOT EXISTS idx_agent_task_policies_tenant_task_type ON agent_task_policies(tenant_id, task_type);
+
+-- Unique constraint: one policy per task_type per tenant (or global if tenant_id IS NULL)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'agent_task_policies_tenant_task_type_key'
+    ) THEN
+        ALTER TABLE agent_task_policies ADD CONSTRAINT agent_task_policies_tenant_task_type_key 
+            UNIQUE (tenant_id, task_type);
+    END IF;
+EXCEPTION WHEN duplicate_object THEN
+    -- Constraint already exists
+END$$;
+
+-- Trigger for updated_at
+DROP TRIGGER IF EXISTS update_agent_task_policies_updated_at ON agent_task_policies;
+CREATE TRIGGER update_agent_task_policies_updated_at
+    BEFORE UPDATE ON agent_task_policies
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Enable RLS
+ALTER TABLE agent_task_policies ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy
+DROP POLICY IF EXISTS "Allow all for service role" ON agent_task_policies;
+CREATE POLICY "Allow all for service role" ON agent_task_policies
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE agent_task_policies IS 'Task execution policies - controls auto-execute vs manual approval per task_type';
+
+-- Insert default global policies for v1 task types
+-- Climate tasks default to auto_execute = true (relatively safe)
+-- Shop tasks default to auto_execute = false (require approval)
+INSERT INTO agent_task_policies (tenant_id, task_type, auto_execute, description)
+VALUES 
+    (NULL, 'climate.create_missions_from_plan', true, 'Create missions from weekly plan - auto-execute enabled'),
+    (NULL, 'climate.create_single_mission', true, 'Create single mission - auto-execute enabled'),
+    (NULL, 'zora_shop.create_project', false, 'Create ZORA SHOP project - requires approval'),
+    (NULL, 'zora_shop.update_product_climate_meta', false, 'Update product climate metadata - requires approval')
+ON CONFLICT (tenant_id, task_type) DO NOTHING;
+
+-- ============================================================================
+-- STEP 19: CREATE AUTONOMY_SCHEDULES TABLE (Scheduling v1)
+-- ============================================================================
+-- Defines recurring autonomy schedules that generate agent_tasks
+-- Can be triggered by cron, GitHub Actions, or manual CLI execution
+
+CREATE TABLE IF NOT EXISTS autonomy_schedules (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    profile_id UUID REFERENCES climate_profiles(id) ON DELETE SET NULL,
+    schedule_type VARCHAR(100) NOT NULL,
+    frequency VARCHAR(50) NOT NULL,
+    cron_hint TEXT,
+    enabled BOOLEAN NOT NULL DEFAULT true,
+    next_run_at TIMESTAMPTZ NOT NULL,
+    last_run_at TIMESTAMPTZ,
+    config JSONB DEFAULT '{}',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ
+);
+
+-- Indexes for autonomy_schedules
+CREATE INDEX IF NOT EXISTS idx_autonomy_schedules_tenant ON autonomy_schedules(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_autonomy_schedules_enabled_next_run ON autonomy_schedules(tenant_id, enabled, next_run_at) 
+    WHERE enabled = true;
+CREATE INDEX IF NOT EXISTS idx_autonomy_schedules_schedule_type ON autonomy_schedules(schedule_type);
+CREATE INDEX IF NOT EXISTS idx_autonomy_schedules_profile ON autonomy_schedules(profile_id) WHERE profile_id IS NOT NULL;
+
+-- Trigger for updated_at
+DROP TRIGGER IF EXISTS update_autonomy_schedules_updated_at ON autonomy_schedules;
+CREATE TRIGGER update_autonomy_schedules_updated_at
+    BEFORE UPDATE ON autonomy_schedules
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Enable RLS
+ALTER TABLE autonomy_schedules ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy
+DROP POLICY IF EXISTS "Allow all for service role" ON autonomy_schedules;
+CREATE POLICY "Allow all for service role" ON autonomy_schedules
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE autonomy_schedules IS 'Autonomy schedules - recurring routines that generate agent_tasks';
+
+-- ============================================================================
+-- STEP 20: FIX DUPLICATE search_memories_by_embedding FUNCTIONS
 -- ============================================================================
 -- This is the critical fix for ERROR 42725: function name is not unique
 
@@ -1564,11 +1746,11 @@ DECLARE
     table_count INTEGER;
     function_count INTEGER;
 BEGIN
-    -- Count required tables (now 20 with ZORA SHOP Backend v1.0 tables)
+    -- Count required tables (now 22 with Safety + Scheduling v1 tables)
     SELECT COUNT(*) INTO table_count
     FROM information_schema.tables 
     WHERE table_schema = 'public' 
-    AND table_name IN ('tenants', 'users', 'memory_events', 'journal_entries', 'climate_profiles', 'climate_missions', 'climate_plans', 'climate_plan_items', 'frontend_configs', 'agent_suggestions', 'brands', 'products', 'product_brands', 'agent_tasks', 'agent_insights', 'agent_commands', 'materials', 'product_materials', 'product_climate_meta', 'zora_shop_projects');
+    AND table_name IN ('tenants', 'users', 'memory_events', 'journal_entries', 'climate_profiles', 'climate_missions', 'climate_plans', 'climate_plan_items', 'frontend_configs', 'agent_suggestions', 'brands', 'products', 'product_brands', 'agent_tasks', 'agent_insights', 'agent_commands', 'materials', 'product_materials', 'product_climate_meta', 'zora_shop_projects', 'agent_task_policies', 'autonomy_schedules');
     
     -- Count search_memories_by_embedding functions (should be exactly 1)
     SELECT COUNT(*) INTO function_count
@@ -1576,10 +1758,10 @@ BEGIN
     WHERE proname = 'search_memories_by_embedding';
     
     RAISE NOTICE '=== ZORA CORE Schema Verification ===';
-    RAISE NOTICE 'Required tables found: % of 20', table_count;
+    RAISE NOTICE 'Required tables found: % of 22', table_count;
     RAISE NOTICE 'search_memories_by_embedding functions: % (should be 1)', function_count;
     
-    IF table_count = 20 AND function_count = 1 THEN
+    IF table_count = 22 AND function_count = 1 THEN
         RAISE NOTICE 'Schema is correctly configured!';
     ELSE
         RAISE WARNING 'Schema may have issues. Please check the tables and functions.';

@@ -456,6 +456,13 @@ export interface AgentTask {
   created_by_user_id: string | null;
   created_at: string;
   updated_at: string | null;
+  // Safety Layer v1 fields (Iteration 00B5)
+  requires_approval: boolean;
+  approved_by_user_id: string | null;
+  approved_at: string | null;
+  rejected_by_user_id: string | null;
+  rejected_at: string | null;
+  decision_reason: string | null;
 }
 
 export interface CreateAgentTaskInput {
@@ -880,4 +887,88 @@ export interface ZoraShopProjectWithBrands extends ZoraShopProject {
 
 export interface UpdateProjectStatusInput {
   status: ZoraShopProjectStatus;
+}
+
+// ============================================================================
+// Safety + Scheduling v1 types (Iteration 00B5)
+// ============================================================================
+
+// Task Policy types
+export interface AgentTaskPolicy {
+  id: string;
+  tenant_id: string | null;  // null = global policy
+  task_type: string;
+  auto_execute: boolean;
+  max_risk_level: number | null;
+  description: string | null;
+  created_at: string;
+  updated_at: string | null;
+}
+
+// Autonomy Schedule types
+export type ScheduleFrequency = 'daily' | 'weekly' | 'monthly';
+
+export interface AutonomySchedule {
+  id: string;
+  tenant_id: string;
+  profile_id: string | null;
+  schedule_type: string;
+  frequency: ScheduleFrequency;
+  cron_hint: string | null;
+  enabled: boolean;
+  next_run_at: string;
+  last_run_at: string | null;
+  config: Record<string, unknown>;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface CreateAutonomyScheduleInput {
+  profile_id?: string;
+  schedule_type: string;
+  frequency: ScheduleFrequency;
+  cron_hint?: string;
+  enabled?: boolean;
+  next_run_at: string;
+  config?: Record<string, unknown>;
+}
+
+export interface UpdateAutonomyScheduleInput {
+  profile_id?: string;
+  schedule_type?: string;
+  frequency?: ScheduleFrequency;
+  cron_hint?: string;
+  enabled?: boolean;
+  next_run_at?: string;
+  config?: Record<string, unknown>;
+}
+
+export interface AutonomyScheduleFilters {
+  schedule_type?: string;
+  enabled?: boolean;
+}
+
+export interface AutonomyScheduleListItem {
+  id: string;
+  profile_id: string | null;
+  schedule_type: string;
+  frequency: ScheduleFrequency;
+  enabled: boolean;
+  next_run_at: string;
+  last_run_at: string | null;
+  created_at: string;
+}
+
+// Task Decision types
+export interface TaskDecisionInput {
+  decision: 'approve' | 'reject';
+  reason?: string;
+}
+
+export interface TaskDecisionResponse {
+  data: AgentTask;
+  decision: {
+    action: 'approved' | 'rejected';
+    message: string;
+  };
 }

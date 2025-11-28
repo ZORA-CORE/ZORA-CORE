@@ -474,6 +474,258 @@ app.post('/tasks/:id/run', async (c) => {
 });
 
 /**
+ * GET /api/agents/tasks/pending-approval
+ * List tasks that require manual approval before execution
+ * 
+ * Safety Layer v1: Returns tasks where:
+ * - status = 'pending'
+ * - requires_approval = true
+ * - approved_by_user_id IS NULL
+ * - rejected_by_user_id IS NULL
+ */
+app.get('/tasks/pending-approval', async (c) => {
+  const { SUPABASE_URL, SUPABASE_SERVICE_KEY } = c.env;
+  const tenantId = c.get('tenantId');
+
+  if (!tenantId) {
+    return jsonResponse(
+      { error: 'UNAUTHORIZED', message: 'Authentication required', status: 401 },
+      401
+    );
+  }
+
+  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+
+  // Parse query parameters
+  const limit = parseInt(c.req.query('limit') || '50', 10);
+  const offset = parseInt(c.req.query('offset') || '0', 10);
+
+  // Query tasks requiring approval
+  const { data, error, count } = await supabase
+    .from('agent_tasks')
+    .select('id, agent_id, task_type, status, priority, title, description, command_id, requires_approval, created_at, created_by_user_id', { count: 'exact' })
+    .eq('tenant_id', tenantId)
+    .eq('status', 'pending')
+    .eq('requires_approval', true)
+    .is('approved_by_user_id', null)
+    .is('rejected_by_user_id', null)
+    .order('priority', { ascending: false })
+    .order('created_at', { ascending: true })
+    .range(offset, offset + limit - 1);
+
+  if (error) {
+    console.error('Error fetching tasks pending approval:', error);
+    return jsonResponse(
+      { error: 'DATABASE_ERROR', message: error.message, status: 500 },
+      500
+    );
+  }
+
+  return jsonResponse({
+    data: data || [],
+    pagination: {
+      limit,
+      offset,
+      total: count || 0,
+      has_more: (count || 0) > offset + limit,
+    },
+  });
+});
+
+/**
+ * POST /api/agents/tasks/:id/decision
+ * Approve or reject a task that requires manual approval
+ * 
+ * Safety Layer v1: Allows founders and brand_admins to approve/reject tasks
+ * 
+ * Request body:
+ * {
+ *   "decision": "approve" | "reject",
+ *   "reason": "Optional human-readable reason"
+ * }
+ */
+app.post('/tasks/:id/decision', async (c) => {
+  const { SUPABASE_URL, SUPABASE_SERVICE_KEY } = c.env;
+  const tenantId = c.get('tenantId');
+  const auth = c.get('auth') as AuthContext | undefined;
+  const taskId = c.req.param('id');
+
+  if (!tenantId) {
+    return jsonResponse(
+      { error: 'UNAUTHORIZED', message: 'Authentication required', status: 401 },
+      401
+    );
+  }
+
+  // Check if user has admin/founder role
+  const userRole = auth?.role;
+  const userId = auth?.userId;
+  if (!userRole || !['founder', 'brand_admin'].includes(userRole)) {
+    return jsonResponse(
+      { error: 'FORBIDDEN', message: 'Only founders and brand admins can approve/reject tasks', status: 403 },
+      403
+    );
+  }
+
+  // Parse request body
+  let body: { decision: string; reason?: string };
+  try {
+    body = await c.req.json();
+  } catch {
+    return jsonResponse(
+      { error: 'INVALID_JSON', message: 'Request body must be valid JSON', status: 400 },
+      400
+    );
+  }
+
+  // Validate decision
+  if (!body.decision || !['approve', 'reject'].includes(body.decision)) {
+    return jsonResponse(
+      { error: 'VALIDATION_ERROR', message: 'decision must be "approve" or "reject"', status: 400 },
+      400
+    );
+  }
+
+  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+
+  // Fetch the task
+  const { data: task, error: fetchError } = await supabase
+    .from('agent_tasks')
+    .select('*')
+    .eq('id', taskId)
+    .eq('tenant_id', tenantId)
+    .single();
+
+  if (fetchError) {
+    if (fetchError.code === 'PGRST116') {
+      return jsonResponse(
+        { error: 'NOT_FOUND', message: `Task '${taskId}' not found`, status: 404 },
+        404
+      );
+    }
+    console.error('Error fetching task:', fetchError);
+    return jsonResponse(
+      { error: 'DATABASE_ERROR', message: fetchError.message, status: 500 },
+      500
+    );
+  }
+
+  // Check if task is in a valid state for decision
+  if (task.status !== 'pending') {
+    return jsonResponse(
+      { error: 'INVALID_STATE', message: `Task must be pending to approve/reject. Current status: ${task.status}`, status: 400 },
+      400
+    );
+  }
+
+  // Check if task has already been decided
+  if (task.approved_by_user_id || task.rejected_by_user_id) {
+    return jsonResponse(
+      { error: 'INVALID_STATE', message: 'Task has already been approved or rejected', status: 400 },
+      400
+    );
+  }
+
+  const now = new Date().toISOString();
+
+  if (body.decision === 'approve') {
+    // Approve the task
+    const { data: updatedTask, error: updateError } = await supabase
+      .from('agent_tasks')
+      .update({
+        approved_by_user_id: userId,
+        approved_at: now,
+        decision_reason: body.reason || null,
+        requires_approval: true, // Keep this true for audit trail
+        result_summary: 'Approved - ready for execution',
+      })
+      .eq('id', taskId)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error('Error approving task:', updateError);
+      return jsonResponse(
+        { error: 'DATABASE_ERROR', message: updateError.message, status: 500 },
+        500
+      );
+    }
+
+    // Create journal entry for approval
+    await supabase.from('journal_entries').insert({
+      tenant_id: tenantId,
+      category: 'autonomy',
+      title: `Task approved: ${task.title}`,
+      body: body.reason || 'Task approved for execution',
+      details: {
+        event_type: 'task_approved',
+        task_id: taskId,
+        agent_id: task.agent_id,
+        task_type: task.task_type,
+        approved_by_user_id: userId,
+        decision_reason: body.reason || null,
+      },
+      author: 'system',
+    });
+
+    return jsonResponse({
+      data: updatedTask as AgentTask,
+      decision: {
+        action: 'approved',
+        message: 'Task approved and ready for execution. Run via CLI: python -m zora_core.autonomy.cli run-task ' + taskId,
+      },
+    });
+  } else {
+    // Reject the task
+    const { data: updatedTask, error: updateError } = await supabase
+      .from('agent_tasks')
+      .update({
+        status: 'failed',
+        rejected_by_user_id: userId,
+        rejected_at: now,
+        decision_reason: body.reason || null,
+        error_message: `Task rejected: ${body.reason || 'No reason provided'}`,
+      })
+      .eq('id', taskId)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error('Error rejecting task:', updateError);
+      return jsonResponse(
+        { error: 'DATABASE_ERROR', message: updateError.message, status: 500 },
+        500
+      );
+    }
+
+    // Create journal entry for rejection
+    await supabase.from('journal_entries').insert({
+      tenant_id: tenantId,
+      category: 'autonomy',
+      title: `Task rejected: ${task.title}`,
+      body: body.reason || 'Task rejected by user',
+      details: {
+        event_type: 'task_rejected',
+        task_id: taskId,
+        agent_id: task.agent_id,
+        task_type: task.task_type,
+        rejected_by_user_id: userId,
+        decision_reason: body.reason || null,
+      },
+      author: 'system',
+    });
+
+    return jsonResponse({
+      data: updatedTask as AgentTask,
+      decision: {
+        action: 'rejected',
+        message: 'Task rejected and marked as failed',
+      },
+    });
+  }
+});
+
+/**
  * GET /api/agents/tasks/types
  * List supported task types for the Task Executor v1.0
  */
