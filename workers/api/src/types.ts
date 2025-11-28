@@ -429,3 +429,52 @@ export interface SchemaStatusResponse {
   missing_columns: string[];
   checked_at: string;
 }
+
+// Agent Runtime v1 types
+export type AgentTaskStatus = 'pending' | 'in_progress' | 'completed' | 'failed';
+
+export interface AgentTask {
+  id: string;
+  tenant_id: string;
+  agent_id: string;
+  task_type: string;
+  status: AgentTaskStatus;
+  priority: number;
+  title: string;
+  description: string | null;
+  payload: Record<string, unknown>;
+  result_summary: string | null;
+  error_message: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  created_by_user_id: string | null;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface CreateAgentTaskInput {
+  agent_id: string;
+  task_type: string;
+  title: string;
+  description?: string;
+  payload?: Record<string, unknown>;
+  priority?: number;
+}
+
+export interface AgentTaskListItem {
+  id: string;
+  agent_id: string;
+  task_type: string;
+  status: AgentTaskStatus;
+  priority: number;
+  title: string;
+  created_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+}
+
+export interface AgentTaskFilters {
+  agent_id?: string;
+  status?: AgentTaskStatus;
+  task_type?: string;
+}

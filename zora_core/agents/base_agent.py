@@ -294,6 +294,32 @@ class BaseAgent(ABC):
         """
         pass
 
+    async def handle_task(self, task: Any, ctx: Any) -> Any:
+        """
+        Handle a task from the Agent Runtime task queue.
+        
+        This is the entry point for Agent Runtime v1 task processing.
+        Subclasses should override this method to implement task handling
+        for their specific task types.
+        
+        Args:
+            task: AgentTask from the task queue
+            ctx: AgentRuntimeContext with shared services
+            
+        Returns:
+            AgentTaskResult with status and outcome
+            
+        Raises:
+            NotImplementedError: If the agent doesn't implement task handling
+        """
+        # Import here to avoid circular imports
+        from ..autonomy.runtime import AgentTaskResult
+        
+        raise NotImplementedError(
+            f"{self.name} does not implement handle_task yet. "
+            f"Task type: {getattr(task, 'task_type', 'unknown')}"
+        )
+
     def get_status(self) -> Dict[str, Any]:
         """Get the current status of the agent."""
         return {

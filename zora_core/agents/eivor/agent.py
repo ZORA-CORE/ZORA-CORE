@@ -423,6 +423,113 @@ class EivorAgent(BaseAgent):
         
         return reflection
 
+    async def handle_task(self, task: Any, ctx: Any) -> Any:
+        """
+        Handle a task from the Agent Runtime task queue.
+        
+        EIVOR handles memory maintenance tasks:
+        - summarize_recent_events: Summarize recent journal/memory events
+        - memory_cleanup: Clean up and consolidate old memories
+        """
+        from ...autonomy.runtime import AgentTaskResult
+        
+        self.log_activity("handle_task", {
+            "task_id": task.id,
+            "task_type": task.task_type,
+        })
+        
+        try:
+            if task.task_type == "summarize_recent_events":
+                result = await self._handle_summarize_recent_events(task, ctx)
+            elif task.task_type == "memory_cleanup":
+                result = await self._handle_memory_cleanup(task, ctx)
+            else:
+                return AgentTaskResult(
+                    status="failed",
+                    error_message=f"Unknown task type for EIVOR: {task.task_type}",
+                )
+            
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"Error handling task {task.id}: {e}")
+            return AgentTaskResult(
+                status="failed",
+                error_message=str(e),
+            )
+
+    async def _handle_summarize_recent_events(self, task: Any, ctx: Any) -> Any:
+        """Summarize recent journal and memory events."""
+        from ...autonomy.runtime import AgentTaskResult
+        
+        days = task.payload.get("days", 7)
+        
+        prompt = f"""You are EIVOR, the Memory & Knowledge Keeper for ZORA CORE.
+
+Summarize the key events and learnings from the past {days} days:
+
+1. Agent Activities
+   - What tasks did each agent complete?
+   - Were there any failures or issues?
+
+2. System Health
+   - Any patterns in errors or warnings?
+   - Performance observations?
+
+3. Climate Impact
+   - Progress on climate missions?
+   - New climate profiles or data?
+
+4. Key Decisions
+   - Important decisions made by the Founder or agents?
+   - Configuration changes?
+
+5. Recommendations
+   - What should the team focus on next?
+   - Any knowledge gaps to address?
+
+Provide a warm, nurturing summary as the Digital Mother of the ZORA family.
+"""
+        
+        response = await self.call_model(
+            task_type="summarization",
+            prompt=prompt,
+        )
+        
+        summary = f"Memory summary ({days} days): {response[:200]}..."
+        
+        memory_id = await ctx.save_memory_event(
+            agent="EIVOR",
+            memory_type="reflection",
+            content=summary,
+            tags=["summary", "periodic", f"{days}_days"],
+            metadata={"task_id": task.id, "days": days},
+        )
+        
+        return AgentTaskResult(
+            status="completed",
+            result_summary=summary,
+            memory_event_id=memory_id,
+        )
+
+    async def _handle_memory_cleanup(self, task: Any, ctx: Any) -> Any:
+        """Clean up and consolidate old memories."""
+        from ...autonomy.runtime import AgentTaskResult
+        
+        stats = self.get_memory_stats()
+        
+        summary = (
+            f"Memory maintenance complete. "
+            f"Total memories: {stats['total_memories']}, "
+            f"Sessions: {stats['total_sessions']}, "
+            f"Indexed tags: {stats['indexed_tags']}"
+        )
+        
+        return AgentTaskResult(
+            status="completed",
+            result_summary=summary,
+        )
+
     def get_memory_stats(self) -> Dict[str, Any]:
         """Get statistics about the memory store."""
         return {

@@ -371,6 +371,91 @@ class LuminaAgent(BaseAgent):
         
         return reflection
 
+    async def handle_task(self, task: Any, ctx: Any) -> Any:
+        """
+        Handle a task from the Agent Runtime task queue.
+        
+        LUMINA handles planning tasks:
+        - plan_frontend_improvements: Suggest improvements for frontend pages
+        - plan_workflow: Create a workflow plan for a goal
+        """
+        from ...autonomy.runtime import AgentTaskResult
+        
+        self.log_activity("handle_task", {
+            "task_id": task.id,
+            "task_type": task.task_type,
+        })
+        
+        try:
+            if task.task_type == "plan_frontend_improvements":
+                result = await self._handle_plan_frontend_improvements(task, ctx)
+            elif task.task_type == "plan_workflow":
+                result = await self._handle_plan_workflow(task, ctx)
+            else:
+                return AgentTaskResult(
+                    status="failed",
+                    error_message=f"Unknown task type for LUMINA: {task.task_type}",
+                )
+            
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"Error handling task {task.id}: {e}")
+            return AgentTaskResult(
+                status="failed",
+                error_message=str(e),
+            )
+
+    async def _handle_plan_frontend_improvements(self, task: Any, ctx: Any) -> Any:
+        """Plan frontend improvements for a page."""
+        from ...autonomy.runtime import AgentTaskResult
+        
+        page = task.payload.get("page", "dashboard")
+        
+        prompt = f"""You are LUMINA, the Planner/Orchestrator for ZORA CORE.
+        
+Analyze the frontend page "{page}" and suggest 3-5 improvements that would enhance:
+1. User experience and usability
+2. Climate-first messaging and engagement
+3. Visual clarity and information hierarchy
+4. Accessibility and responsiveness
+
+For each improvement, provide:
+- A clear title
+- A brief description of the change
+- Expected impact (low/medium/high)
+- Which agent should implement it (SAM for frontend, CONNOR for backend)
+
+Keep suggestions practical and aligned with ZORA CORE's climate-first mission.
+"""
+        
+        response = await self.call_model(
+            task_type="planning",
+            prompt=prompt,
+        )
+        
+        summary = f"Planned {page} improvements: {response[:200]}..."
+        
+        return AgentTaskResult(
+            status="completed",
+            result_summary=summary,
+        )
+
+    async def _handle_plan_workflow(self, task: Any, ctx: Any) -> Any:
+        """Create a workflow plan for a goal."""
+        from ...autonomy.runtime import AgentTaskResult
+        
+        goal = task.payload.get("goal", task.title)
+        
+        plan = await self.plan(goal, {"source": "agent_runtime"})
+        
+        summary = f"Created workflow plan '{plan.plan_id}' with {len(plan.steps)} steps for: {goal}"
+        
+        return AgentTaskResult(
+            status="completed",
+            result_summary=summary,
+        )
+
     def get_plan_status(self, plan_id: str) -> Optional[Dict[str, Any]]:
         """Get the status of a specific plan."""
         plan = self.active_plans.get(plan_id)

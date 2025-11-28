@@ -387,3 +387,93 @@ class OracleAgent(BaseAgent):
         )
         
         return reflection
+
+    async def handle_task(self, task: Any, ctx: Any) -> Any:
+        """
+        Handle a task from the Agent Runtime task queue.
+        
+        ORACLE handles research tasks:
+        - propose_new_climate_missions: Suggest new climate missions
+        - research_topic: Research a specific topic
+        """
+        from ...autonomy.runtime import AgentTaskResult
+        
+        self.log_activity("handle_task", {
+            "task_id": task.id,
+            "task_type": task.task_type,
+        })
+        
+        try:
+            if task.task_type == "propose_new_climate_missions":
+                result = await self._handle_propose_climate_missions(task, ctx)
+            elif task.task_type == "research_topic":
+                result = await self._handle_research_topic(task, ctx)
+            else:
+                return AgentTaskResult(
+                    status="failed",
+                    error_message=f"Unknown task type for ORACLE: {task.task_type}",
+                )
+            
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"Error handling task {task.id}: {e}")
+            return AgentTaskResult(
+                status="failed",
+                error_message=str(e),
+            )
+
+    async def _handle_propose_climate_missions(self, task: Any, ctx: Any) -> Any:
+        """Propose new climate missions based on research."""
+        from ...autonomy.runtime import AgentTaskResult
+        
+        focus_area = task.payload.get("focus_area", "general")
+        
+        prompt = f"""You are ORACLE, the Research & Foresight Engine for ZORA CORE.
+
+Based on current climate science and best practices, propose 3-5 new climate missions for the "{focus_area}" focus area.
+
+For each mission, provide:
+1. Title - A clear, actionable mission name
+2. Description - What the mission involves
+3. Category - (energy, transport, food, consumption, advocacy)
+4. Estimated Impact - Approximate CO2 reduction in kg/year
+5. Difficulty - (easy, medium, hard)
+6. Time to Complete - Estimated duration
+
+Focus on:
+- Practical, achievable actions
+- Measurable impact where possible
+- No greenwashing - be honest about limitations
+- Actions that align with ZORA CORE's climate-first values
+
+Speak with wisdom and foresight, as befitting ORACLE.
+"""
+        
+        response = await self.call_model(
+            task_type="research",
+            prompt=prompt,
+        )
+        
+        summary = f"Proposed climate missions for {focus_area}: {response[:200]}..."
+        
+        return AgentTaskResult(
+            status="completed",
+            result_summary=summary,
+        )
+
+    async def _handle_research_topic(self, task: Any, ctx: Any) -> Any:
+        """Research a specific topic."""
+        from ...autonomy.runtime import AgentTaskResult
+        
+        topic = task.payload.get("topic", task.title)
+        depth = task.payload.get("depth", "standard")
+        
+        findings = await self.research(topic, depth=depth)
+        
+        summary = f"Research on '{topic}': {findings['summary']}. Key insights: {len(findings['key_insights'])}"
+        
+        return AgentTaskResult(
+            status="completed",
+            result_summary=summary,
+        )

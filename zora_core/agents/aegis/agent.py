@@ -495,3 +495,102 @@ class AegisAgent(BaseAgent):
             for k, v in self._pending_approvals.items()
             if v.get("status") == "pending"
         ]
+
+    async def handle_task(self, task: Any, ctx: Any) -> Any:
+        """
+        Handle a task from the Agent Runtime task queue.
+        
+        AEGIS handles safety policy check tasks:
+        - review_recent_agent_tasks: Flag risky activities and produce safety review
+        - check_climate_claims: Verify climate claims for greenwashing
+        """
+        from ...autonomy.runtime import AgentTaskResult
+        
+        self.log_activity("handle_task", {
+            "task_id": task.id,
+            "task_type": task.task_type,
+        })
+        
+        try:
+            if task.task_type == "review_recent_agent_tasks":
+                result = await self._handle_review_recent_agent_tasks(task, ctx)
+            elif task.task_type == "check_climate_claims":
+                result = await self._handle_check_climate_claims(task, ctx)
+            else:
+                return AgentTaskResult(
+                    status="failed",
+                    error_message=f"Unknown task type for AEGIS: {task.task_type}",
+                )
+            
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"Error handling task {task.id}: {e}")
+            return AgentTaskResult(
+                status="failed",
+                error_message=str(e),
+            )
+
+    async def _handle_review_recent_agent_tasks(self, task: Any, ctx: Any) -> Any:
+        """Review recent agent tasks for risky activities."""
+        from ...autonomy.runtime import AgentTaskResult
+        
+        hours = task.payload.get("hours", 24)
+        
+        prompt = f"""You are AEGIS, the Safety, Security & Alignment Guardian for ZORA CORE.
+
+Review the recent agent activities from the past {hours} hours and provide a safety assessment:
+
+1. Risk Analysis
+   - Were any high-risk actions attempted?
+   - Were proper approvals obtained?
+   - Any policy violations detected?
+
+2. Data Handling
+   - Was user data handled appropriately?
+   - Any potential PII exposure?
+   - Audit logging compliance?
+
+3. Climate Claims Review
+   - Were any climate claims made?
+   - Do they meet our no-greenwashing standards?
+   - Are sources properly cited?
+
+4. Recommendations
+   - Any immediate concerns to address?
+   - Policy updates to consider?
+   - Training needs for agents?
+
+Speak with authority and vigilance, as befitting AEGIS - the shield of ZORA CORE.
+"""
+        
+        response = await self.call_model(
+            task_type="safety_analysis",
+            prompt=prompt,
+        )
+        
+        summary = f"Safety review ({hours}h): {response[:200]}..."
+        
+        return AgentTaskResult(
+            status="completed",
+            result_summary=summary,
+        )
+
+    async def _handle_check_climate_claims(self, task: Any, ctx: Any) -> Any:
+        """Check climate claims for greenwashing."""
+        from ...autonomy.runtime import AgentTaskResult
+        
+        claim = task.payload.get("claim", "")
+        sources = task.payload.get("sources", [])
+        
+        result = await self.check_climate_claim(claim, sources)
+        
+        status = "verified" if result["verified"] else "needs_review"
+        warnings_count = len(result["warnings"])
+        
+        summary = f"Climate claim check: {status}, {warnings_count} warnings. {result['recommendation']}"
+        
+        return AgentTaskResult(
+            status="completed",
+            result_summary=summary,
+        )
