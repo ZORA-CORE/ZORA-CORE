@@ -712,6 +712,12 @@ export default function AdminSetupPage() {
                           Agent Control Center
                         </Link>
                         <Link
+                          href="/admin/agents/console"
+                          className="text-blue-600 hover:text-blue-800 text-sm"
+                        >
+                          Agent Command Console
+                        </Link>
+                        <Link
                           href="/admin/frontend"
                           className="text-blue-600 hover:text-blue-800 text-sm"
                         >

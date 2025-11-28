@@ -591,6 +591,9 @@ export default function AgentTasksPage() {
             <Link href="/admin/agents/tasks" className="text-emerald-500">
               Agent Tasks
             </Link>
+            <Link href="/admin/agents/console" className="hover:text-emerald-500 transition-colors">
+              Command Console
+            </Link>
           </nav>
         </div>
       </header>

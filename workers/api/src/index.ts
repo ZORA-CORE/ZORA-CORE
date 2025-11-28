@@ -16,6 +16,7 @@ import productsHandler from './handlers/products';
 import publicMashupsHandler from './handlers/public-mashups';
 import agentTasksHandler from './handlers/agent-tasks';
 import agentInsightsHandler from './handlers/agent-insights';
+import agentCommandsHandler from './handlers/agent-commands';
 
 const app = new Hono<AuthAppEnv>();
 
@@ -61,6 +62,9 @@ app.get('/', (c) => {
       'GET /api/agents/insights',
       'GET /api/agents/insights/:id',
       'POST /api/agents/insights/:id/decision',
+      'GET /api/agents/commands',
+      'GET /api/agents/commands/:id',
+      'POST /api/agents/commands',
       'GET /api/climate/profiles',
       'GET /api/climate/profiles/:id',
       'POST /api/climate/profiles',
@@ -104,6 +108,7 @@ app.route('/api/agents', agentsHandler);
 app.route('/api/agents', memoryHandler);
 app.route('/api/agents', agentTasksHandler);
 app.route('/api/agents', agentInsightsHandler);
+app.route('/api/agents', agentCommandsHandler);
 app.route('/api/climate/profiles', profilesHandler);
 app.route('/api/climate', missionsHandler);
 app.route('/api/missions', missionsHandler);

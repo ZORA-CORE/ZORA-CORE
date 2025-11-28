@@ -752,3 +752,60 @@ export interface AgentInsightStatusCounts {
   implemented: number;
   total: number;
 }
+
+// Agent Command Console v1 types (Iteration 0023)
+export type AgentCommandStatus = 'received' | 'parsing' | 'tasks_created' | 'failed';
+
+export interface AgentCommand {
+  id: string;
+  tenant_id: string;
+  created_at: string;
+  updated_at: string | null;
+  created_by_user_id: string | null;
+  raw_prompt: string;
+  target_agents: string[] | null;
+  status: AgentCommandStatus;
+  parsed_summary: string | null;
+  tasks_created_count: number;
+  error_message: string | null;
+  metadata: Record<string, unknown>;
+}
+
+export interface AgentCommandListItem {
+  id: string;
+  raw_prompt: string;
+  target_agents: string[] | null;
+  status: AgentCommandStatus;
+  parsed_summary: string | null;
+  tasks_created_count: number;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface CreateAgentCommandInput {
+  raw_prompt: string;
+  target_agents?: string[];
+}
+
+export interface AgentCommandsListResponse {
+  data: AgentCommandListItem[];
+  pagination: {
+    limit: number;
+    offset: number;
+    total: number;
+    has_more: boolean;
+  };
+}
+
+export interface AgentCommandResponse {
+  data: {
+    command: AgentCommand;
+    tasks_created: AgentTaskListItem[];
+    summary: string;
+  };
+}
+
+export interface AgentCommandDetailResponse {
+  data: AgentCommand;
+  tasks: AgentTaskListItem[];
+}
