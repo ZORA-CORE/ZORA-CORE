@@ -68,11 +68,14 @@ For persistent storage, you'll need to set up Supabase.
 1. Go to your project's SQL Editor in the Supabase dashboard
 2. Copy the contents of `supabase/migrations/00001_initial_schema.sql`
 3. Paste and run the SQL
+4. For semantic memory support, also run `supabase/migrations/00002_pgvector_semantic_memory.sql`
 
 Alternatively, if you have the Supabase CLI:
 ```bash
 supabase db push
 ```
+
+**Note:** The pgvector migration requires the pgvector extension to be enabled in your Supabase project. This is typically available by default on Supabase projects.
 
 ### 3. Get Your API Keys
 
@@ -311,6 +314,59 @@ ZORA-CORE/
 └── requirements.txt           # Python dependencies
 ```
 
+## Semantic Memory Setup (Optional)
+
+For semantic search capabilities using pgvector, you'll need to set up embeddings.
+
+### 1. Enable pgvector in Supabase
+
+pgvector is typically enabled by default in Supabase projects. If not, run in the SQL Editor:
+
+```sql
+CREATE EXTENSION IF NOT EXISTS vector;
+```
+
+### 2. Apply the pgvector Migration
+
+Run the semantic memory migration in the Supabase SQL Editor:
+
+```sql
+-- Copy contents from supabase/migrations/00002_pgvector_semantic_memory.sql
+```
+
+This creates:
+- HNSW index on the embedding column for fast similarity search
+- `search_memories_by_embedding()` function for semantic queries
+
+### 3. Configure OpenAI API Key
+
+Set your OpenAI API key for generating embeddings:
+
+```bash
+export OPENAI_API_KEY="your-openai-api-key"
+```
+
+Or add to your `.env` file:
+
+```bash
+# .env
+OPENAI_API_KEY=your-openai-api-key
+```
+
+### 4. Verify Semantic Memory
+
+```bash
+# Check embedding configuration
+PYTHONPATH=. python -c "from zora_core.models.embedding import get_embedding_info; print(get_embedding_info())"
+
+# Run semantic memory demo
+PYTHONPATH=. python -m zora_core.memory.cli --backend=supabase semantic-demo
+```
+
+### Semantic Memory Without API Key
+
+If you don't have an OpenAI API key, the system will use a stub embedding provider. This allows the system to function, but semantic search will fall back to text-based search.
+
 ## Common Commands
 
 ### Memory CLI
@@ -334,6 +390,12 @@ PYTHONPATH=. python -m zora_core.memory.cli save \
 
 # Search memories
 PYTHONPATH=. python -m zora_core.memory.cli search --query "FastAPI"
+
+# Semantic search (requires Supabase + OpenAI)
+PYTHONPATH=. python -m zora_core.memory.cli --backend=supabase semantic-search --query "climate action"
+
+# Run semantic memory demo
+PYTHONPATH=. python -m zora_core.memory.cli --backend=supabase semantic-demo
 
 # Show statistics
 PYTHONPATH=. python -m zora_core.memory.cli stats
@@ -377,6 +439,8 @@ npm run lint
 | `SUPABASE_URL` | Supabase project URL | For Supabase backend | - |
 | `SUPABASE_SERVICE_KEY` | Service role key | For Supabase backend | - |
 | `SUPABASE_ANON_KEY` | Anonymous key | Alternative to service key | - |
+| `OPENAI_API_KEY` | OpenAI API key | For semantic memory | - |
+| `ZORA_EMBEDDING_MODEL` | Embedding model name | No | `text-embedding-3-small` |
 
 ## Troubleshooting
 
@@ -424,4 +488,4 @@ PYTHONPATH=. python -m zora_core.memory.cli demo
 
 ---
 
-*ZORA CORE Developer Setup Guide - Iteration 0004*
+*ZORA CORE Developer Setup Guide - Iteration 0005*

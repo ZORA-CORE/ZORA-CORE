@@ -6,8 +6,10 @@ A simple CLI tool for testing memory operations.
 Usage:
     python -m zora_core.memory.cli demo
     python -m zora_core.memory.cli demo --backend=supabase
+    python -m zora_core.memory.cli semantic-demo --backend=supabase
     python -m zora_core.memory.cli save --agent CONNOR --type decision --content "Test memory"
     python -m zora_core.memory.cli search --query "test" --limit 5
+    python -m zora_core.memory.cli semantic-search --query "climate action" --limit 5
     python -m zora_core.memory.cli history --session session_123
     python -m zora_core.memory.cli stats
     python -m zora_core.memory.cli config
@@ -247,6 +249,169 @@ async def cmd_demo(args):
     print("\n=== Demo Complete ===")
 
 
+async def cmd_semantic_search(args):
+    """Search memories by semantic similarity."""
+    # Check if backend supports semantic search
+    if not hasattr(_memory_store, 'semantic_search'):
+        print("Error: Current backend does not support semantic search.")
+        print("Use --backend=supabase with pgvector enabled.")
+        return
+    
+    results = await _memory_store.semantic_search(
+        query=args.query,
+        k=args.limit,
+        agent=args.agent,
+        tags=args.tags.split(",") if args.tags else None,
+    )
+    
+    if not results:
+        print("No memories found.")
+        return
+    
+    print(f"Found {len(results)} memories by semantic similarity:\n")
+    for i, memory in enumerate(results, 1):
+        similarity = memory.get('similarity', 'N/A')
+        if isinstance(similarity, float):
+            similarity = f"{similarity:.4f}"
+        print(f"{i}. [{memory['memory_type']}] {memory['agent']} (similarity: {similarity})")
+        print(f"   ID: {memory['id']}")
+        print(f"   Content: {memory['content'][:100]}{'...' if len(memory['content']) > 100 else ''}")
+        print(f"   Tags: {', '.join(memory['tags']) if memory['tags'] else 'none'}")
+        print()
+
+
+async def cmd_semantic_demo(args):
+    """Run a demo of semantic memory operations."""
+    backend_name = type(_memory_store).__name__
+    print(f"=== ZORA CORE Semantic Memory Demo ({backend_name}) ===\n")
+    
+    # Check if backend supports semantic search
+    if not hasattr(_memory_store, 'semantic_search'):
+        print("Error: Current backend does not support semantic search.")
+        print("Use --backend=supabase with pgvector enabled.")
+        return
+    
+    # Check if embeddings are enabled
+    if hasattr(_memory_store, 'embeddings_enabled'):
+        if not _memory_store.embeddings_enabled:
+            print("Warning: Embeddings are not enabled. Semantic search will fall back to text search.")
+            print("Set OPENAI_API_KEY environment variable to enable embeddings.\n")
+    
+    # Save some climate-related memories for the demo
+    print("1. Saving climate-related memories...")
+    
+    memories = [
+        {
+            "agent": "ORACLE",
+            "memory_type": "research",
+            "content": "Research findings show that renewable energy adoption has increased by 45% globally in 2024, with solar and wind leading the transition away from fossil fuels.",
+            "tags": ["climate", "energy", "research"],
+        },
+        {
+            "agent": "AEGIS",
+            "memory_type": "safety_review",
+            "content": "Safety assessment of carbon capture technology deployment: Low risk for environmental impact, moderate cost concerns, high potential for emissions reduction.",
+            "tags": ["climate", "safety", "carbon"],
+        },
+        {
+            "agent": "LUMINA",
+            "memory_type": "plan",
+            "content": "Strategic plan for Climate OS v2: Focus on biodiversity tracking, integrate with satellite imagery APIs, add real-time deforestation alerts.",
+            "tags": ["climate", "planning", "biodiversity"],
+        },
+        {
+            "agent": "CONNOR",
+            "memory_type": "decision",
+            "content": "Technical decision: Use PostgreSQL with pgvector for storing climate data embeddings, enabling semantic search across environmental datasets.",
+            "tags": ["technical", "database", "climate"],
+        },
+        {
+            "agent": "EIVOR",
+            "memory_type": "reflection",
+            "content": "Memory system observation: Climate-related queries are 3x more frequent than other topics. Users are particularly interested in actionable sustainability tips.",
+            "tags": ["memory", "analytics", "climate"],
+        },
+        {
+            "agent": "SAM",
+            "memory_type": "design",
+            "content": "UI/UX design for climate dashboard: Green color palette representing sustainability, interactive charts for carbon footprint tracking, gamification elements for eco-challenges.",
+            "tags": ["design", "frontend", "climate"],
+        },
+    ]
+    
+    saved_ids = []
+    for mem in memories:
+        mem_id = await _memory_store.save_memory(
+            agent=mem["agent"],
+            memory_type=mem["memory_type"],
+            content=mem["content"],
+            tags=mem["tags"],
+            session_id="semantic_demo_session",
+        )
+        print(f"   Saved: {mem_id[:8]}... [{mem['agent']}] {mem['content'][:50]}...")
+        saved_ids.append(mem_id)
+    
+    print()
+    
+    # Demonstrate semantic search with different queries
+    print("2. Semantic search demonstrations...\n")
+    
+    test_queries = [
+        "What are the latest findings about clean energy?",
+        "How can we reduce carbon emissions?",
+        "What's the plan for tracking nature and forests?",
+        "Tell me about the user interface design",
+        "What technical decisions were made about data storage?",
+    ]
+    
+    for query in test_queries:
+        print(f"   Query: \"{query}\"")
+        results = await _memory_store.semantic_search(query=query, k=2)
+        
+        if results:
+            for i, r in enumerate(results, 1):
+                similarity = r.get('similarity', 'N/A')
+                if isinstance(similarity, float):
+                    similarity = f"{similarity:.3f}"
+                print(f"   {i}. [{r['agent']}] {r['content'][:60]}... (sim: {similarity})")
+        else:
+            print("   No results found.")
+        print()
+    
+    # Interactive mode
+    print("3. Interactive semantic search (type 'quit' to exit)...\n")
+    
+    while True:
+        try:
+            user_query = input("   Enter your query: ").strip()
+            if user_query.lower() in ['quit', 'exit', 'q']:
+                break
+            if not user_query:
+                continue
+            
+            results = await _memory_store.semantic_search(query=user_query, k=3)
+            
+            if results:
+                print(f"\n   Top {len(results)} results:")
+                for i, r in enumerate(results, 1):
+                    similarity = r.get('similarity', 'N/A')
+                    if isinstance(similarity, float):
+                        similarity = f"{similarity:.4f}"
+                    print(f"   {i}. [{r['agent']}] (similarity: {similarity})")
+                    print(f"      {r['content'][:80]}...")
+            else:
+                print("   No results found.")
+            print()
+            
+        except EOFError:
+            break
+        except KeyboardInterrupt:
+            print("\n")
+            break
+    
+    print("\n=== Semantic Demo Complete ===")
+
+
 def main():
     """Main entry point for the CLI."""
     parser = argparse.ArgumentParser(
@@ -302,6 +467,24 @@ def main():
     # Demo command
     subparsers.add_parser("demo", help="Run a demo of memory operations")
     
+    # Semantic search command
+    semantic_search_parser = subparsers.add_parser(
+        "semantic-search", help="Search memories by semantic similarity"
+    )
+    semantic_search_parser.add_argument(
+        "--query", "-q", required=True, help="Natural language query"
+    )
+    semantic_search_parser.add_argument("--agent", "-a", help="Filter by agent")
+    semantic_search_parser.add_argument("--tags", help="Comma-separated tags")
+    semantic_search_parser.add_argument(
+        "--limit", "-l", type=int, default=10, help="Max results"
+    )
+    
+    # Semantic demo command
+    subparsers.add_parser(
+        "semantic-demo", help="Run a demo of semantic memory operations"
+    )
+    
     args = parser.parse_args()
     
     if not args.command:
@@ -329,6 +512,10 @@ def main():
         cmd_config(args)
     elif args.command == "demo":
         asyncio.run(cmd_demo(args))
+    elif args.command == "semantic-search":
+        asyncio.run(cmd_semantic_search(args))
+    elif args.command == "semantic-demo":
+        asyncio.run(cmd_semantic_demo(args))
 
 
 if __name__ == "__main__":

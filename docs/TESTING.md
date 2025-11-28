@@ -24,7 +24,8 @@ tests/
 │   └── test_base_agent.py     # Tests for BaseAgent class
 ├── memory/                    # Memory backend tests
 │   ├── __init__.py
-│   └── test_memory_backends.py # Tests for MemoryStore and SupabaseMemoryAdapter
+│   ├── test_memory_backends.py # Tests for MemoryStore and SupabaseMemoryAdapter
+│   └── test_embeddings.py     # Tests for embedding providers and semantic search
 └── test_zora_infinity_dual_agi.py  # Integration tests
 ```
 
@@ -99,6 +100,46 @@ The tests will be skipped with a message if credentials are not set:
 ```
 SKIPPED [1] tests/memory/test_memory_backends.py:317: Supabase credentials not configured (set SUPABASE_URL and SUPABASE_SERVICE_KEY)
 ```
+
+### Embedding and Semantic Search Tests
+
+The embedding tests in `test_embeddings.py` cover the embedding providers and semantic search functionality. Tests are organized into tiers based on required credentials:
+
+**Tier 1: No credentials required (always run)**
+- `TestStubEmbeddingProvider` - Tests for the stub embedding provider
+- `TestEmbeddingProviderFactory` - Tests for the factory function
+
+```bash
+PYTHONPATH=. pytest tests/memory/test_embeddings.py -v -k "Stub or Factory"
+```
+
+**Tier 2: OpenAI package required (skipped if not installed)**
+- `TestOpenAIEmbeddingProviderMocked` - Tests with mocked OpenAI API
+
+```bash
+pip install openai
+PYTHONPATH=. pytest tests/memory/test_embeddings.py::TestOpenAIEmbeddingProviderMocked -v
+```
+
+**Tier 3: OpenAI API key required (skipped if not configured)**
+- `TestOpenAIEmbeddingProviderLive` - Live tests against OpenAI API
+
+```bash
+export OPENAI_API_KEY="your-openai-api-key"
+PYTHONPATH=. pytest tests/memory/test_embeddings.py::TestOpenAIEmbeddingProviderLive -v
+```
+
+**Tier 4: Both OpenAI and Supabase required (skipped if either is missing)**
+- `TestSemanticSearchIntegration` - End-to-end semantic search tests
+
+```bash
+export OPENAI_API_KEY="your-openai-api-key"
+export SUPABASE_URL="https://your-project.supabase.co"
+export SUPABASE_SERVICE_KEY="your-service-role-key"
+PYTHONPATH=. pytest tests/memory/test_embeddings.py::TestSemanticSearchIntegration -v
+```
+
+**Note:** For semantic search integration tests, you must also have pgvector enabled in your Supabase database and have applied the `00002_pgvector_semantic_memory.sql` migration.
 
 ## Test Coverage
 
