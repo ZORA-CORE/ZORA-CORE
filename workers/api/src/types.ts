@@ -8,6 +8,8 @@ export type Bindings = {
   // Version info bindings (v0.16) - optional, can be set in Cloudflare dashboard
   ZORA_API_GIT_COMMIT?: string;
   ZORA_API_BUILD_TIME?: string;
+  // Public mashup mode (v0.18) - slug of tenant to expose publicly
+  PUBLIC_TENANT_SLUG?: string;
 };
 
 export type UserRole = 'founder' | 'brand_admin' | 'viewer';

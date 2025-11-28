@@ -322,8 +322,18 @@ export interface HomePageConfig {
   hero_subtitle: string;
   primary_cta_label: string;
   primary_cta_link: string;
+  secondary_cta_label?: string;
+  secondary_cta_link?: string;
   show_climate_dashboard: boolean;
   show_missions_section: boolean;
+  // New sections for Iteration 0018 redesign
+  show_value_strip: boolean;
+  show_for_whom_section: boolean;
+  show_climate_os_section: boolean;
+  show_agents_section: boolean;
+  show_mashup_section: boolean;
+  show_faq_section: boolean;
+  faq_items?: Array<{ question: string; answer: string }>;
 }
 
 export interface ClimatePageConfig {
@@ -332,6 +342,43 @@ export interface ClimatePageConfig {
   show_profile_section: boolean;
   show_dashboard_section: boolean;
   show_missions_section: boolean;
+}
+
+export interface DashboardPageConfig {
+  hero_title: string;
+  hero_subtitle: string;
+  primary_cta_label: string;
+  primary_cta_link: string;
+  show_stats_section: boolean;
+  show_agents_section: boolean;
+  show_recent_activity_section: boolean;
+}
+
+export interface AgentsPageConfig {
+  hero_title: string;
+  hero_subtitle: string;
+  show_memory_search: boolean;
+  show_recent_memories: boolean;
+}
+
+export interface JournalPageConfig {
+  hero_title: string;
+  hero_subtitle: string;
+  entries_per_page: number;
+}
+
+export interface MashupsPageConfig {
+  hero_title: string;
+  hero_subtitle: string;
+  show_brand_filter: boolean;
+  show_climate_scores: boolean;
+}
+
+export interface LoginPageConfig {
+  hero_title: string;
+  hero_subtitle: string;
+  show_admin_link: boolean;
+  show_public_mashups_link: boolean;
 }
 
 export interface FrontendConfigResponse {
@@ -518,4 +565,64 @@ export interface BrandsListResponse {
 export interface ProductsListResponse {
   data: Product[];
   count: number;
+}
+
+// Public Mashup API types (v0.18)
+export interface PublicBrandInfo {
+  id: string;
+  name: string;
+  slug: string | null;
+  sector: string | null;
+  country: string | null;
+  climate_tagline: string | null;
+  logo_url?: string | null;
+  website_url?: string | null;
+}
+
+export interface PublicProductBrand {
+  id: string;
+  role: string;
+  brand: PublicBrandInfo | PublicBrandInfo[] | null;
+}
+
+export interface PublicProduct {
+  id: string;
+  name: string;
+  slug: string | null;
+  short_description: string | null;
+  long_description: string | null;
+  primary_image_url: string | null;
+  climate_score: number | null;
+  estimated_impact_kgco2: number | null;
+  created_at: string;
+  product_brands: PublicProductBrand[];
+}
+
+export interface PublicBrand {
+  id: string;
+  name: string;
+  slug: string | null;
+  description: string | null;
+  logo_url: string | null;
+  website_url: string | null;
+  climate_tagline: string | null;
+  sector: string | null;
+  country: string | null;
+}
+
+export interface PublicProductsResponse {
+  data: PublicProduct[];
+  count: number;
+}
+
+export interface PublicBrandsResponse {
+  data: PublicBrand[];
+  count: number;
+}
+
+export interface PublicMashupStats {
+  products_count: number;
+  brands_count: number;
+  sectors: string[];
+  countries: string[];
 }

@@ -3,9 +3,16 @@
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/AuthContext";
-import { getFrontendConfig, getClimateMissions, getClimateProfiles } from "@/lib/api";
-import type { HomePageConfig, ClimateMission, DashboardSummary, ClimateProfile, ProfileScope } from "@/lib/types";
-import { VersionInfo } from "@/components/VersionInfo";
+import { getFrontendConfig, getClimateMissions, getClimateProfiles, getPublicProducts } from "@/lib/api";
+import type { HomePageConfig, ClimateMission, DashboardSummary, ClimateProfile, ProfileScope, PublicProduct } from "@/lib/types";
+import { PageShell } from "@/components/ui/PageShell";
+import { HeroSection } from "@/components/ui/HeroSection";
+import { SectionHeader } from "@/components/ui/SectionHeader";
+import { Card } from "@/components/ui/Card";
+import { StatCard } from "@/components/ui/StatCard";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 
 const SCOPE_COLORS: Record<ProfileScope, string> = {
   individual: "bg-blue-500",
@@ -376,98 +383,62 @@ export default function Dashboard() {
 
   if (authLoading || configLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-gray-400">Loading...</div>
-      </div>
+      <PageShell isAuthenticated={isAuthenticated}>
+        <div className="min-h-[60vh] flex items-center justify-center">
+          <LoadingSpinner size="lg" />
+        </div>
+      </PageShell>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <header className="border-b border-zinc-800 p-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <Link href="/" className="text-2xl font-bold">
-            <span className="text-emerald-500">ZORA</span> CORE
-          </Link>
-                    <nav className="flex gap-4">
-                      <Link href="/dashboard" className="text-emerald-500">
-                        Dashboard
-                      </Link>
-                      <Link href="/agents" className="hover:text-emerald-500 transition-colors">
-                        Agents
-                      </Link>
-                      <Link href="/climate" className="hover:text-emerald-500 transition-colors">
-                        Climate OS
-                      </Link>
-                      <Link href="/mashups" className="hover:text-emerald-500 transition-colors">
-                        Mashup Shop
-                      </Link>
-                      <Link href="/journal" className="hover:text-emerald-500 transition-colors">
-                        Journal
-                      </Link>
-                    </nav>
+    <PageShell isAuthenticated={isAuthenticated}>
+      <HeroSection
+        headline={config.hero_title}
+        subheadline={config.hero_subtitle}
+        primaryCta={{ label: config.primary_cta_label, href: config.primary_cta_link }}
+        size="sm"
+      />
+
+      {isDefault && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8 mb-8">
+          <p className="text-xs text-[var(--foreground)]/40">
+            Using default configuration.{" "}
+            <Link href="/admin/frontend" className="text-[var(--primary)] hover:underline">
+              Customize
+            </Link>
+          </p>
         </div>
-      </header>
+      )}
 
-            <main className="flex-1 p-6">
-              <div className="max-w-7xl mx-auto">
-                <div className="mb-8">
-                  <h1 className="text-4xl font-bold mb-2">{config.hero_title}</h1>
-                  <p className="text-xl text-gray-400">{config.hero_subtitle}</p>
-                  {isDefault && (
-                    <p className="text-xs text-gray-500 mt-2">
-                      Using default configuration.{" "}
-                      <Link href="/admin/frontend" className="text-emerald-500 hover:text-emerald-400">
-                        Customize
-                      </Link>
-                    </p>
-                  )}
-                </div>
-
-                <div className="mb-6">
-                  <Link href={config.primary_cta_link} className="btn-primary inline-block">
-                    {config.primary_cta_label}
-                  </Link>
-                </div>
-
-                {(config.show_climate_dashboard || config.show_missions_section) && (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                    <ProfilesOverview profiles={profiles} primaryProfile={primaryProfile} />
-                    {config.show_climate_dashboard && (
-                      <ClimateDashboardCard summary={climateSummary} />
-                    )}
-                    {config.show_missions_section && (
-                      <MissionsTeaser missions={missions} />
-                    )}
-                  </div>
-                )}
-
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-            <div className="agent-card">
-              <p className="text-gray-400 text-sm">Total Agents</p>
-              <p className="text-3xl font-bold text-emerald-500">{stats.totalAgents}</p>
-            </div>
-            <div className="agent-card">
-              <p className="text-gray-400 text-sm">Active Agents</p>
-              <p className="text-3xl font-bold text-emerald-500">{stats.activeAgents}</p>
-            </div>
-            <div className="agent-card">
-              <p className="text-gray-400 text-sm">Total Tasks</p>
-              <p className="text-3xl font-bold text-amber-500">{stats.totalTasks}</p>
-            </div>
-            <div className="agent-card">
-              <p className="text-gray-400 text-sm">Completed Tasks</p>
-              <p className="text-3xl font-bold text-emerald-500">{stats.completedTasks}</p>
-            </div>
+      <section className="py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            <StatCard label="Total Agents" value={stats.totalAgents} variant="primary" />
+            <StatCard label="Active Agents" value={stats.activeAgents} variant="primary" />
+            <StatCard label="Total Tasks" value={stats.totalTasks} variant="accent" />
+            <StatCard label="Completed Tasks" value={stats.completedTasks} variant="primary" />
           </div>
+
+          {(config.show_climate_dashboard || config.show_missions_section) && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+              <ProfilesOverview profiles={profiles} primaryProfile={primaryProfile} />
+              {config.show_climate_dashboard && (
+                <ClimateDashboardCard summary={climateSummary} />
+              )}
+              {config.show_missions_section && (
+                <MissionsTeaser missions={missions} />
+              )}
+            </div>
+          )}
 
           <div className="flex gap-4 mb-6">
             <button
               onClick={() => setActiveTab("agents")}
               className={`px-4 py-2 rounded-lg transition-colors ${
                 activeTab === "agents"
-                  ? "bg-emerald-500 text-white"
-                  : "bg-zinc-800 text-gray-400 hover:bg-zinc-700"
+                  ? "bg-[var(--primary)] text-white"
+                  : "bg-[var(--card-bg)] text-[var(--foreground)]/60 hover:text-[var(--foreground)]"
               }`}
             >
               Agents
@@ -476,8 +447,8 @@ export default function Dashboard() {
               onClick={() => setActiveTab("tasks")}
               className={`px-4 py-2 rounded-lg transition-colors ${
                 activeTab === "tasks"
-                  ? "bg-emerald-500 text-white"
-                  : "bg-zinc-800 text-gray-400 hover:bg-zinc-700"
+                  ? "bg-[var(--primary)] text-white"
+                  : "bg-[var(--card-bg)] text-[var(--foreground)]/60 hover:text-[var(--foreground)]"
               }`}
             >
               Tasks
@@ -493,32 +464,29 @@ export default function Dashboard() {
           )}
 
           {activeTab === "tasks" && (
-            <div className="agent-card overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-zinc-700 text-left text-gray-400">
-                    <th className="py-3 px-4 font-medium">ID</th>
-                    <th className="py-3 px-4 font-medium">Title</th>
-                    <th className="py-3 px-4 font-medium">Assignee</th>
-                    <th className="py-3 px-4 font-medium">Status</th>
-                    <th className="py-3 px-4 font-medium">Priority</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {mockTasks.map((task) => (
-                    <TaskRow key={task.id} task={task} />
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <Card variant="default" padding="none">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-[var(--card-border)] text-left text-[var(--foreground)]/60">
+                      <th className="py-3 px-4 font-medium">ID</th>
+                      <th className="py-3 px-4 font-medium">Title</th>
+                      <th className="py-3 px-4 font-medium">Assignee</th>
+                      <th className="py-3 px-4 font-medium">Status</th>
+                      <th className="py-3 px-4 font-medium">Priority</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {mockTasks.map((task) => (
+                      <TaskRow key={task.id} task={task} />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
           )}
         </div>
-      </main>
-
-            <footer className="border-t border-zinc-800 p-4 text-center">
-              <div className="text-gray-500 text-sm mb-2">ZORA CORE - Climate OS v0.3</div>
-              <VersionInfo />
-            </footer>
-    </div>
+      </section>
+    </PageShell>
   );
 }
