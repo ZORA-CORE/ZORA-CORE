@@ -1,5 +1,12 @@
 import { Hono } from 'hono';
-import type { ClimateMission, CreateMissionInput, UpdateMissionInput } from '../types';
+import type { 
+  ClimateMission, 
+  CreateMissionInput, 
+  UpdateMissionInput,
+  CreateMaterialSwitchMissionInput,
+  UpdateMaterialSwitchMissionInput,
+  MaterialSwitchMission,
+} from '../types';
 import type { AuthAppEnv } from '../middleware/auth';
 import { getTenantId } from '../middleware/auth';
 import { getSupabaseClient } from '../lib/supabase';
@@ -67,7 +74,7 @@ app.post('/profiles/:profileId/missions', async (c) => {
   try {
     const tenantId = getTenantId(c);
     const profileId = c.req.param('profileId');
-    const body = await c.req.json<CreateMissionInput>();
+    const body = await c.req.json<CreateMaterialSwitchMissionInput>();
     
     if (!body.title) {
       return badRequestResponse('Title is required');
@@ -87,23 +94,66 @@ app.post('/profiles/:profileId/missions', async (c) => {
       return notFoundResponse('Climate profile');
     }
     
+    // Validate material IDs if provided (material-switch mission fields)
+    let fromMaterialName: string | null = null;
+    let toMaterialName: string | null = null;
+    
+    if (body.from_material_id) {
+      const { data: fromMaterial } = await supabase
+        .from('materials')
+        .select('id, name')
+        .eq('id', body.from_material_id)
+        .eq('tenant_id', tenantId)
+        .single();
+      
+      if (!fromMaterial) {
+        return badRequestResponse('from_material_id does not exist or does not belong to tenant');
+      }
+      fromMaterialName = fromMaterial.name;
+    }
+    
+    if (body.to_material_id) {
+      const { data: toMaterial } = await supabase
+        .from('materials')
+        .select('id, name')
+        .eq('id', body.to_material_id)
+        .eq('tenant_id', tenantId)
+        .single();
+      
+      if (!toMaterial) {
+        return badRequestResponse('to_material_id does not exist or does not belong to tenant');
+      }
+      toMaterialName = toMaterial.name;
+    }
+    
     const estimatedImpact = body.estimated_impact_kgco2 ?? null;
     const impactEstimate = body.impact_estimate || (estimatedImpact ? { co2_kg: estimatedImpact } : {});
     
+    // Build insert object with material-switch fields
+    const insertData: Record<string, unknown> = {
+      tenant_id: tenantId,
+      profile_id: profileId,
+      title: body.title,
+      description: body.description || null,
+      category: body.category || null,
+      status: body.status || 'planned',
+      impact_estimate: impactEstimate,
+      estimated_impact_kgco2: estimatedImpact,
+      due_date: body.due_date || null,
+      metadata: body.metadata || {},
+    };
+    
+    // Add material-switch fields if provided
+    if (body.material_mission_type !== undefined) insertData.material_mission_type = body.material_mission_type;
+    if (body.from_material_id !== undefined) insertData.from_material_id = body.from_material_id;
+    if (body.to_material_id !== undefined) insertData.to_material_id = body.to_material_id;
+    if (body.material_quantity !== undefined) insertData.material_quantity = body.material_quantity;
+    if (body.material_quantity_unit !== undefined) insertData.material_quantity_unit = body.material_quantity_unit;
+    if (body.estimated_savings_kgco2 !== undefined) insertData.estimated_savings_kgco2 = body.estimated_savings_kgco2;
+    
     const { data, error } = await supabase
       .from('climate_missions')
-      .insert({
-        tenant_id: tenantId,
-        profile_id: profileId,
-        title: body.title,
-        description: body.description || null,
-        category: body.category || null,
-        status: body.status || 'planned',
-        impact_estimate: impactEstimate,
-        estimated_impact_kgco2: estimatedImpact,
-        due_date: body.due_date || null,
-        metadata: body.metadata || {},
-      })
+      .insert(insertData)
       .select()
       .single();
     
@@ -112,11 +162,21 @@ app.post('/profiles/:profileId/missions', async (c) => {
       return serverErrorResponse('Failed to create climate mission');
     }
     
+    // Build journal summary with material-switch context if applicable
     const scopeLabel = profile.scope || 'individual';
+    let summary = `Mission created for profile '${profile.name}' (scope: ${scopeLabel}): ${data.title}`;
+    
+    if (body.material_mission_type === 'switch_material' && fromMaterialName && toMaterialName) {
+      const quantityLabel = body.material_quantity && body.material_quantity_unit 
+        ? ` (${body.material_quantity} ${body.material_quantity_unit})`
+        : '';
+      summary = `Material switch mission created for profile '${profile.name}': ${fromMaterialName} → ${toMaterialName}${quantityLabel}`;
+    }
+    
     await insertJournalEntry(supabase, {
       tenantId,
-      eventType: 'climate_mission_created',
-      summary: `Mission created for profile '${profile.name}' (scope: ${scopeLabel}): ${data.title}`,
+      eventType: body.material_mission_type ? 'climate_material_mission_created' : 'climate_mission_created',
+      summary,
       metadata: {
         mission_id: data.id,
         profile_id: profileId,
@@ -124,11 +184,19 @@ app.post('/profiles/:profileId/missions', async (c) => {
         profile_scope: profile.scope,
         category: data.category,
         estimated_impact_kgco2: data.estimated_impact_kgco2,
+        material_mission_type: body.material_mission_type,
+        from_material_id: body.from_material_id,
+        from_material_name: fromMaterialName,
+        to_material_id: body.to_material_id,
+        to_material_name: toMaterialName,
+        material_quantity: body.material_quantity,
+        material_quantity_unit: body.material_quantity_unit,
+        estimated_savings_kgco2: body.estimated_savings_kgco2,
       },
-      relatedEntityIds: [data.id, profileId],
+      relatedEntityIds: [data.id, profileId, body.from_material_id, body.to_material_id].filter(Boolean) as string[],
     });
     
-    return jsonResponse<ClimateMission>(data, 201);
+    return jsonResponse<MaterialSwitchMission>(data, 201);
   } catch (error) {
     console.error('Mission create error:', error);
     return serverErrorResponse('Failed to create climate mission');
@@ -139,7 +207,7 @@ app.patch('/missions/:id', async (c) => {
   try {
     const tenantId = getTenantId(c);
     const id = c.req.param('id');
-    const body = await c.req.json<UpdateMissionInput>();
+    const body = await c.req.json<UpdateMaterialSwitchMissionInput>();
     
     const supabase = getSupabaseClient(c.env);
     
@@ -167,6 +235,38 @@ app.patch('/missions/:id', async (c) => {
       }
     }
     
+    // Validate material IDs if provided (material-switch mission fields)
+    let fromMaterialName: string | null = null;
+    let toMaterialName: string | null = null;
+    
+    if (body.from_material_id) {
+      const { data: fromMaterial } = await supabase
+        .from('materials')
+        .select('id, name')
+        .eq('id', body.from_material_id)
+        .eq('tenant_id', tenantId)
+        .single();
+      
+      if (!fromMaterial) {
+        return badRequestResponse('from_material_id does not exist or does not belong to tenant');
+      }
+      fromMaterialName = fromMaterial.name;
+    }
+    
+    if (body.to_material_id) {
+      const { data: toMaterial } = await supabase
+        .from('materials')
+        .select('id, name')
+        .eq('id', body.to_material_id)
+        .eq('tenant_id', tenantId)
+        .single();
+      
+      if (!toMaterial) {
+        return badRequestResponse('to_material_id does not exist or does not belong to tenant');
+      }
+      toMaterialName = toMaterial.name;
+    }
+    
     const previousStatus = existing.status;
     
     const updateData: Record<string, unknown> = {};
@@ -183,6 +283,14 @@ app.patch('/missions/:id', async (c) => {
     if (body.verified_by !== undefined) updateData.verified_by = body.verified_by;
     if (body.verification_notes !== undefined) updateData.verification_notes = body.verification_notes;
     if (body.metadata !== undefined) updateData.metadata = body.metadata;
+    
+    // Add material-switch fields if provided
+    if (body.material_mission_type !== undefined) updateData.material_mission_type = body.material_mission_type;
+    if (body.from_material_id !== undefined) updateData.from_material_id = body.from_material_id;
+    if (body.to_material_id !== undefined) updateData.to_material_id = body.to_material_id;
+    if (body.material_quantity !== undefined) updateData.material_quantity = body.material_quantity;
+    if (body.material_quantity_unit !== undefined) updateData.material_quantity_unit = body.material_quantity_unit;
+    if (body.estimated_savings_kgco2 !== undefined) updateData.estimated_savings_kgco2 = body.estimated_savings_kgco2;
     
     if (body.status === 'in_progress' && !updateData.started_at) {
       updateData.started_at = new Date().toISOString();
@@ -218,7 +326,7 @@ app.patch('/missions/:id', async (c) => {
       
       await insertJournalEntry(supabase, {
         tenantId,
-        eventType: 'climate_mission_status_updated',
+        eventType: data.material_mission_type ? 'climate_material_mission_status_updated' : 'climate_mission_status_updated',
         summary: statusMessages[body.status] || `Mission status updated${profileLabel}: ${data.title}`,
         metadata: {
           mission_id: data.id,
@@ -228,12 +336,16 @@ app.patch('/missions/:id', async (c) => {
           previous_status: previousStatus,
           new_status: body.status,
           estimated_impact_kgco2: data.estimated_impact_kgco2,
+          material_mission_type: data.material_mission_type,
+          from_material_id: data.from_material_id,
+          to_material_id: data.to_material_id,
+          estimated_savings_kgco2: data.estimated_savings_kgco2,
         },
-        relatedEntityIds: existing.profile_id ? [data.id, existing.profile_id] : [data.id],
+        relatedEntityIds: [data.id, existing.profile_id, data.from_material_id, data.to_material_id].filter(Boolean) as string[],
       });
     }
     
-    return jsonResponse<ClimateMission>(data);
+    return jsonResponse<MaterialSwitchMission>(data);
   } catch (error) {
     console.error('Mission update error:', error);
     return serverErrorResponse('Failed to update climate mission');

@@ -1736,7 +1736,117 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 COMMENT ON FUNCTION get_table_columns IS 'Returns column names for a given table - used by schema health check endpoint';
 
 -- ============================================================================
--- STEP 14: VERIFY SCHEMA
+-- STEP 14A: HEMP & CLIMATE MATERIALS v1.0 (Iteration 00C1)
+-- ============================================================================
+
+-- 14A.1: Extend materials table with hemp/cannabis tagging fields
+-- is_hemp_or_cannabis_material: marks whether this material is hemp or a legally regulated cannabis-derived material
+ALTER TABLE materials ADD COLUMN IF NOT EXISTS is_hemp_or_cannabis_material BOOLEAN NOT NULL DEFAULT false;
+COMMENT ON COLUMN materials.is_hemp_or_cannabis_material IS 'Whether this material is hemp or a legally regulated cannabis-derived material used in industrial/climate-relevant contexts';
+
+-- hemp_category: expected values: fiber, bioplastic, construction, paper_packaging, other_industrial
+ALTER TABLE materials ADD COLUMN IF NOT EXISTS hemp_category TEXT;
+COMMENT ON COLUMN materials.hemp_category IS 'Hemp material category: fiber, bioplastic, construction, paper_packaging, other_industrial';
+
+-- climate_benefit_note: short explanation of why this material is climate-beneficial
+ALTER TABLE materials ADD COLUMN IF NOT EXISTS climate_benefit_note TEXT;
+COMMENT ON COLUMN materials.climate_benefit_note IS 'Short explanation of why this material is considered climate-beneficial';
+
+-- Index for hemp materials
+CREATE INDEX IF NOT EXISTS idx_materials_is_hemp ON materials(tenant_id, is_hemp_or_cannabis_material) WHERE is_hemp_or_cannabis_material = true;
+CREATE INDEX IF NOT EXISTS idx_materials_hemp_category ON materials(hemp_category) WHERE hemp_category IS NOT NULL;
+
+-- 14A.2: Create climate_material_profiles table
+-- Stores per-material climate impact profiles with baseline and comparison data
+CREATE TABLE IF NOT EXISTS climate_material_profiles (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    material_id UUID NOT NULL REFERENCES materials(id) ON DELETE CASCADE,
+    baseline_unit TEXT NOT NULL DEFAULT 'kg',
+    baseline_co2_kg_per_unit NUMERIC(12, 4),
+    reference_material_name TEXT,
+    co2_savings_vs_reference_kg_per_unit NUMERIC(12, 4),
+    water_savings_l_per_unit NUMERIC(12, 4),
+    land_savings_m2_per_unit NUMERIC(12, 4),
+    data_source_label TEXT,
+    data_source_url TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ
+);
+
+-- Unique constraint: one profile per (tenant_id, material_id)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'climate_material_profiles_tenant_material_key'
+    ) THEN
+        ALTER TABLE climate_material_profiles ADD CONSTRAINT climate_material_profiles_tenant_material_key UNIQUE(tenant_id, material_id);
+    END IF;
+EXCEPTION WHEN duplicate_object THEN
+    -- Constraint already exists, ignore
+END$$;
+
+-- Indexes for climate_material_profiles
+CREATE INDEX IF NOT EXISTS idx_climate_material_profiles_tenant ON climate_material_profiles(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_climate_material_profiles_material ON climate_material_profiles(material_id);
+CREATE INDEX IF NOT EXISTS idx_climate_material_profiles_tenant_material ON climate_material_profiles(tenant_id, material_id);
+
+-- Trigger for updated_at
+DROP TRIGGER IF EXISTS update_climate_material_profiles_updated_at ON climate_material_profiles;
+CREATE TRIGGER update_climate_material_profiles_updated_at
+    BEFORE UPDATE ON climate_material_profiles
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Enable RLS
+ALTER TABLE climate_material_profiles ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy
+DROP POLICY IF EXISTS "Allow all for service role" ON climate_material_profiles;
+CREATE POLICY "Allow all for service role" ON climate_material_profiles
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE climate_material_profiles IS 'Climate impact profiles for materials - baseline CO2, savings vs reference, water/land savings';
+
+-- 14A.3: Extend product_climate_meta with derived material impact
+ALTER TABLE product_climate_meta ADD COLUMN IF NOT EXISTS derived_material_impact_kgco2 NUMERIC(12, 4);
+COMMENT ON COLUMN product_climate_meta.derived_material_impact_kgco2 IS 'Aggregated CO2 footprint per product unit, computed from material composition and climate_material_profiles';
+
+-- 14A.4: Extend climate_missions with material-switch fields
+-- material_mission_type: e.g. switch_material, increase_hemp_share, pilot_hemp_product
+ALTER TABLE climate_missions ADD COLUMN IF NOT EXISTS material_mission_type TEXT;
+COMMENT ON COLUMN climate_missions.material_mission_type IS 'Type of material-related mission: switch_material, increase_hemp_share, pilot_hemp_product';
+
+-- from_material_id: the material being switched from
+ALTER TABLE climate_missions ADD COLUMN IF NOT EXISTS from_material_id UUID REFERENCES materials(id) ON DELETE SET NULL;
+COMMENT ON COLUMN climate_missions.from_material_id IS 'Material being switched from in a material-switch mission';
+
+-- to_material_id: the material being switched to
+ALTER TABLE climate_missions ADD COLUMN IF NOT EXISTS to_material_id UUID REFERENCES materials(id) ON DELETE SET NULL;
+COMMENT ON COLUMN climate_missions.to_material_id IS 'Material being switched to in a material-switch mission';
+
+-- material_quantity: quantity of material involved
+ALTER TABLE climate_missions ADD COLUMN IF NOT EXISTS material_quantity NUMERIC(12, 4);
+COMMENT ON COLUMN climate_missions.material_quantity IS 'Quantity of material involved in this mission';
+
+-- material_quantity_unit: e.g. kg, units, m2
+ALTER TABLE climate_missions ADD COLUMN IF NOT EXISTS material_quantity_unit TEXT;
+COMMENT ON COLUMN climate_missions.material_quantity_unit IS 'Unit for material_quantity: kg, units, m2, etc.';
+
+-- estimated_savings_kgco2: estimate of CO2 savings for this mission
+ALTER TABLE climate_missions ADD COLUMN IF NOT EXISTS estimated_savings_kgco2 NUMERIC(12, 4);
+COMMENT ON COLUMN climate_missions.estimated_savings_kgco2 IS 'Estimated CO2 savings for this material-switch mission';
+
+-- Indexes for material-switch missions
+CREATE INDEX IF NOT EXISTS idx_climate_missions_material_type ON climate_missions(material_mission_type) WHERE material_mission_type IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_climate_missions_from_material ON climate_missions(from_material_id) WHERE from_material_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_climate_missions_to_material ON climate_missions(to_material_id) WHERE to_material_id IS NOT NULL;
+
+-- ============================================================================
+-- STEP 14B: VERIFY SCHEMA
 -- ============================================================================
 
 -- This query will show all tables that should exist
@@ -1746,11 +1856,11 @@ DECLARE
     table_count INTEGER;
     function_count INTEGER;
 BEGIN
-    -- Count required tables (now 22 with Safety + Scheduling v1 tables)
+    -- Count required tables (now 23 with climate_material_profiles)
     SELECT COUNT(*) INTO table_count
     FROM information_schema.tables 
     WHERE table_schema = 'public' 
-    AND table_name IN ('tenants', 'users', 'memory_events', 'journal_entries', 'climate_profiles', 'climate_missions', 'climate_plans', 'climate_plan_items', 'frontend_configs', 'agent_suggestions', 'brands', 'products', 'product_brands', 'agent_tasks', 'agent_insights', 'agent_commands', 'materials', 'product_materials', 'product_climate_meta', 'zora_shop_projects', 'agent_task_policies', 'autonomy_schedules');
+    AND table_name IN ('tenants', 'users', 'memory_events', 'journal_entries', 'climate_profiles', 'climate_missions', 'climate_plans', 'climate_plan_items', 'frontend_configs', 'agent_suggestions', 'brands', 'products', 'product_brands', 'agent_tasks', 'agent_insights', 'agent_commands', 'materials', 'product_materials', 'product_climate_meta', 'zora_shop_projects', 'agent_task_policies', 'autonomy_schedules', 'climate_material_profiles');
     
     -- Count search_memories_by_embedding functions (should be exactly 1)
     SELECT COUNT(*) INTO function_count
@@ -1758,10 +1868,10 @@ BEGIN
     WHERE proname = 'search_memories_by_embedding';
     
     RAISE NOTICE '=== ZORA CORE Schema Verification ===';
-    RAISE NOTICE 'Required tables found: % of 22', table_count;
+    RAISE NOTICE 'Required tables found: % of 23', table_count;
     RAISE NOTICE 'search_memories_by_embedding functions: % (should be 1)', function_count;
     
-    IF table_count = 22 AND function_count = 1 THEN
+    IF table_count = 23 AND function_count = 1 THEN
         RAISE NOTICE 'Schema is correctly configured!';
     ELSE
         RAISE WARNING 'Schema may have issues. Please check the tables and functions.';

@@ -23,6 +23,8 @@ import materialsHandler from './handlers/materials';
 import shopProductsHandler from './handlers/shop-products';
 import zoraShopProjectsHandler from './handlers/zora-shop-projects';
 import autonomySchedulesHandler from './handlers/autonomy-schedules';
+import hempMaterialsHandler from './handlers/hemp-materials';
+import climateMaterialsHandler from './handlers/climate-materials';
 
 const app = new Hono<AuthAppEnv>();
 
@@ -131,6 +133,10 @@ app.get('/', (c) => {
       'POST /api/shop/materials',
       'PUT /api/shop/materials/:id',
       'DELETE /api/shop/materials/:id',
+      'GET /api/shop/materials/hemp',
+      'GET /api/climate/materials/profiles',
+      'PUT /api/climate/materials/profiles/:materialId',
+      'GET /api/climate/materials/impact',
       'GET /api/shop/products',
       'GET /api/shop/products/:id',
       'POST /api/shop/products',
@@ -178,8 +184,12 @@ app.route('/api/mashups/products', productsHandler);
 // ZORA SHOP Backend v1.0 routes
 app.route('/api/shop/brands', brandsHandler);
 app.route('/api/shop/materials', materialsHandler);
+app.route('/api/shop/materials/hemp', hempMaterialsHandler);  // Hemp & Climate Materials v1 (Iteration 00C1)
 app.route('/api/shop/products', shopProductsHandler);
 app.route('/api/zora-shop/projects', zoraShopProjectsHandler);
+
+// Hemp & Climate Materials v1 routes (Iteration 00C1)
+app.route('/api/climate/materials', climateMaterialsHandler);
 
 // Safety + Scheduling v1 routes (Iteration 00B5)
 app.route('/api/autonomy/schedules', autonomySchedulesHandler);
