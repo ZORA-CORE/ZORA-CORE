@@ -14,12 +14,12 @@
 -- After running:
 --   - All required tables will exist: tenants, users, memory_events, 
 --     journal_entries, climate_profiles, climate_missions, frontend_configs,
---     agent_suggestions
+--     agent_suggestions, brands, products, product_brands, agent_tasks
 --   - The search_memories_by_embedding function will be correctly defined
 --   - /admin/setup will work correctly
 -- 
 -- Date: 2025-11-28
--- Version: 1.5.0 (Mashup Shop v0.1 - Brands & Products)
+-- Version: 1.6.0 (Agent Runtime v1 - Task Queue)
 -- ============================================================================
 
 -- ============================================================================
@@ -844,7 +844,74 @@ CREATE POLICY "Allow all for service role" ON product_brands
 COMMENT ON TABLE product_brands IS 'Join table linking products to brands - enables mashup/collab products with multiple brands';
 
 -- ============================================================================
--- STEP 15: FIX DUPLICATE search_memories_by_embedding FUNCTIONS
+-- STEP 15: CREATE AGENT_TASKS TABLE (Agent Runtime v1)
+-- ============================================================================
+
+-- Agent task status enum
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'agent_task_status') THEN
+        CREATE TYPE agent_task_status AS ENUM (
+            'pending',
+            'in_progress',
+            'completed',
+            'failed'
+        );
+    END IF;
+END$$;
+
+CREATE TABLE IF NOT EXISTS agent_tasks (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    agent_id VARCHAR(50) NOT NULL CHECK (agent_id IN ('CONNOR', 'LUMINA', 'EIVOR', 'ORACLE', 'AEGIS', 'SAM')),
+    task_type VARCHAR(100) NOT NULL,
+    status agent_task_status NOT NULL DEFAULT 'pending',
+    priority INTEGER NOT NULL DEFAULT 0,
+    title VARCHAR(500) NOT NULL,
+    description TEXT,
+    payload JSONB DEFAULT '{}',
+    result_summary TEXT,
+    error_message TEXT,
+    started_at TIMESTAMPTZ,
+    completed_at TIMESTAMPTZ,
+    created_by_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ
+);
+
+-- Indexes for agent_tasks
+CREATE INDEX IF NOT EXISTS idx_agent_tasks_tenant ON agent_tasks(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_agent_tasks_agent ON agent_tasks(agent_id);
+CREATE INDEX IF NOT EXISTS idx_agent_tasks_status ON agent_tasks(status);
+CREATE INDEX IF NOT EXISTS idx_agent_tasks_task_type ON agent_tasks(task_type);
+CREATE INDEX IF NOT EXISTS idx_agent_tasks_priority ON agent_tasks(priority DESC);
+CREATE INDEX IF NOT EXISTS idx_agent_tasks_tenant_status ON agent_tasks(tenant_id, status);
+CREATE INDEX IF NOT EXISTS idx_agent_tasks_tenant_agent ON agent_tasks(tenant_id, agent_id);
+CREATE INDEX IF NOT EXISTS idx_agent_tasks_created_at ON agent_tasks(created_at DESC);
+-- Composite index for task claiming: pending tasks ordered by priority and creation time
+CREATE INDEX IF NOT EXISTS idx_agent_tasks_pending_priority ON agent_tasks(tenant_id, status, priority DESC, created_at ASC) WHERE status = 'pending';
+
+-- Trigger for updated_at
+DROP TRIGGER IF EXISTS update_agent_tasks_updated_at ON agent_tasks;
+CREATE TRIGGER update_agent_tasks_updated_at
+    BEFORE UPDATE ON agent_tasks
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Enable RLS
+ALTER TABLE agent_tasks ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy
+DROP POLICY IF EXISTS "Allow all for service role" ON agent_tasks;
+CREATE POLICY "Allow all for service role" ON agent_tasks
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE agent_tasks IS 'Agent task queue - stores tasks for the 6 core agents to process via Agent Runtime v1';
+
+-- ============================================================================
+-- STEP 16: FIX DUPLICATE search_memories_by_embedding FUNCTIONS
 -- ============================================================================
 -- This is the critical fix for ERROR 42725: function name is not unique
 
@@ -953,11 +1020,11 @@ DECLARE
     table_count INTEGER;
     function_count INTEGER;
 BEGIN
-    -- Count required tables (now 11 with brands, products, product_brands)
+    -- Count required tables (now 12 with agent_tasks for Agent Runtime v1)
     SELECT COUNT(*) INTO table_count
     FROM information_schema.tables 
     WHERE table_schema = 'public' 
-    AND table_name IN ('tenants', 'users', 'memory_events', 'journal_entries', 'climate_profiles', 'climate_missions', 'frontend_configs', 'agent_suggestions', 'brands', 'products', 'product_brands');
+    AND table_name IN ('tenants', 'users', 'memory_events', 'journal_entries', 'climate_profiles', 'climate_missions', 'frontend_configs', 'agent_suggestions', 'brands', 'products', 'product_brands', 'agent_tasks');
     
     -- Count search_memories_by_embedding functions (should be exactly 1)
     SELECT COUNT(*) INTO function_count
@@ -965,10 +1032,10 @@ BEGIN
     WHERE proname = 'search_memories_by_embedding';
     
     RAISE NOTICE '=== ZORA CORE Schema Verification ===';
-    RAISE NOTICE 'Required tables found: % of 11', table_count;
+    RAISE NOTICE 'Required tables found: % of 12', table_count;
     RAISE NOTICE 'search_memories_by_embedding functions: % (should be 1)', function_count;
     
-    IF table_count = 11 AND function_count = 1 THEN
+    IF table_count = 12 AND function_count = 1 THEN
         RAISE NOTICE 'Schema is correctly configured!';
     ELSE
         RAISE WARNING 'Schema may have issues. Please check the tables and functions.';

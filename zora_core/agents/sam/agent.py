@@ -478,6 +478,100 @@ class SamAgent(BaseAgent):
         
         return reflection
 
+    async def handle_task(self, task: Any, ctx: Any) -> Any:
+        """
+        Handle a task from the Agent Runtime task queue.
+        
+        SAM handles frontend UX review tasks:
+        - review_climate_page: Review and suggest UX improvements for climate pages
+        - review_accessibility: Check accessibility compliance
+        """
+        from ...autonomy.runtime import AgentTaskResult
+        
+        self.log_activity("handle_task", {
+            "task_id": task.id,
+            "task_type": task.task_type,
+        })
+        
+        try:
+            if task.task_type == "review_climate_page":
+                result = await self._handle_review_climate_page(task, ctx)
+            elif task.task_type == "review_accessibility":
+                result = await self._handle_review_accessibility(task, ctx)
+            else:
+                return AgentTaskResult(
+                    status="failed",
+                    error_message=f"Unknown task type for SAM: {task.task_type}",
+                )
+            
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"Error handling task {task.id}: {e}")
+            return AgentTaskResult(
+                status="failed",
+                error_message=str(e),
+            )
+
+    async def _handle_review_climate_page(self, task: Any, ctx: Any) -> Any:
+        """Review and suggest UX improvements for climate pages."""
+        from ...autonomy.runtime import AgentTaskResult
+        
+        page = task.payload.get("page", "climate")
+        
+        prompt = f"""You are SAM, the Frontend & Experience Architect for ZORA CORE.
+
+Review the "{page}" page from a UX perspective and provide:
+
+1. Visual Design Assessment
+   - Color usage and contrast
+   - Typography hierarchy
+   - Spacing and layout balance
+
+2. User Experience Analysis
+   - Information architecture
+   - Call-to-action clarity
+   - User flow efficiency
+
+3. Climate-First Messaging
+   - How well does the page communicate climate impact?
+   - Are sustainability metrics clear and engaging?
+   - Does it inspire action without greenwashing?
+
+4. Specific Recommendations
+   - List 3-5 concrete improvements
+   - Prioritize by impact (high/medium/low)
+
+Keep suggestions practical and aligned with ZORA CORE's climate-first, accessible design principles.
+"""
+        
+        response = await self.call_model(
+            task_type="ux_analysis",
+            prompt=prompt,
+        )
+        
+        summary = f"UX review for {page}: {response[:200]}..."
+        
+        return AgentTaskResult(
+            status="completed",
+            result_summary=summary,
+        )
+
+    async def _handle_review_accessibility(self, task: Any, ctx: Any) -> Any:
+        """Check accessibility compliance for a page or component."""
+        from ...autonomy.runtime import AgentTaskResult
+        
+        target = task.payload.get("target", "dashboard")
+        
+        report = await self.check_accessibility(target)
+        
+        summary = f"Accessibility review for {target}: WCAG {report['wcag_level']}, Score: {report['score']}/100"
+        
+        return AgentTaskResult(
+            status="completed",
+            result_summary=summary,
+        )
+
     def get_design_system(self) -> Dict[str, Any]:
         """Get the current design system configuration."""
         return self.design_system

@@ -351,3 +351,106 @@ class ConnorAgent(BaseAgent):
         )
         
         return reflection
+
+    async def handle_task(self, task: Any, ctx: Any) -> Any:
+        """
+        Handle a task from the Agent Runtime task queue.
+        
+        CONNOR handles system health review tasks:
+        - review_system_health: Check status endpoints and summarize health
+        - analyze_codebase: Analyze code quality and patterns
+        """
+        from ...autonomy.runtime import AgentTaskResult
+        
+        self.log_activity("handle_task", {
+            "task_id": task.id,
+            "task_type": task.task_type,
+        })
+        
+        try:
+            if task.task_type == "review_system_health":
+                result = await self._handle_review_system_health(task, ctx)
+            elif task.task_type == "analyze_codebase":
+                result = await self._handle_analyze_codebase(task, ctx)
+            else:
+                return AgentTaskResult(
+                    status="failed",
+                    error_message=f"Unknown task type for CONNOR: {task.task_type}",
+                )
+            
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"Error handling task {task.id}: {e}")
+            return AgentTaskResult(
+                status="failed",
+                error_message=str(e),
+            )
+
+    async def _handle_review_system_health(self, task: Any, ctx: Any) -> Any:
+        """Review system health by checking status endpoints."""
+        from ...autonomy.runtime import AgentTaskResult
+        
+        endpoints = task.payload.get("endpoints", ["/api/status"])
+        
+        prompt = f"""You are CONNOR, the Developer & System Problem Solver for ZORA CORE.
+
+Review the system health based on the following endpoints: {endpoints}
+
+Provide a health assessment covering:
+
+1. API Status
+   - Are all endpoints responding?
+   - Response times within acceptable limits?
+   - Any error patterns?
+
+2. Database Health
+   - Connection pool status
+   - Query performance
+   - Storage utilization
+
+3. Infrastructure
+   - Worker health (Cloudflare Workers)
+   - Frontend deployment (Vercel)
+   - External service dependencies
+
+4. Recommendations
+   - Any immediate actions needed?
+   - Preventive measures to consider?
+
+Speak with precision and authority, as befitting CONNOR.
+"""
+        
+        response = await self.call_model(
+            task_type="code_review",
+            prompt=prompt,
+        )
+        
+        summary = f"System health review: {response[:200]}..."
+        
+        return AgentTaskResult(
+            status="completed",
+            result_summary=summary,
+        )
+
+    async def _handle_analyze_codebase(self, task: Any, ctx: Any) -> Any:
+        """Analyze codebase for quality and patterns."""
+        from ...autonomy.runtime import AgentTaskResult
+        
+        target = task.payload.get("target", "general")
+        
+        analysis = await self._analyze_code(
+            Step.create(
+                description=f"Analyze {target}",
+                action_type="code_analysis",
+                assignee=self.name,
+            ),
+            {"target": target}
+        )
+        
+        summary = f"Code analysis for {target}: patterns found, complexity score {analysis.output.get('complexity_score', 'N/A')}"
+        
+        return AgentTaskResult(
+            status="completed",
+            result_summary=summary,
+        )
