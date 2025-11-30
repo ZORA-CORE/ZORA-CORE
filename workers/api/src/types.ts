@@ -1261,3 +1261,177 @@ export interface ClimateExperimentRunListItem {
   status: ExperimentRunStatus;
   created_at: string;
 }
+
+// ============================================================================
+// THE ZORA FOUNDATION TYPES
+// ============================================================================
+
+// Foundation project categories
+export type FoundationProjectCategory =
+  | 'reforestation'
+  | 'renewable_energy'
+  | 'ocean'
+  | 'hemp_materials'
+  | 'community'
+  | 'adaptation';
+
+// Foundation project status
+export type FoundationProjectStatus =
+  | 'planned'
+  | 'active'
+  | 'completed'
+  | 'paused'
+  | 'archived';
+
+// Climate focus domains for foundation projects
+export type FoundationClimateFocusDomain =
+  | 'energy'
+  | 'materials'
+  | 'transport'
+  | 'food'
+  | 'nature'
+  | 'adaptation';
+
+// Contribution source types
+export type ContributionSourceType =
+  | 'manual'
+  | 'subscription'
+  | 'zora_shop_commission'
+  | 'external';
+
+// Foundation project
+export interface FoundationProject {
+  id: string;
+  tenant_id: string | null;
+  title: string;
+  description: string | null;
+  category: FoundationProjectCategory | string;
+  status: FoundationProjectStatus;
+  climate_focus_domain: FoundationClimateFocusDomain | string | null;
+  location_country: string | null;
+  location_region: string | null;
+  sdg_tags: string[] | null;
+  estimated_impact_kgco2: number | null;
+  verified_impact_kgco2: number | null;
+  impact_methodology: string | null;
+  external_url: string | null;
+  image_url: string | null;
+  min_contribution_amount_cents: number;
+  currency: string;
+  tags: string[] | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// Foundation contribution
+export interface FoundationContribution {
+  id: string;
+  tenant_id: string;
+  project_id: string;
+  source_type: ContributionSourceType | string;
+  source_reference: string | null;
+  amount_cents: number;
+  currency: string;
+  contributed_at: string;
+  contributor_label: string | null;
+  notes: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
+// Foundation impact log entry
+export interface FoundationImpactLog {
+  id: string;
+  tenant_id: string | null;
+  project_id: string;
+  period_start: string;
+  period_end: string;
+  impact_kgco2: number;
+  impact_units: string | null;
+  impact_units_value: number | null;
+  description: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
+// Input for creating a foundation project
+export interface CreateFoundationProjectInput {
+  title: string;
+  description?: string;
+  category: string;
+  climate_focus_domain?: string;
+  location_country?: string;
+  location_region?: string;
+  sdg_tags?: string[];
+  estimated_impact_kgco2?: number;
+  impact_methodology?: string;
+  external_url?: string;
+  image_url?: string;
+  min_contribution_amount_cents?: number;
+  currency?: string;
+  tags?: string[];
+}
+
+// Input for updating a foundation project
+export interface UpdateFoundationProjectInput {
+  title?: string;
+  description?: string;
+  category?: string;
+  status?: string;
+  climate_focus_domain?: string;
+  location_country?: string;
+  location_region?: string;
+  sdg_tags?: string[];
+  estimated_impact_kgco2?: number;
+  verified_impact_kgco2?: number;
+  impact_methodology?: string;
+  external_url?: string;
+  image_url?: string;
+  min_contribution_amount_cents?: number;
+  currency?: string;
+  tags?: string[];
+}
+
+// Input for creating a contribution
+export interface CreateFoundationContributionInput {
+  amount_cents: number;
+  currency?: string;
+  source_type: string;
+  source_reference?: string;
+  contributor_label?: string;
+  notes?: string;
+  metadata?: Record<string, unknown>;
+}
+
+// Filters for listing foundation projects
+export interface FoundationProjectFilters {
+  status?: string;
+  category?: string;
+  climate_focus_domain?: string;
+  tenant_scope?: 'global' | 'tenant' | 'all';
+}
+
+// Filters for listing contributions
+export interface FoundationContributionFilters {
+  from?: string;
+  to?: string;
+}
+
+// Foundation project impact summary
+export interface FoundationProjectImpactSummary {
+  project_id: string;
+  title: string;
+  status: string;
+  total_contributions_cents: number;
+  currency: string;
+  total_impact_kgco2: number | null;
+  impact_units: string | null;
+  impact_units_value: number | null;
+  last_update: string | null;
+}
+
+// Foundation project list item with contribution count
+export interface FoundationProjectListItem extends FoundationProject {
+  contribution_count?: number;
+  total_contributions_cents?: number;
+}

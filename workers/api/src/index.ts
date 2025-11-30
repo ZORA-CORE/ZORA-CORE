@@ -26,6 +26,7 @@ import autonomySchedulesHandler from './handlers/autonomy-schedules';
 import hempMaterialsHandler from './handlers/hemp-materials';
 import climateMaterialsHandler from './handlers/climate-materials';
 import climateExperimentsHandler from './handlers/climate-experiments';
+import foundationHandler from './handlers/foundation';
 
 const app = new Hono<AuthAppEnv>();
 
@@ -57,6 +58,7 @@ app.use('/api/autonomy/*', authMiddleware);
 app.use('/api/mashups/*', authMiddleware);
 app.use('/api/shop/*', authMiddleware);
 app.use('/api/zora-shop/*', authMiddleware);
+app.use('/api/foundation/*', authMiddleware);
 // Admin metrics endpoints require JWT auth (founder/brand_admin role)
 app.use('/api/admin/system-metrics', authMiddleware);
 app.use('/api/admin/autonomy-status', authMiddleware);
@@ -146,6 +148,13 @@ app.get('/', (c) => {
       'POST /api/climate/experiments/:id/runs',
       'GET /api/climate/experiments/runs/:runId',
       'GET /api/climate/experiments/:id/summary',
+      'GET /api/foundation/projects',
+      'GET /api/foundation/projects/:id',
+      'POST /api/foundation/projects',
+      'PATCH /api/foundation/projects/:id',
+      'GET /api/foundation/projects/:id/contributions',
+      'POST /api/foundation/projects/:id/contributions',
+      'GET /api/foundation/projects/:id/impact-summary',
       'GET /api/shop/products',
       'GET /api/shop/products/:id',
       'POST /api/shop/products',
@@ -202,6 +211,9 @@ app.route('/api/climate/materials', climateMaterialsHandler);
 
 // Quantum Climate Lab v1 routes (Iteration 00C2)
 app.route('/api/climate/experiments', climateExperimentsHandler);
+
+// THE ZORA FOUNDATION v1 routes (Iteration 00C3)
+app.route('/api/foundation', foundationHandler);
 
 // Safety + Scheduling v1 routes (Iteration 00B5)
 app.route('/api/autonomy/schedules', autonomySchedulesHandler);
