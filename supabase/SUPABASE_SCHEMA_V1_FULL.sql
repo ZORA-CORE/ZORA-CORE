@@ -1944,7 +1944,136 @@ COMMENT ON COLUMN climate_experiment_runs.backend_provider IS 'Backend provider:
 COMMENT ON COLUMN climate_experiment_runs.status IS 'Run status: queued, running, completed, failed';
 
 -- ============================================================================
--- STEP 14D: VERIFY SCHEMA
+-- STEP 14D: THE ZORA FOUNDATION v1.0
+-- Schema version: 2.6.0 (adds foundation_projects, foundation_contributions, foundation_impact_log)
+-- ============================================================================
+
+-- 14D.1: Create foundation_projects table
+-- Represents climate-relevant projects that ZORA and its tenants can support
+CREATE TABLE IF NOT EXISTS foundation_projects (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    description TEXT,
+    category TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'planned',
+    climate_focus_domain TEXT,
+    location_country TEXT,
+    location_region TEXT,
+    sdg_tags TEXT[],
+    estimated_impact_kgco2 NUMERIC,
+    verified_impact_kgco2 NUMERIC,
+    impact_methodology TEXT,
+    external_url TEXT,
+    image_url TEXT,
+    min_contribution_amount_cents BIGINT NOT NULL DEFAULT 0,
+    currency TEXT NOT NULL DEFAULT 'DKK',
+    tags TEXT[],
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Indexes for foundation_projects
+CREATE INDEX IF NOT EXISTS idx_foundation_projects_status ON foundation_projects(status);
+CREATE INDEX IF NOT EXISTS idx_foundation_projects_climate_focus ON foundation_projects(climate_focus_domain);
+CREATE INDEX IF NOT EXISTS idx_foundation_projects_tenant_status ON foundation_projects(tenant_id, status);
+CREATE INDEX IF NOT EXISTS idx_foundation_projects_tags ON foundation_projects USING GIN(tags);
+
+-- Updated_at trigger for foundation_projects
+DROP TRIGGER IF EXISTS update_foundation_projects_updated_at ON foundation_projects;
+CREATE TRIGGER update_foundation_projects_updated_at
+    BEFORE UPDATE ON foundation_projects
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Enable RLS for foundation_projects
+ALTER TABLE foundation_projects ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy for foundation_projects
+DROP POLICY IF EXISTS "Allow all for service role" ON foundation_projects;
+CREATE POLICY "Allow all for service role" ON foundation_projects
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE foundation_projects IS 'THE ZORA FOUNDATION climate projects - global (tenant_id NULL) or tenant-owned';
+COMMENT ON COLUMN foundation_projects.tenant_id IS 'NULL for global ZORA-wide projects, set for tenant-owned projects';
+COMMENT ON COLUMN foundation_projects.category IS 'Project category: reforestation, renewable_energy, ocean, hemp_materials, community, adaptation';
+COMMENT ON COLUMN foundation_projects.status IS 'Project status: planned, active, completed, paused, archived';
+COMMENT ON COLUMN foundation_projects.climate_focus_domain IS 'Climate focus: energy, materials, transport, food, nature, adaptation';
+
+-- 14D.2: Create foundation_contributions table
+-- Tracks money/value that flows to foundation projects
+CREATE TABLE IF NOT EXISTS foundation_contributions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    project_id UUID NOT NULL REFERENCES foundation_projects(id) ON DELETE CASCADE,
+    source_type TEXT NOT NULL,
+    source_reference TEXT,
+    amount_cents BIGINT NOT NULL,
+    currency TEXT NOT NULL DEFAULT 'DKK',
+    contributed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    contributor_label TEXT,
+    notes TEXT,
+    metadata JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Indexes for foundation_contributions
+CREATE INDEX IF NOT EXISTS idx_foundation_contributions_tenant_project ON foundation_contributions(tenant_id, project_id);
+CREATE INDEX IF NOT EXISTS idx_foundation_contributions_project ON foundation_contributions(project_id);
+CREATE INDEX IF NOT EXISTS idx_foundation_contributions_contributed_at ON foundation_contributions(contributed_at);
+
+-- Enable RLS for foundation_contributions
+ALTER TABLE foundation_contributions ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy for foundation_contributions
+DROP POLICY IF EXISTS "Allow all for service role" ON foundation_contributions;
+CREATE POLICY "Allow all for service role" ON foundation_contributions
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE foundation_contributions IS 'Contributions to ZORA FOUNDATION projects from tenants';
+COMMENT ON COLUMN foundation_contributions.source_type IS 'Contribution source: manual, subscription, zora_shop_commission, external';
+COMMENT ON COLUMN foundation_contributions.source_reference IS 'Reference ID: subscription ID, shop project ID, invoice ID, etc.';
+
+-- 14D.3: Create foundation_impact_log table
+-- Logs climate impact over time in interpretable units
+CREATE TABLE IF NOT EXISTS foundation_impact_log (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE,
+    project_id UUID NOT NULL REFERENCES foundation_projects(id) ON DELETE CASCADE,
+    period_start TIMESTAMPTZ NOT NULL,
+    period_end TIMESTAMPTZ NOT NULL,
+    impact_kgco2 NUMERIC NOT NULL,
+    impact_units TEXT,
+    impact_units_value NUMERIC,
+    description TEXT,
+    metadata JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Indexes for foundation_impact_log
+CREATE INDEX IF NOT EXISTS idx_foundation_impact_log_project_period ON foundation_impact_log(project_id, period_start);
+CREATE INDEX IF NOT EXISTS idx_foundation_impact_log_tenant_period ON foundation_impact_log(tenant_id, period_start);
+
+-- Enable RLS for foundation_impact_log
+ALTER TABLE foundation_impact_log ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy for foundation_impact_log
+DROP POLICY IF EXISTS "Allow all for service role" ON foundation_impact_log;
+CREATE POLICY "Allow all for service role" ON foundation_impact_log
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE foundation_impact_log IS 'Climate impact logs for ZORA FOUNDATION projects over time';
+COMMENT ON COLUMN foundation_impact_log.impact_kgco2 IS 'Impact in kg CO2 equivalent';
+COMMENT ON COLUMN foundation_impact_log.impact_units IS 'Human-readable units: trees_planted, m2_restored, kWh_clean_energy, etc.';
+
+-- ============================================================================
+-- STEP 14E: VERIFY SCHEMA
 -- ============================================================================
 
 -- This query will show all tables that should exist
@@ -1954,11 +2083,11 @@ DECLARE
     table_count INTEGER;
     function_count INTEGER;
 BEGIN
-    -- Count required tables (now 25 with climate_experiments and climate_experiment_runs)
+    -- Count required tables (now 28 with foundation_projects, foundation_contributions, foundation_impact_log)
     SELECT COUNT(*) INTO table_count
     FROM information_schema.tables 
     WHERE table_schema = 'public' 
-    AND table_name IN ('tenants', 'users', 'memory_events', 'journal_entries', 'climate_profiles', 'climate_missions', 'climate_plans', 'climate_plan_items', 'frontend_configs', 'agent_suggestions', 'brands', 'products', 'product_brands', 'agent_tasks', 'agent_insights', 'agent_commands', 'materials', 'product_materials', 'product_climate_meta', 'zora_shop_projects', 'agent_task_policies', 'autonomy_schedules', 'climate_material_profiles', 'climate_experiments', 'climate_experiment_runs');
+    AND table_name IN ('tenants', 'users', 'memory_events', 'journal_entries', 'climate_profiles', 'climate_missions', 'climate_plans', 'climate_plan_items', 'frontend_configs', 'agent_suggestions', 'brands', 'products', 'product_brands', 'agent_tasks', 'agent_insights', 'agent_commands', 'materials', 'product_materials', 'product_climate_meta', 'zora_shop_projects', 'agent_task_policies', 'autonomy_schedules', 'climate_material_profiles', 'climate_experiments', 'climate_experiment_runs', 'foundation_projects', 'foundation_contributions', 'foundation_impact_log');
     
     -- Count search_memories_by_embedding functions (should be exactly 1)
     SELECT COUNT(*) INTO function_count
@@ -1966,10 +2095,10 @@ BEGIN
     WHERE proname = 'search_memories_by_embedding';
     
     RAISE NOTICE '=== ZORA CORE Schema Verification ===';
-    RAISE NOTICE 'Required tables found: % of 25', table_count;
+    RAISE NOTICE 'Required tables found: % of 28', table_count;
     RAISE NOTICE 'search_memories_by_embedding functions: % (should be 1)', function_count;
     
-    IF table_count = 25 AND function_count = 1 THEN
+    IF table_count = 28 AND function_count = 1 THEN
         RAISE NOTICE 'Schema is correctly configured!';
     ELSE
         RAISE WARNING 'Schema may have issues. Please check the tables and functions.';
