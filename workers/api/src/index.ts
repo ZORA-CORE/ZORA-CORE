@@ -25,6 +25,7 @@ import zoraShopProjectsHandler from './handlers/zora-shop-projects';
 import autonomySchedulesHandler from './handlers/autonomy-schedules';
 import hempMaterialsHandler from './handlers/hemp-materials';
 import climateMaterialsHandler from './handlers/climate-materials';
+import climateExperimentsHandler from './handlers/climate-experiments';
 
 const app = new Hono<AuthAppEnv>();
 
@@ -137,6 +138,14 @@ app.get('/', (c) => {
       'GET /api/climate/materials/profiles',
       'PUT /api/climate/materials/profiles/:materialId',
       'GET /api/climate/materials/impact',
+      'GET /api/climate/experiments',
+      'GET /api/climate/experiments/:id',
+      'POST /api/climate/experiments',
+      'PATCH /api/climate/experiments/:id',
+      'GET /api/climate/experiments/:id/runs',
+      'POST /api/climate/experiments/:id/runs',
+      'GET /api/climate/experiments/runs/:runId',
+      'GET /api/climate/experiments/:id/summary',
       'GET /api/shop/products',
       'GET /api/shop/products/:id',
       'POST /api/shop/products',
@@ -190,6 +199,9 @@ app.route('/api/zora-shop/projects', zoraShopProjectsHandler);
 
 // Hemp & Climate Materials v1 routes (Iteration 00C1)
 app.route('/api/climate/materials', climateMaterialsHandler);
+
+// Quantum Climate Lab v1 routes (Iteration 00C2)
+app.route('/api/climate/experiments', climateExperimentsHandler);
 
 // Safety + Scheduling v1 routes (Iteration 00B5)
 app.route('/api/autonomy/schedules', autonomySchedulesHandler);

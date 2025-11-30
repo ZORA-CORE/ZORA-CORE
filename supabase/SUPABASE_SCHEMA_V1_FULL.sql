@@ -1846,7 +1846,105 @@ CREATE INDEX IF NOT EXISTS idx_climate_missions_from_material ON climate_mission
 CREATE INDEX IF NOT EXISTS idx_climate_missions_to_material ON climate_missions(to_material_id) WHERE to_material_id IS NOT NULL;
 
 -- ============================================================================
--- STEP 14B: VERIFY SCHEMA
+-- STEP 14C: QUANTUM CLIMATE LAB v1.0 (Iteration 00C2)
+-- ============================================================================
+
+-- 14C.1: Create climate_experiments table
+-- Represents a research experiment in the Quantum Climate Lab
+CREATE TABLE IF NOT EXISTS climate_experiments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    description TEXT,
+    problem_domain TEXT NOT NULL,
+    method_family TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'draft',
+    linked_profile_id UUID REFERENCES climate_profiles(id) ON DELETE SET NULL,
+    linked_product_id UUID REFERENCES products(id) ON DELETE SET NULL,
+    linked_material_id UUID REFERENCES materials(id) ON DELETE SET NULL,
+    tags TEXT[],
+    created_by_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Indexes for climate_experiments
+CREATE INDEX IF NOT EXISTS idx_climate_experiments_tenant ON climate_experiments(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_climate_experiments_tenant_status ON climate_experiments(tenant_id, status);
+CREATE INDEX IF NOT EXISTS idx_climate_experiments_tenant_domain ON climate_experiments(tenant_id, problem_domain);
+CREATE INDEX IF NOT EXISTS idx_climate_experiments_tenant_method ON climate_experiments(tenant_id, method_family);
+
+-- Updated_at trigger for climate_experiments
+DROP TRIGGER IF EXISTS update_climate_experiments_updated_at ON climate_experiments;
+CREATE TRIGGER update_climate_experiments_updated_at
+    BEFORE UPDATE ON climate_experiments
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Enable RLS for climate_experiments
+ALTER TABLE climate_experiments ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy for climate_experiments
+DROP POLICY IF EXISTS "Allow all for service role" ON climate_experiments;
+CREATE POLICY "Allow all for service role" ON climate_experiments
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE climate_experiments IS 'Quantum Climate Lab experiments - research tracking for classical, quantum-inspired, and quantum-hardware methods';
+COMMENT ON COLUMN climate_experiments.problem_domain IS 'Problem domain: energy_optimization, transport_routing, material_mix, supply_chain, scenario_modeling';
+COMMENT ON COLUMN climate_experiments.method_family IS 'Method family: classical, quantum_inspired, quantum_hardware';
+COMMENT ON COLUMN climate_experiments.status IS 'Experiment status: draft, design, running, analyzing, completed, archived';
+
+-- 14C.2: Create climate_experiment_runs table
+-- Represents a single run of a given experiment with concrete parameters + results
+CREATE TABLE IF NOT EXISTS climate_experiment_runs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    experiment_id UUID NOT NULL REFERENCES climate_experiments(id) ON DELETE CASCADE,
+    run_label TEXT,
+    method_type TEXT NOT NULL,
+    backend_provider TEXT,
+    input_summary JSONB,
+    parameters JSONB,
+    metrics JSONB,
+    evaluation JSONB,
+    status TEXT NOT NULL DEFAULT 'completed',
+    error_message TEXT,
+    started_at TIMESTAMPTZ,
+    completed_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Indexes for climate_experiment_runs
+CREATE INDEX IF NOT EXISTS idx_climate_experiment_runs_tenant_experiment ON climate_experiment_runs(tenant_id, experiment_id);
+CREATE INDEX IF NOT EXISTS idx_climate_experiment_runs_tenant_status ON climate_experiment_runs(tenant_id, status);
+
+-- Updated_at trigger for climate_experiment_runs
+DROP TRIGGER IF EXISTS update_climate_experiment_runs_updated_at ON climate_experiment_runs;
+CREATE TRIGGER update_climate_experiment_runs_updated_at
+    BEFORE UPDATE ON climate_experiment_runs
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Enable RLS for climate_experiment_runs
+ALTER TABLE climate_experiment_runs ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy for climate_experiment_runs
+DROP POLICY IF EXISTS "Allow all for service role" ON climate_experiment_runs;
+CREATE POLICY "Allow all for service role" ON climate_experiment_runs
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE climate_experiment_runs IS 'Individual runs of Quantum Climate Lab experiments with parameters, metrics, and evaluation';
+COMMENT ON COLUMN climate_experiment_runs.method_type IS 'Specific method: linear_programming, greedy_heuristic, quantum_annealing, qaoa, vqe, other_quantum';
+COMMENT ON COLUMN climate_experiment_runs.backend_provider IS 'Backend provider: classical_internal, qiskit, braket, cirq, simulator';
+COMMENT ON COLUMN climate_experiment_runs.status IS 'Run status: queued, running, completed, failed';
+
+-- ============================================================================
+-- STEP 14D: VERIFY SCHEMA
 -- ============================================================================
 
 -- This query will show all tables that should exist
@@ -1856,11 +1954,11 @@ DECLARE
     table_count INTEGER;
     function_count INTEGER;
 BEGIN
-    -- Count required tables (now 23 with climate_material_profiles)
+    -- Count required tables (now 25 with climate_experiments and climate_experiment_runs)
     SELECT COUNT(*) INTO table_count
     FROM information_schema.tables 
     WHERE table_schema = 'public' 
-    AND table_name IN ('tenants', 'users', 'memory_events', 'journal_entries', 'climate_profiles', 'climate_missions', 'climate_plans', 'climate_plan_items', 'frontend_configs', 'agent_suggestions', 'brands', 'products', 'product_brands', 'agent_tasks', 'agent_insights', 'agent_commands', 'materials', 'product_materials', 'product_climate_meta', 'zora_shop_projects', 'agent_task_policies', 'autonomy_schedules', 'climate_material_profiles');
+    AND table_name IN ('tenants', 'users', 'memory_events', 'journal_entries', 'climate_profiles', 'climate_missions', 'climate_plans', 'climate_plan_items', 'frontend_configs', 'agent_suggestions', 'brands', 'products', 'product_brands', 'agent_tasks', 'agent_insights', 'agent_commands', 'materials', 'product_materials', 'product_climate_meta', 'zora_shop_projects', 'agent_task_policies', 'autonomy_schedules', 'climate_material_profiles', 'climate_experiments', 'climate_experiment_runs');
     
     -- Count search_memories_by_embedding functions (should be exactly 1)
     SELECT COUNT(*) INTO function_count
@@ -1868,10 +1966,10 @@ BEGIN
     WHERE proname = 'search_memories_by_embedding';
     
     RAISE NOTICE '=== ZORA CORE Schema Verification ===';
-    RAISE NOTICE 'Required tables found: % of 23', table_count;
+    RAISE NOTICE 'Required tables found: % of 25', table_count;
     RAISE NOTICE 'search_memories_by_embedding functions: % (should be 1)', function_count;
     
-    IF table_count = 23 AND function_count = 1 THEN
+    IF table_count = 25 AND function_count = 1 THEN
         RAISE NOTICE 'Schema is correctly configured!';
     ELSE
         RAISE WARNING 'Schema may have issues. Please check the tables and functions.';

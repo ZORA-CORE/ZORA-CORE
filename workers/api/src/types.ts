@@ -1086,3 +1086,178 @@ export interface MaterialImpactBreakdown {
 export interface ClimateMaterialProfileWithMaterial extends ClimateMaterialProfile {
   material?: HempMaterial;
 }
+
+// ============================================================================
+// Quantum Climate Lab v1 types (Iteration 00C2)
+// ============================================================================
+
+// Problem domains for climate experiments
+export type ExperimentProblemDomain = 
+  | 'energy_optimization' 
+  | 'transport_routing' 
+  | 'material_mix' 
+  | 'supply_chain' 
+  | 'scenario_modeling';
+
+// Method families for climate experiments
+export type ExperimentMethodFamily = 
+  | 'classical' 
+  | 'quantum_inspired' 
+  | 'quantum_hardware';
+
+// Experiment status
+export type ExperimentStatus = 
+  | 'draft' 
+  | 'design' 
+  | 'running' 
+  | 'analyzing' 
+  | 'completed' 
+  | 'archived';
+
+// Method types for experiment runs
+export type ExperimentMethodType = 
+  | 'linear_programming' 
+  | 'greedy_heuristic' 
+  | 'quantum_annealing' 
+  | 'qaoa' 
+  | 'vqe' 
+  | 'other_quantum';
+
+// Run status
+export type ExperimentRunStatus = 
+  | 'queued' 
+  | 'running' 
+  | 'completed' 
+  | 'failed';
+
+// Climate experiment
+export interface ClimateExperiment {
+  id: string;
+  tenant_id: string;
+  title: string;
+  description: string | null;
+  problem_domain: ExperimentProblemDomain;
+  method_family: ExperimentMethodFamily;
+  status: ExperimentStatus;
+  linked_profile_id: string | null;
+  linked_product_id: string | null;
+  linked_material_id: string | null;
+  tags: string[] | null;
+  created_by_user_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// Climate experiment with run count
+export interface ClimateExperimentWithRunCount extends ClimateExperiment {
+  run_count?: number;
+}
+
+// Climate experiment run
+export interface ClimateExperimentRun {
+  id: string;
+  tenant_id: string;
+  experiment_id: string;
+  run_label: string | null;
+  method_type: ExperimentMethodType | string;
+  backend_provider: string | null;
+  input_summary: Record<string, unknown> | null;
+  parameters: Record<string, unknown> | null;
+  metrics: Record<string, unknown> | null;
+  evaluation: Record<string, unknown> | null;
+  status: ExperimentRunStatus;
+  error_message: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// Input for creating a climate experiment
+export interface CreateClimateExperimentInput {
+  title: string;
+  description?: string;
+  problem_domain: ExperimentProblemDomain;
+  method_family: ExperimentMethodFamily;
+  status?: ExperimentStatus;
+  linked_profile_id?: string;
+  linked_product_id?: string;
+  linked_material_id?: string;
+  tags?: string[];
+}
+
+// Input for updating a climate experiment
+export interface UpdateClimateExperimentInput {
+  title?: string;
+  description?: string;
+  problem_domain?: ExperimentProblemDomain;
+  method_family?: ExperimentMethodFamily;
+  status?: ExperimentStatus;
+  linked_profile_id?: string | null;
+  linked_product_id?: string | null;
+  linked_material_id?: string | null;
+  tags?: string[];
+}
+
+// Input for creating a climate experiment run
+export interface CreateClimateExperimentRunInput {
+  run_label?: string;
+  method_type: string;
+  backend_provider?: string;
+  input_summary?: Record<string, unknown>;
+  parameters?: Record<string, unknown>;
+  metrics?: Record<string, unknown>;
+  evaluation?: Record<string, unknown>;
+  status?: ExperimentRunStatus;
+  error_message?: string;
+  started_at?: string;
+  completed_at?: string;
+}
+
+// Filters for listing climate experiments
+export interface ClimateExperimentFilters {
+  status?: ExperimentStatus;
+  problem_domain?: ExperimentProblemDomain;
+  method_family?: ExperimentMethodFamily;
+  tag?: string;
+  linked_profile_id?: string;
+  linked_product_id?: string;
+  linked_material_id?: string;
+}
+
+// Filters for listing climate experiment runs
+export interface ClimateExperimentRunFilters {
+  status?: ExperimentRunStatus;
+  method_type?: string;
+}
+
+// Experiment summary response
+export interface ClimateExperimentSummary {
+  experiment_id: string;
+  total_runs: number;
+  runs_by_status: Record<string, number>;
+  methods_used: Record<string, number>;
+  best_objective_run: BestObjectiveRun | null;
+}
+
+// Best objective run in summary
+export interface BestObjectiveRun {
+  run_id: string;
+  method_type: string;
+  backend_provider: string | null;
+  metrics: Record<string, unknown> | null;
+}
+
+// Experiment detail with recent runs
+export interface ClimateExperimentDetail extends ClimateExperiment {
+  recent_runs?: ClimateExperimentRunListItem[];
+}
+
+// Run list item (lighter version for lists)
+export interface ClimateExperimentRunListItem {
+  id: string;
+  run_label: string | null;
+  method_type: string;
+  status: ExperimentRunStatus;
+  created_at: string;
+}
