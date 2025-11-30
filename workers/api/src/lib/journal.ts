@@ -4,6 +4,7 @@ export interface JournalEventInput {
   tenantId: string;
   eventType: string;
   summary: string;
+  category?: string;
   metadata?: Record<string, unknown>;
   relatedEntityIds?: string[];
 }
@@ -14,7 +15,7 @@ export async function insertJournalEntry(
 ): Promise<void> {
   const { error } = await supabase.from('journal_entries').insert({
     tenant_id: input.tenantId,
-    category: 'system_event',
+    category: input.category || 'system_event',
     title: input.summary,
     body: null,
     details: {
