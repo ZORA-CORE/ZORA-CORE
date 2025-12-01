@@ -1435,3 +1435,243 @@ export interface FoundationProjectListItem extends FoundationProject {
   contribution_count?: number;
   total_contributions_cents?: number;
 }
+
+// ============================================================================
+// ORGANIZATIONS & PLAYBOOKS TYPES
+// ============================================================================
+
+// Organization types
+export type OrganizationType =
+  | 'brand'
+  | 'ngo'
+  | 'city'
+  | 'startup'
+  | 'energy_utility'
+  | 'enterprise'
+  | 'government';
+
+// Organization
+export interface Organization {
+  id: string;
+  tenant_id: string;
+  name: string;
+  organization_type: OrganizationType | string;
+  description: string | null;
+  homepage_url: string | null;
+  country: string | null;
+  city_or_region: string | null;
+  industry: string | null;
+  tags: string[] | null;
+  linked_shop_brand_id: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+// Input for creating an organization
+export interface CreateOrganizationInput {
+  name: string;
+  organization_type: string;
+  description?: string;
+  homepage_url?: string;
+  country?: string;
+  city_or_region?: string;
+  industry?: string;
+  tags?: string[];
+  linked_shop_brand_id?: string;
+  metadata?: Record<string, unknown>;
+}
+
+// Input for updating an organization
+export interface UpdateOrganizationInput {
+  name?: string;
+  organization_type?: string;
+  description?: string;
+  homepage_url?: string;
+  country?: string;
+  city_or_region?: string;
+  industry?: string;
+  tags?: string[];
+  linked_shop_brand_id?: string;
+  metadata?: Record<string, unknown>;
+}
+
+// Filters for listing organizations
+export interface OrganizationFilters {
+  organization_type?: string;
+  search?: string;
+}
+
+// Playbook categories
+export type PlaybookCategory =
+  | 'onboarding'
+  | 'climate'
+  | 'zora_shop'
+  | 'foundation'
+  | 'goes_green';
+
+// Playbook target entity types
+export type PlaybookTargetEntityType =
+  | 'tenant'
+  | 'organization'
+  | 'climate_profile'
+  | 'zora_shop_project';
+
+// Playbook
+export interface Playbook {
+  id: string;
+  tenant_id: string | null;
+  code: string;
+  name: string;
+  description: string | null;
+  category: PlaybookCategory | string;
+  target_entity_type: PlaybookTargetEntityType | string;
+  is_active: boolean;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+// Playbook step
+export interface PlaybookStep {
+  id: string;
+  playbook_id: string;
+  step_order: number;
+  code: string;
+  name: string;
+  description: string | null;
+  agent_suggestion: string | null;
+  task_type: string | null;
+  config: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+// Playbook with steps
+export interface PlaybookWithSteps extends Playbook {
+  steps: PlaybookStep[];
+}
+
+// Input for creating a playbook
+export interface CreatePlaybookInput {
+  code: string;
+  name: string;
+  description?: string;
+  category: string;
+  target_entity_type: string;
+  is_active?: boolean;
+  metadata?: Record<string, unknown>;
+  steps?: CreatePlaybookStepInput[];
+}
+
+// Input for creating a playbook step
+export interface CreatePlaybookStepInput {
+  step_order: number;
+  code: string;
+  name: string;
+  description?: string;
+  agent_suggestion?: string;
+  task_type?: string;
+  config?: Record<string, unknown>;
+}
+
+// Input for updating a playbook
+export interface UpdatePlaybookInput {
+  name?: string;
+  description?: string;
+  category?: string;
+  target_entity_type?: string;
+  is_active?: boolean;
+  metadata?: Record<string, unknown>;
+}
+
+// Filters for listing playbooks
+export interface PlaybookFilters {
+  category?: string;
+  target_entity_type?: string;
+  is_active?: boolean;
+}
+
+// Playbook run status
+export type PlaybookRunStatus =
+  | 'not_started'
+  | 'in_progress'
+  | 'completed'
+  | 'failed'
+  | 'paused';
+
+// Playbook run
+export interface PlaybookRun {
+  id: string;
+  tenant_id: string;
+  playbook_id: string;
+  target_entity_type: string;
+  target_entity_id: string | null;
+  status: PlaybookRunStatus | string;
+  started_at: string | null;
+  completed_at: string | null;
+  failed_at: string | null;
+  failure_reason: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+// Playbook run step status
+export type PlaybookRunStepStatus =
+  | 'not_started'
+  | 'pending'
+  | 'in_progress'
+  | 'completed'
+  | 'failed'
+  | 'skipped';
+
+// Playbook run step
+export interface PlaybookRunStep {
+  id: string;
+  tenant_id: string;
+  playbook_run_id: string;
+  playbook_step_id: string;
+  step_order: number;
+  status: PlaybookRunStepStatus | string;
+  agent_id: string | null;
+  agent_task_id: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  failed_at: string | null;
+  failure_reason: string | null;
+  notes: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+// Playbook run with steps
+export interface PlaybookRunWithSteps extends PlaybookRun {
+  steps: PlaybookRunStep[];
+  playbook?: Playbook;
+}
+
+// Input for starting a playbook run
+export interface StartPlaybookRunInput {
+  target_entity_type: string;
+  target_entity_id?: string;
+  metadata?: Record<string, unknown>;
+}
+
+// Input for updating a playbook run step
+export interface UpdatePlaybookRunStepInput {
+  status: string;
+  notes?: string;
+  failure_reason?: string;
+  agent_id?: string;
+  agent_task_id?: string;
+}
+
+// Filters for listing playbook runs
+export interface PlaybookRunFilters {
+  playbook_id?: string;
+  status?: string;
+  target_entity_type?: string;
+  target_entity_id?: string;
+}

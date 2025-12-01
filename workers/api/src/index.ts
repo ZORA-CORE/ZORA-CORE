@@ -27,6 +27,8 @@ import hempMaterialsHandler from './handlers/hemp-materials';
 import climateMaterialsHandler from './handlers/climate-materials';
 import climateExperimentsHandler from './handlers/climate-experiments';
 import foundationHandler from './handlers/foundation';
+import organizationsHandler from './handlers/organizations';
+import playbooksHandler from './handlers/playbooks';
 
 const app = new Hono<AuthAppEnv>();
 
@@ -59,6 +61,9 @@ app.use('/api/mashups/*', authMiddleware);
 app.use('/api/shop/*', authMiddleware);
 app.use('/api/zora-shop/*', authMiddleware);
 app.use('/api/foundation/*', authMiddleware);
+app.use('/api/org/*', authMiddleware);
+app.use('/api/playbooks/*', authMiddleware);
+app.use('/api/playbook-runs/*', authMiddleware);
 // Admin metrics endpoints require JWT auth (founder/brand_admin role)
 app.use('/api/admin/system-metrics', authMiddleware);
 app.use('/api/admin/autonomy-status', authMiddleware);
@@ -166,6 +171,18 @@ app.get('/', (c) => {
       'PUT /api/zora-shop/projects/:id',
       'PATCH /api/zora-shop/projects/:id/status',
       'DELETE /api/zora-shop/projects/:id',
+      'GET /api/org/organizations',
+      'GET /api/org/organizations/:id',
+      'POST /api/org/organizations',
+      'PATCH /api/org/organizations/:id',
+      'GET /api/playbooks',
+      'GET /api/playbooks/:id',
+      'POST /api/playbooks',
+      'PATCH /api/playbooks/:id',
+      'POST /api/playbooks/:id/run',
+      'GET /api/playbook-runs',
+      'GET /api/playbook-runs/:id',
+      'PATCH /api/playbook-runs/:id/steps/:stepId',
     ],
     admin_endpoints: [
       'GET /api/admin/status (requires X-ZORA-ADMIN-SECRET)',
@@ -214,6 +231,11 @@ app.route('/api/climate/experiments', climateExperimentsHandler);
 
 // THE ZORA FOUNDATION v1 routes (Iteration 00C3)
 app.route('/api/foundation', foundationHandler);
+
+// Brand/Org & Playbooks v1 routes (Iteration 00C4)
+app.route('/api/org/organizations', organizationsHandler);
+app.route('/api/playbooks', playbooksHandler);
+app.route('/api/playbook-runs', playbooksHandler);
 
 // Safety + Scheduling v1 routes (Iteration 00B5)
 app.route('/api/autonomy/schedules', autonomySchedulesHandler);
