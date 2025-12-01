@@ -29,6 +29,7 @@ import climateExperimentsHandler from './handlers/climate-experiments';
 import foundationHandler from './handlers/foundation';
 import organizationsHandler from './handlers/organizations';
 import playbooksHandler from './handlers/playbooks';
+import goesGreenHandler from './handlers/goes-green';
 
 const app = new Hono<AuthAppEnv>();
 
@@ -64,6 +65,7 @@ app.use('/api/foundation/*', authMiddleware);
 app.use('/api/org/*', authMiddleware);
 app.use('/api/playbooks/*', authMiddleware);
 app.use('/api/playbook-runs/*', authMiddleware);
+app.use('/api/goes-green/*', authMiddleware);
 // Admin metrics endpoints require JWT auth (founder/brand_admin role)
 app.use('/api/admin/system-metrics', authMiddleware);
 app.use('/api/admin/autonomy-status', authMiddleware);
@@ -183,6 +185,16 @@ app.get('/', (c) => {
       'GET /api/playbook-runs',
       'GET /api/playbook-runs/:id',
       'PATCH /api/playbook-runs/:id/steps/:stepId',
+      'GET /api/goes-green/profiles',
+      'GET /api/goes-green/profiles/:id',
+      'POST /api/goes-green/profiles',
+      'PATCH /api/goes-green/profiles/:id',
+      'GET /api/goes-green/profiles/:id/assets',
+      'POST /api/goes-green/profiles/:id/assets',
+      'GET /api/goes-green/profiles/:id/actions',
+      'POST /api/goes-green/profiles/:id/actions',
+      'PATCH /api/goes-green/actions/:actionId',
+      'GET /api/goes-green/profiles/:id/summary',
     ],
     admin_endpoints: [
       'GET /api/admin/status (requires X-ZORA-ADMIN-SECRET)',
@@ -236,6 +248,9 @@ app.route('/api/foundation', foundationHandler);
 app.route('/api/org/organizations', organizationsHandler);
 app.route('/api/playbooks', playbooksHandler);
 app.route('/api/playbook-runs', playbooksHandler);
+
+// ZORA GOES GREEN v1 routes (Iteration 00C5)
+app.route('/api/goes-green', goesGreenHandler);
 
 // Safety + Scheduling v1 routes (Iteration 00B5)
 app.route('/api/autonomy/schedules', autonomySchedulesHandler);

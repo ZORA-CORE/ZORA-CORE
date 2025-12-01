@@ -1675,3 +1675,223 @@ export interface PlaybookRunFilters {
   target_entity_type?: string;
   target_entity_id?: string;
 }
+
+// ============================================================================
+// ZORA GOES GREEN TYPES
+// ============================================================================
+
+// GOES GREEN profile types
+export type GoesGreenProfileType = 'household' | 'organization';
+
+// GOES GREEN energy asset types
+export type GoesGreenAssetType =
+  | 'solar_pv_rooftop'
+  | 'solar_thermal'
+  | 'heat_pump_air_to_water'
+  | 'heat_pump_ground_source'
+  | 'ev_vehicle'
+  | 'battery_storage'
+  | 'green_power_contract';
+
+// GOES GREEN asset status
+export type GoesGreenAssetStatus = 'existing' | 'planned' | 'under_evaluation' | 'retired';
+
+// GOES GREEN action types
+export type GoesGreenActionType =
+  | 'switch_to_green_tariff'
+  | 'install_solar_pv'
+  | 'install_heat_pump'
+  | 'improve_insulation'
+  | 'replace_appliances';
+
+// GOES GREEN action status
+export type GoesGreenActionStatus = 'planned' | 'in_progress' | 'completed' | 'canceled';
+
+// GOES GREEN Profile
+export interface GoesGreenProfile {
+  id: string;
+  tenant_id: string;
+  organization_id: string | null;
+  climate_profile_id: string | null;
+  profile_type: GoesGreenProfileType | string;
+  name: string;
+  country: string | null;
+  city_or_region: string | null;
+  annual_energy_kwh: number | null;
+  primary_energy_source: string | null;
+  grid_renewable_share_percent: number | null;
+  target_green_share_percent: number | null;
+  notes: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+// Input for creating a GOES GREEN profile
+export interface CreateGoesGreenProfileInput {
+  profile_type: string;
+  name: string;
+  organization_id?: string;
+  climate_profile_id?: string;
+  country?: string;
+  city_or_region?: string;
+  annual_energy_kwh?: number;
+  primary_energy_source?: string;
+  grid_renewable_share_percent?: number;
+  target_green_share_percent?: number;
+  notes?: string;
+  metadata?: Record<string, unknown>;
+}
+
+// Input for updating a GOES GREEN profile
+export interface UpdateGoesGreenProfileInput {
+  name?: string;
+  country?: string;
+  city_or_region?: string;
+  annual_energy_kwh?: number;
+  primary_energy_source?: string;
+  grid_renewable_share_percent?: number;
+  target_green_share_percent?: number;
+  notes?: string;
+  metadata?: Record<string, unknown>;
+}
+
+// Filters for listing GOES GREEN profiles
+export interface GoesGreenProfileFilters {
+  profile_type?: string;
+  organization_id?: string;
+  search?: string;
+}
+
+// GOES GREEN Energy Asset
+export interface GoesGreenEnergyAsset {
+  id: string;
+  tenant_id: string;
+  goes_green_profile_id: string;
+  asset_type: GoesGreenAssetType | string;
+  status: GoesGreenAssetStatus | string;
+  capacity_kw: number | null;
+  annual_production_kwh_estimated: number | null;
+  annual_savings_kgco2_estimated: number | null;
+  installed_at: string | null;
+  retired_at: string | null;
+  vendor_name: string | null;
+  notes: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+// Input for creating a GOES GREEN energy asset
+export interface CreateGoesGreenEnergyAssetInput {
+  asset_type: string;
+  status: string;
+  capacity_kw?: number;
+  annual_production_kwh_estimated?: number;
+  annual_savings_kgco2_estimated?: number;
+  installed_at?: string;
+  retired_at?: string;
+  vendor_name?: string;
+  notes?: string;
+  metadata?: Record<string, unknown>;
+}
+
+// GOES GREEN Action
+export interface GoesGreenAction {
+  id: string;
+  tenant_id: string;
+  goes_green_profile_id: string;
+  climate_mission_id: string | null;
+  action_type: GoesGreenActionType | string;
+  title: string;
+  description: string | null;
+  status: GoesGreenActionStatus | string;
+  estimated_impact_kgco2: number | null;
+  estimated_annual_kwh_savings: number | null;
+  payback_period_years_estimated: number | null;
+  cost_estimate_cents: number | null;
+  currency: string;
+  started_at: string | null;
+  completed_at: string | null;
+  canceled_at: string | null;
+  notes: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+// Input for creating a GOES GREEN action
+export interface CreateGoesGreenActionInput {
+  action_type: string;
+  title: string;
+  description?: string;
+  climate_mission_id?: string;
+  estimated_impact_kgco2?: number;
+  estimated_annual_kwh_savings?: number;
+  payback_period_years_estimated?: number;
+  cost_estimate_cents?: number;
+  currency?: string;
+  notes?: string;
+  metadata?: Record<string, unknown>;
+}
+
+// Input for updating a GOES GREEN action
+export interface UpdateGoesGreenActionInput {
+  title?: string;
+  description?: string;
+  status?: string;
+  estimated_impact_kgco2?: number;
+  estimated_annual_kwh_savings?: number;
+  payback_period_years_estimated?: number;
+  cost_estimate_cents?: number;
+  currency?: string;
+  started_at?: string;
+  completed_at?: string;
+  canceled_at?: string;
+  notes?: string;
+  metadata?: Record<string, unknown>;
+}
+
+// Filters for listing GOES GREEN actions
+export interface GoesGreenActionFilters {
+  status?: string;
+  action_type?: string;
+}
+
+// GOES GREEN Snapshot
+export interface GoesGreenSnapshot {
+  id: string;
+  tenant_id: string;
+  goes_green_profile_id: string;
+  snapshot_date: string;
+  total_energy_kwh: number | null;
+  green_energy_kwh: number | null;
+  grid_renewable_share_percent: number | null;
+  computed_green_share_percent: number | null;
+  notes: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
+// GOES GREEN Profile Summary
+export interface GoesGreenProfileSummary {
+  profile_id: string;
+  profile_type: string;
+  name: string;
+  annual_energy_kwh: number | null;
+  green_share_percent_estimated: number | null;
+  target_green_share_percent: number | null;
+  assets: {
+    count: number;
+    by_type: Record<string, number>;
+    total_annual_production_kwh_estimated: number;
+    total_annual_savings_kgco2_estimated: number;
+  };
+  actions: {
+    total: number;
+    completed: number;
+    in_progress: number;
+    planned: number;
+    estimated_total_impact_kgco2: number;
+  };
+}
