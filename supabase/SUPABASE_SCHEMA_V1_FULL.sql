@@ -20,7 +20,7 @@
 --   - /admin/setup will work correctly
 -- 
 -- Date: 2025-12-01
--- Version: 2.9.0 (Climate Academy Backend v1.0)
+-- Version: 3.0.0 (Billing, Subscriptions & ZORA SHOP Commission Backend v1.0)
 -- ============================================================================
 
 -- ============================================================================
@@ -2906,7 +2906,260 @@ COMMENT ON COLUMN academy_quiz_attempts.status IS 'Status: started, submitted, p
 COMMENT ON COLUMN academy_quiz_attempts.answers IS 'JSON structure storing user answers';
 
 -- ============================================================================
--- STEP 14H: VERIFY SCHEMA
+-- STEP 14H: BILLING, SUBSCRIPTIONS & ZORA SHOP COMMISSION v1.0
+-- Schema version: 3.0.0 (adds billing_plans, tenant_subscriptions, billing_events,
+--                        zora_shop_orders, zora_shop_order_items, zora_shop_commission_settings)
+-- ============================================================================
+
+-- 14H.1: Create billing_plans table
+-- Defines subscription plans available to tenants
+CREATE TABLE IF NOT EXISTS billing_plans (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    code TEXT UNIQUE NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT,
+    price_amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+    price_currency TEXT NOT NULL DEFAULT 'DKK',
+    billing_interval TEXT NOT NULL CHECK (billing_interval IN ('month', 'year')),
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    features JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Indexes for billing_plans
+CREATE INDEX IF NOT EXISTS idx_billing_plans_code ON billing_plans(code);
+CREATE INDEX IF NOT EXISTS idx_billing_plans_is_active ON billing_plans(is_active);
+
+-- Trigger for updated_at
+DROP TRIGGER IF EXISTS update_billing_plans_updated_at ON billing_plans;
+CREATE TRIGGER update_billing_plans_updated_at
+    BEFORE UPDATE ON billing_plans
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Enable RLS for billing_plans
+ALTER TABLE billing_plans ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy for billing_plans (public read, service role write)
+DROP POLICY IF EXISTS "Allow all for service role" ON billing_plans;
+CREATE POLICY "Allow all for service role" ON billing_plans
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE billing_plans IS 'Subscription plans available to tenants';
+COMMENT ON COLUMN billing_plans.code IS 'Unique plan code: free, starter, pro';
+COMMENT ON COLUMN billing_plans.billing_interval IS 'Billing interval: month, year';
+COMMENT ON COLUMN billing_plans.features IS 'JSON object with plan features/limits';
+
+-- Seed default billing plans (idempotent)
+INSERT INTO billing_plans (code, name, description, price_amount, price_currency, billing_interval, features)
+VALUES 
+    ('free', 'Free', 'Basic access to ZORA CORE', 0, 'DKK', 'month', '{"seats": 1, "projects": 3, "api_calls_per_month": 1000}'),
+    ('starter', 'Starter', 'For small brands and individuals', 99, 'DKK', 'month', '{"seats": 3, "projects": 10, "api_calls_per_month": 10000}'),
+    ('pro', 'Pro', 'For growing organizations', 499, 'DKK', 'month', '{"seats": 10, "projects": -1, "api_calls_per_month": 100000}')
+ON CONFLICT (code) DO UPDATE SET
+    name = EXCLUDED.name,
+    description = EXCLUDED.description,
+    price_amount = EXCLUDED.price_amount,
+    features = EXCLUDED.features,
+    updated_at = NOW();
+
+-- 14H.2: Create tenant_subscriptions table
+-- Tracks tenant subscription status and payment provider info
+CREATE TABLE IF NOT EXISTS tenant_subscriptions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    plan_id UUID NOT NULL REFERENCES billing_plans(id) ON DELETE RESTRICT,
+    status TEXT NOT NULL CHECK (status IN ('trial', 'active', 'past_due', 'canceled')),
+    current_period_start TIMESTAMPTZ,
+    current_period_end TIMESTAMPTZ,
+    provider TEXT NOT NULL CHECK (provider IN ('stripe', 'paypal', 'manual')),
+    provider_customer_id TEXT,
+    provider_subscription_id TEXT,
+    trial_ends_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Indexes for tenant_subscriptions
+CREATE INDEX IF NOT EXISTS idx_tenant_subscriptions_tenant ON tenant_subscriptions(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_tenant_subscriptions_plan ON tenant_subscriptions(plan_id);
+CREATE INDEX IF NOT EXISTS idx_tenant_subscriptions_status ON tenant_subscriptions(status);
+CREATE INDEX IF NOT EXISTS idx_tenant_subscriptions_provider ON tenant_subscriptions(provider);
+
+-- Trigger for updated_at
+DROP TRIGGER IF EXISTS update_tenant_subscriptions_updated_at ON tenant_subscriptions;
+CREATE TRIGGER update_tenant_subscriptions_updated_at
+    BEFORE UPDATE ON tenant_subscriptions
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Enable RLS for tenant_subscriptions
+ALTER TABLE tenant_subscriptions ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy for tenant_subscriptions
+DROP POLICY IF EXISTS "Allow all for service role" ON tenant_subscriptions;
+CREATE POLICY "Allow all for service role" ON tenant_subscriptions
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE tenant_subscriptions IS 'Tenant subscription records with payment provider info';
+COMMENT ON COLUMN tenant_subscriptions.status IS 'Subscription status: trial, active, past_due, canceled';
+COMMENT ON COLUMN tenant_subscriptions.provider IS 'Payment provider: stripe, paypal, manual';
+
+-- 14H.3: Create billing_events table
+-- Logs billing events for audit and debugging
+CREATE TABLE IF NOT EXISTS billing_events (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE,
+    event_type TEXT NOT NULL,
+    provider TEXT,
+    external_id TEXT,
+    payload JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Indexes for billing_events
+CREATE INDEX IF NOT EXISTS idx_billing_events_tenant ON billing_events(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_billing_events_event_type ON billing_events(event_type);
+CREATE INDEX IF NOT EXISTS idx_billing_events_provider ON billing_events(provider);
+CREATE INDEX IF NOT EXISTS idx_billing_events_external_id ON billing_events(external_id);
+CREATE INDEX IF NOT EXISTS idx_billing_events_created_at ON billing_events(created_at DESC);
+
+-- Enable RLS for billing_events
+ALTER TABLE billing_events ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy for billing_events
+DROP POLICY IF EXISTS "Allow all for service role" ON billing_events;
+CREATE POLICY "Allow all for service role" ON billing_events
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE billing_events IS 'Billing event log for webhooks and audit';
+COMMENT ON COLUMN billing_events.event_type IS 'Event type: subscription_created, invoice_paid, webhook_received, etc.';
+COMMENT ON COLUMN billing_events.external_id IS 'External event ID from payment provider';
+
+-- 14H.4: Create zora_shop_commission_settings table
+-- Per-tenant commission settings for ZORA SHOP
+CREATE TABLE IF NOT EXISTS zora_shop_commission_settings (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID UNIQUE NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    default_commission_rate NUMERIC(5,4) NOT NULL DEFAULT 0.10,
+    default_foundation_share_rate NUMERIC(5,4) NOT NULL DEFAULT 0.00,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Indexes for zora_shop_commission_settings
+CREATE INDEX IF NOT EXISTS idx_zora_shop_commission_settings_tenant ON zora_shop_commission_settings(tenant_id);
+
+-- Trigger for updated_at
+DROP TRIGGER IF EXISTS update_zora_shop_commission_settings_updated_at ON zora_shop_commission_settings;
+CREATE TRIGGER update_zora_shop_commission_settings_updated_at
+    BEFORE UPDATE ON zora_shop_commission_settings
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Enable RLS for zora_shop_commission_settings
+ALTER TABLE zora_shop_commission_settings ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy for zora_shop_commission_settings
+DROP POLICY IF EXISTS "Allow all for service role" ON zora_shop_commission_settings;
+CREATE POLICY "Allow all for service role" ON zora_shop_commission_settings
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE zora_shop_commission_settings IS 'Per-tenant commission settings for ZORA SHOP';
+COMMENT ON COLUMN zora_shop_commission_settings.default_commission_rate IS 'Default commission rate (0.10 = 10%)';
+COMMENT ON COLUMN zora_shop_commission_settings.default_foundation_share_rate IS 'Share of commission going to THE ZORA FOUNDATION (0.20 = 20% of commission)';
+
+-- 14H.5: Create zora_shop_orders table
+-- Orders in ZORA SHOP with commission tracking
+CREATE TABLE IF NOT EXISTS zora_shop_orders (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    project_id UUID REFERENCES zora_shop_projects(id) ON DELETE SET NULL,
+    buyer_org_id UUID REFERENCES organizations(id) ON DELETE SET NULL,
+    total_amount NUMERIC(12,2) NOT NULL,
+    currency TEXT NOT NULL DEFAULT 'DKK',
+    status TEXT NOT NULL CHECK (status IN ('pending', 'paid', 'refunded', 'canceled')),
+    commission_rate NUMERIC(5,4) NOT NULL DEFAULT 0.10,
+    commission_amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+    foundation_share_rate NUMERIC(5,4) NOT NULL DEFAULT 0.00,
+    foundation_contribution_id UUID REFERENCES foundation_contributions(id) ON DELETE SET NULL,
+    metadata JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Indexes for zora_shop_orders
+CREATE INDEX IF NOT EXISTS idx_zora_shop_orders_tenant ON zora_shop_orders(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_zora_shop_orders_project ON zora_shop_orders(project_id);
+CREATE INDEX IF NOT EXISTS idx_zora_shop_orders_buyer_org ON zora_shop_orders(buyer_org_id);
+CREATE INDEX IF NOT EXISTS idx_zora_shop_orders_status ON zora_shop_orders(status);
+CREATE INDEX IF NOT EXISTS idx_zora_shop_orders_created_at ON zora_shop_orders(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_zora_shop_orders_foundation_contribution ON zora_shop_orders(foundation_contribution_id);
+
+-- Trigger for updated_at
+DROP TRIGGER IF EXISTS update_zora_shop_orders_updated_at ON zora_shop_orders;
+CREATE TRIGGER update_zora_shop_orders_updated_at
+    BEFORE UPDATE ON zora_shop_orders
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Enable RLS for zora_shop_orders
+ALTER TABLE zora_shop_orders ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy for zora_shop_orders
+DROP POLICY IF EXISTS "Allow all for service role" ON zora_shop_orders;
+CREATE POLICY "Allow all for service role" ON zora_shop_orders
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE zora_shop_orders IS 'ZORA SHOP orders with commission tracking';
+COMMENT ON COLUMN zora_shop_orders.status IS 'Order status: pending, paid, refunded, canceled';
+COMMENT ON COLUMN zora_shop_orders.commission_rate IS 'Commission rate applied (0.10 = 10%)';
+COMMENT ON COLUMN zora_shop_orders.commission_amount IS 'Calculated commission amount';
+COMMENT ON COLUMN zora_shop_orders.foundation_share_rate IS 'Share of commission for THE ZORA FOUNDATION';
+COMMENT ON COLUMN zora_shop_orders.foundation_contribution_id IS 'Link to foundation_contributions if foundation share was created';
+
+-- 14H.6: Create zora_shop_order_items table
+-- Line items for ZORA SHOP orders
+CREATE TABLE IF NOT EXISTS zora_shop_order_items (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    order_id UUID NOT NULL REFERENCES zora_shop_orders(id) ON DELETE CASCADE,
+    product_id UUID NOT NULL REFERENCES products(id) ON DELETE RESTRICT,
+    quantity INTEGER NOT NULL DEFAULT 1,
+    unit_price NUMERIC(12,2) NOT NULL,
+    line_total NUMERIC(12,2) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Indexes for zora_shop_order_items
+CREATE INDEX IF NOT EXISTS idx_zora_shop_order_items_order ON zora_shop_order_items(order_id);
+CREATE INDEX IF NOT EXISTS idx_zora_shop_order_items_product ON zora_shop_order_items(product_id);
+
+-- Enable RLS for zora_shop_order_items
+ALTER TABLE zora_shop_order_items ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy for zora_shop_order_items
+DROP POLICY IF EXISTS "Allow all for service role" ON zora_shop_order_items;
+CREATE POLICY "Allow all for service role" ON zora_shop_order_items
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE zora_shop_order_items IS 'Line items for ZORA SHOP orders';
+COMMENT ON COLUMN zora_shop_order_items.line_total IS 'Calculated as quantity * unit_price';
+
+-- ============================================================================
+-- STEP 14I: VERIFY SCHEMA
 -- ============================================================================
 
 -- This query will show all tables that should exist
@@ -2916,11 +3169,11 @@ DECLARE
     table_count INTEGER;
     function_count INTEGER;
 BEGIN
-    -- Count required tables (now 47 with Climate Academy tables added)
+    -- Count required tables (now 53 with Billing & Commission tables added)
     SELECT COUNT(*) INTO table_count
     FROM information_schema.tables 
     WHERE table_schema = 'public' 
-    AND table_name IN ('schema_metadata', 'tenants', 'users', 'memory_events', 'journal_entries', 'climate_profiles', 'climate_missions', 'climate_plans', 'climate_plan_items', 'frontend_configs', 'agent_suggestions', 'brands', 'products', 'product_brands', 'agent_tasks', 'agent_insights', 'agent_commands', 'materials', 'product_materials', 'product_climate_meta', 'zora_shop_projects', 'agent_task_policies', 'autonomy_schedules', 'climate_material_profiles', 'climate_experiments', 'climate_experiment_runs', 'foundation_projects', 'foundation_contributions', 'foundation_impact_log', 'organizations', 'playbooks', 'playbook_steps', 'playbook_runs', 'playbook_run_steps', 'goes_green_profiles', 'goes_green_energy_assets', 'goes_green_actions', 'goes_green_snapshots', 'academy_topics', 'academy_lessons', 'academy_modules', 'academy_module_lessons', 'academy_learning_paths', 'academy_learning_path_modules', 'academy_user_progress', 'academy_quizzes', 'academy_quiz_attempts');
+    AND table_name IN ('schema_metadata', 'tenants', 'users', 'memory_events', 'journal_entries', 'climate_profiles', 'climate_missions', 'climate_plans', 'climate_plan_items', 'frontend_configs', 'agent_suggestions', 'brands', 'products', 'product_brands', 'agent_tasks', 'agent_insights', 'agent_commands', 'materials', 'product_materials', 'product_climate_meta', 'zora_shop_projects', 'agent_task_policies', 'autonomy_schedules', 'climate_material_profiles', 'climate_experiments', 'climate_experiment_runs', 'foundation_projects', 'foundation_contributions', 'foundation_impact_log', 'organizations', 'playbooks', 'playbook_steps', 'playbook_runs', 'playbook_run_steps', 'goes_green_profiles', 'goes_green_energy_assets', 'goes_green_actions', 'goes_green_snapshots', 'academy_topics', 'academy_lessons', 'academy_modules', 'academy_module_lessons', 'academy_learning_paths', 'academy_learning_path_modules', 'academy_user_progress', 'academy_quizzes', 'academy_quiz_attempts', 'billing_plans', 'tenant_subscriptions', 'billing_events', 'zora_shop_commission_settings', 'zora_shop_orders', 'zora_shop_order_items');
     
     -- Count search_memories_by_embedding functions (should be exactly 1)
     SELECT COUNT(*) INTO function_count
@@ -2928,10 +3181,10 @@ BEGIN
     WHERE proname = 'search_memories_by_embedding';
     
     RAISE NOTICE '=== ZORA CORE Schema Verification ===';
-    RAISE NOTICE 'Required tables found: % of 47', table_count;
+    RAISE NOTICE 'Required tables found: % of 53', table_count;
     RAISE NOTICE 'search_memories_by_embedding functions: % (should be 1)', function_count;
     
-    IF table_count = 47 AND function_count = 1 THEN
+    IF table_count = 53 AND function_count = 1 THEN
         RAISE NOTICE 'Schema is correctly configured!';
     ELSE
         RAISE WARNING 'Schema may have issues. Please check the tables and functions.';
@@ -2945,7 +3198,7 @@ END$$;
 -- Safe to run multiple times - each run adds a new version record.
 
 INSERT INTO schema_metadata (schema_version, notes)
-VALUES ('2.9.0', 'Climate Academy Backend v1.0');
+VALUES ('3.0.0', 'Billing, Subscriptions & ZORA SHOP Commission Backend v1.0');
 
 -- ============================================================================
 -- DONE!

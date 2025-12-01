@@ -2179,3 +2179,206 @@ export interface AcademyQuizAttempt {
   created_at: string;
   updated_at: string;
 }
+
+// ============================================================================
+// Billing & Commission Types (Iteration 00C8)
+// ============================================================================
+
+// Billing Plan
+export interface BillingPlan {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  price_amount: number;
+  price_currency: string;
+  billing_interval: 'month' | 'year';
+  is_active: boolean;
+  features: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+// Create Billing Plan Input
+export interface CreateBillingPlanInput {
+  code: string;
+  name: string;
+  description?: string;
+  price_amount: number;
+  price_currency?: string;
+  billing_interval: 'month' | 'year';
+  is_active?: boolean;
+  features?: Record<string, unknown>;
+}
+
+// Update Billing Plan Input
+export interface UpdateBillingPlanInput {
+  code?: string;
+  name?: string;
+  description?: string;
+  price_amount?: number;
+  price_currency?: string;
+  billing_interval?: 'month' | 'year';
+  is_active?: boolean;
+  features?: Record<string, unknown>;
+}
+
+// Billing Plan Filters
+export interface BillingPlanFilters {
+  is_active?: boolean;
+  billing_interval?: 'month' | 'year';
+}
+
+// Tenant Subscription
+export interface TenantSubscription {
+  id: string;
+  tenant_id: string;
+  plan_id: string;
+  status: 'trial' | 'active' | 'past_due' | 'canceled';
+  current_period_start: string | null;
+  current_period_end: string | null;
+  provider: 'stripe' | 'paypal' | 'manual';
+  provider_customer_id: string | null;
+  provider_subscription_id: string | null;
+  trial_ends_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// Tenant Subscription with Plan
+export interface TenantSubscriptionWithPlan extends TenantSubscription {
+  plan: BillingPlan;
+}
+
+// Create/Update Tenant Subscription Input
+export interface UpsertTenantSubscriptionInput {
+  plan_id: string;
+  status: 'trial' | 'active' | 'past_due' | 'canceled';
+  current_period_start?: string;
+  current_period_end?: string;
+  provider: 'stripe' | 'paypal' | 'manual';
+  provider_customer_id?: string;
+  provider_subscription_id?: string;
+  trial_ends_at?: string;
+}
+
+// Billing Event
+export interface BillingEvent {
+  id: string;
+  tenant_id: string | null;
+  subscription_id: string | null;
+  provider: 'stripe' | 'paypal' | 'manual';
+  event_type: string;
+  event_id: string | null;
+  payload: Record<string, unknown>;
+  processed_at: string | null;
+  created_at: string;
+}
+
+// Create Billing Event Input (for webhook handlers)
+export interface CreateBillingEventInput {
+  tenant_id?: string;
+  subscription_id?: string;
+  provider: 'stripe' | 'paypal' | 'manual';
+  event_type: string;
+  event_id?: string;
+  payload: Record<string, unknown>;
+}
+
+// ZORA SHOP Commission Settings
+export interface ZoraShopCommissionSettings {
+  id: string;
+  tenant_id: string;
+  commission_rate: number;
+  foundation_share_rate: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// Update Commission Settings Input
+export interface UpdateCommissionSettingsInput {
+  commission_rate?: number;
+  foundation_share_rate?: number;
+  is_active?: boolean;
+}
+
+// ZORA SHOP Order
+export interface ZoraShopOrder {
+  id: string;
+  tenant_id: string;
+  project_id: string | null;
+  buyer_org_id: string | null;
+  total_amount: number;
+  currency: string;
+  status: 'pending' | 'paid' | 'refunded' | 'canceled';
+  commission_rate: number;
+  commission_amount: number;
+  foundation_share_rate: number;
+  foundation_contribution_id: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+// ZORA SHOP Order Item
+export interface ZoraShopOrderItem {
+  id: string;
+  order_id: string;
+  product_id: string;
+  quantity: number;
+  unit_price: number;
+  line_total: number;
+  created_at: string;
+}
+
+// Order with Items
+export interface ZoraShopOrderWithItems extends ZoraShopOrder {
+  items: ZoraShopOrderItem[];
+}
+
+// Create Order Item Input
+export interface CreateOrderItemInput {
+  product_id: string;
+  quantity: number;
+  unit_price: number;
+}
+
+// Create Order Input
+export interface CreateZoraShopOrderInput {
+  project_id?: string;
+  buyer_org_id?: string;
+  currency?: string;
+  items: CreateOrderItemInput[];
+  metadata?: Record<string, unknown>;
+}
+
+// Update Order Status Input
+export interface UpdateOrderStatusInput {
+  status: 'pending' | 'paid' | 'refunded' | 'canceled';
+}
+
+// Order Filters
+export interface ZoraShopOrderFilters {
+  project_id?: string;
+  buyer_org_id?: string;
+  status?: 'pending' | 'paid' | 'refunded' | 'canceled';
+  from_date?: string;
+  to_date?: string;
+}
+
+// Stripe Webhook Payload (simplified)
+export interface StripeWebhookPayload {
+  id: string;
+  type: string;
+  data: {
+    object: Record<string, unknown>;
+  };
+}
+
+// PayPal Webhook Payload (simplified)
+export interface PayPalWebhookPayload {
+  id: string;
+  event_type: string;
+  resource: Record<string, unknown>;
+}

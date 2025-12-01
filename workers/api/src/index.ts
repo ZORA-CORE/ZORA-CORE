@@ -31,6 +31,8 @@ import organizationsHandler from './handlers/organizations';
 import playbooksHandler from './handlers/playbooks';
 import goesGreenHandler from './handlers/goes-green';
 import academyHandler from './handlers/academy';
+import billingHandler from './handlers/billing';
+import shopOrdersHandler from './handlers/shop-orders';
 
 const app = new Hono<AuthAppEnv>();
 
@@ -68,6 +70,7 @@ app.use('/api/playbooks/*', authMiddleware);
 app.use('/api/playbook-runs/*', authMiddleware);
 app.use('/api/goes-green/*', authMiddleware);
 app.use('/api/academy/*', authMiddleware);
+app.use('/api/billing/*', authMiddleware);
 // Admin metrics endpoints require JWT auth (founder/brand_admin role)
 app.use('/api/admin/system-metrics', authMiddleware);
 app.use('/api/admin/autonomy-status', authMiddleware);
@@ -196,9 +199,25 @@ app.get('/', (c) => {
       'GET /api/goes-green/profiles/:id/actions',
       'POST /api/goes-green/profiles/:id/actions',
       'PATCH /api/goes-green/actions/:actionId',
-      'GET /api/goes-green/profiles/:id/summary',
-    ],
-    admin_endpoints: [
+          'GET /api/goes-green/profiles/:id/summary',
+          'GET /api/billing/plans',
+          'GET /api/billing/plans/:id',
+          'POST /api/billing/plans',
+          'PATCH /api/billing/plans/:id',
+          'GET /api/billing/subscription',
+          'POST /api/billing/subscription',
+          'POST /api/billing/webhooks/stripe',
+          'POST /api/billing/webhooks/paypal',
+          'GET /api/billing/events',
+          'GET /api/shop/orders',
+          'GET /api/shop/orders/:id',
+          'POST /api/shop/orders',
+          'PATCH /api/shop/orders/:id/status',
+          'GET /api/shop/orders/summary',
+          'GET /api/shop/commission-settings',
+          'PUT /api/shop/commission-settings',
+        ],
+        admin_endpoints: [
       'GET /api/admin/status (requires X-ZORA-ADMIN-SECRET)',
       'GET /api/admin/schema-status (requires X-ZORA-ADMIN-SECRET)',
       'POST /api/admin/bootstrap-tenant (requires X-ZORA-ADMIN-SECRET)',
@@ -256,6 +275,10 @@ app.route('/api/goes-green', goesGreenHandler);
 
 // Climate Academy v1 routes (Iteration 00C7)
 app.route('/api/academy', academyHandler);
+
+// Billing & Commission v1 routes (Iteration 00C8)
+app.route('/api/billing', billingHandler);
+app.route('/api/shop/orders', shopOrdersHandler);
 
 // Safety + Scheduling v1 routes (Iteration 00B5)
 app.route('/api/autonomy/schedules', autonomySchedulesHandler);
