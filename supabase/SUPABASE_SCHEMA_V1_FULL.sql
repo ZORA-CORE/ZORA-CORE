@@ -2260,7 +2260,171 @@ COMMENT ON COLUMN playbook_run_steps.agent_id IS 'Agent assigned: LUMINA, CONNOR
 COMMENT ON COLUMN playbook_run_steps.agent_task_id IS 'Optional FK to agent_tasks.id for autonomy integration';
 
 -- ============================================================================
--- STEP 14F: VERIFY SCHEMA
+-- STEP 14F: ZORA GOES GREEN v1.0 (Iteration 00C5)
+-- Schema version: 2.8.0
+-- ============================================================================
+
+-- GOES GREEN Profiles table - energy profiles for households and organizations
+CREATE TABLE IF NOT EXISTS goes_green_profiles (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    organization_id UUID REFERENCES organizations(id) ON DELETE SET NULL,
+    climate_profile_id UUID REFERENCES climate_profiles(id) ON DELETE SET NULL,
+    profile_type TEXT NOT NULL,
+    name TEXT NOT NULL,
+    country TEXT,
+    city_or_region TEXT,
+    annual_energy_kwh NUMERIC,
+    primary_energy_source TEXT,
+    grid_renewable_share_percent NUMERIC,
+    target_green_share_percent NUMERIC,
+    notes TEXT,
+    metadata JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT goes_green_profiles_profile_type_check CHECK (profile_type IN ('household', 'organization'))
+);
+
+-- Indexes for goes_green_profiles
+CREATE INDEX IF NOT EXISTS idx_goes_green_profiles_tenant_id ON goes_green_profiles(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_goes_green_profiles_organization_id ON goes_green_profiles(organization_id);
+CREATE INDEX IF NOT EXISTS idx_goes_green_profiles_profile_type ON goes_green_profiles(profile_type);
+CREATE INDEX IF NOT EXISTS idx_goes_green_profiles_climate_profile_id ON goes_green_profiles(climate_profile_id);
+
+-- Enable RLS for goes_green_profiles
+ALTER TABLE goes_green_profiles ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy for goes_green_profiles
+DROP POLICY IF EXISTS "Allow all for service role" ON goes_green_profiles;
+CREATE POLICY "Allow all for service role" ON goes_green_profiles
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE goes_green_profiles IS 'GOES GREEN energy profiles for households and organizations';
+COMMENT ON COLUMN goes_green_profiles.profile_type IS 'Type: household or organization';
+COMMENT ON COLUMN goes_green_profiles.primary_energy_source IS 'e.g. grid_mixed, grid_green_tariff, on_site_solar, district_heating, biomass';
+COMMENT ON COLUMN goes_green_profiles.grid_renewable_share_percent IS 'Percentage of renewable energy in current grid/contract';
+COMMENT ON COLUMN goes_green_profiles.target_green_share_percent IS 'Target percentage (e.g. 100 for 100% green energy goal)';
+
+-- GOES GREEN Energy Assets table - installed or planned green energy assets
+CREATE TABLE IF NOT EXISTS goes_green_energy_assets (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    goes_green_profile_id UUID NOT NULL REFERENCES goes_green_profiles(id) ON DELETE CASCADE,
+    asset_type TEXT NOT NULL,
+    status TEXT NOT NULL,
+    capacity_kw NUMERIC,
+    annual_production_kwh_estimated NUMERIC,
+    annual_savings_kgco2_estimated NUMERIC,
+    installed_at TIMESTAMPTZ,
+    retired_at TIMESTAMPTZ,
+    vendor_name TEXT,
+    notes TEXT,
+    metadata JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT goes_green_energy_assets_status_check CHECK (status IN ('existing', 'planned', 'under_evaluation', 'retired'))
+);
+
+-- Indexes for goes_green_energy_assets
+CREATE INDEX IF NOT EXISTS idx_goes_green_energy_assets_tenant_profile ON goes_green_energy_assets(tenant_id, goes_green_profile_id);
+CREATE INDEX IF NOT EXISTS idx_goes_green_energy_assets_tenant_type ON goes_green_energy_assets(tenant_id, asset_type);
+CREATE INDEX IF NOT EXISTS idx_goes_green_energy_assets_status ON goes_green_energy_assets(status);
+
+-- Enable RLS for goes_green_energy_assets
+ALTER TABLE goes_green_energy_assets ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy for goes_green_energy_assets
+DROP POLICY IF EXISTS "Allow all for service role" ON goes_green_energy_assets;
+CREATE POLICY "Allow all for service role" ON goes_green_energy_assets
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE goes_green_energy_assets IS 'Green energy assets (solar, heat pump, EV, battery, etc.) for GOES GREEN profiles';
+COMMENT ON COLUMN goes_green_energy_assets.asset_type IS 'e.g. solar_pv_rooftop, solar_thermal, heat_pump_air_to_water, heat_pump_ground_source, ev_vehicle, battery_storage, green_power_contract';
+COMMENT ON COLUMN goes_green_energy_assets.status IS 'Status: existing, planned, under_evaluation, retired';
+
+-- GOES GREEN Actions table - energy actions/measures
+CREATE TABLE IF NOT EXISTS goes_green_actions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    goes_green_profile_id UUID NOT NULL REFERENCES goes_green_profiles(id) ON DELETE CASCADE,
+    climate_mission_id UUID REFERENCES climate_missions(id) ON DELETE SET NULL,
+    action_type TEXT NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT,
+    status TEXT NOT NULL DEFAULT 'planned',
+    estimated_impact_kgco2 NUMERIC,
+    estimated_annual_kwh_savings NUMERIC,
+    payback_period_years_estimated NUMERIC,
+    cost_estimate_cents BIGINT,
+    currency TEXT NOT NULL DEFAULT 'DKK',
+    started_at TIMESTAMPTZ,
+    completed_at TIMESTAMPTZ,
+    canceled_at TIMESTAMPTZ,
+    notes TEXT,
+    metadata JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT goes_green_actions_status_check CHECK (status IN ('planned', 'in_progress', 'completed', 'canceled'))
+);
+
+-- Indexes for goes_green_actions
+CREATE INDEX IF NOT EXISTS idx_goes_green_actions_tenant_profile ON goes_green_actions(tenant_id, goes_green_profile_id);
+CREATE INDEX IF NOT EXISTS idx_goes_green_actions_status ON goes_green_actions(status);
+CREATE INDEX IF NOT EXISTS idx_goes_green_actions_action_type ON goes_green_actions(action_type);
+CREATE INDEX IF NOT EXISTS idx_goes_green_actions_climate_mission ON goes_green_actions(climate_mission_id);
+
+-- Enable RLS for goes_green_actions
+ALTER TABLE goes_green_actions ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy for goes_green_actions
+DROP POLICY IF EXISTS "Allow all for service role" ON goes_green_actions;
+CREATE POLICY "Allow all for service role" ON goes_green_actions
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE goes_green_actions IS 'GOES GREEN energy actions/measures for profiles';
+COMMENT ON COLUMN goes_green_actions.action_type IS 'e.g. switch_to_green_tariff, install_solar_pv, install_heat_pump, improve_insulation, replace_appliances';
+COMMENT ON COLUMN goes_green_actions.status IS 'Status: planned, in_progress, completed, canceled';
+COMMENT ON COLUMN goes_green_actions.climate_mission_id IS 'Optional link to Climate OS missions';
+
+-- GOES GREEN Snapshots table - periodic snapshots for progress tracking
+CREATE TABLE IF NOT EXISTS goes_green_snapshots (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    goes_green_profile_id UUID NOT NULL REFERENCES goes_green_profiles(id) ON DELETE CASCADE,
+    snapshot_date DATE NOT NULL,
+    total_energy_kwh NUMERIC,
+    green_energy_kwh NUMERIC,
+    grid_renewable_share_percent NUMERIC,
+    computed_green_share_percent NUMERIC,
+    notes TEXT,
+    metadata JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Indexes for goes_green_snapshots
+CREATE INDEX IF NOT EXISTS idx_goes_green_snapshots_tenant_profile_date ON goes_green_snapshots(tenant_id, goes_green_profile_id, snapshot_date);
+
+-- Enable RLS for goes_green_snapshots
+ALTER TABLE goes_green_snapshots ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy for goes_green_snapshots
+DROP POLICY IF EXISTS "Allow all for service role" ON goes_green_snapshots;
+CREATE POLICY "Allow all for service role" ON goes_green_snapshots
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE goes_green_snapshots IS 'Periodic snapshots of energy and green share for GOES GREEN profiles';
+COMMENT ON COLUMN goes_green_snapshots.computed_green_share_percent IS 'Calculated as green_energy_kwh / total_energy_kwh * 100';
+
+-- ============================================================================
+-- STEP 14G: VERIFY SCHEMA
 -- ============================================================================
 
 -- This query will show all tables that should exist
@@ -2270,11 +2434,11 @@ DECLARE
     table_count INTEGER;
     function_count INTEGER;
 BEGIN
-    -- Count required tables (now 33 with organizations, playbooks, playbook_steps, playbook_runs, playbook_run_steps)
+    -- Count required tables (now 37 with goes_green_profiles, goes_green_energy_assets, goes_green_actions, goes_green_snapshots)
     SELECT COUNT(*) INTO table_count
     FROM information_schema.tables 
     WHERE table_schema = 'public' 
-    AND table_name IN ('tenants', 'users', 'memory_events', 'journal_entries', 'climate_profiles', 'climate_missions', 'climate_plans', 'climate_plan_items', 'frontend_configs', 'agent_suggestions', 'brands', 'products', 'product_brands', 'agent_tasks', 'agent_insights', 'agent_commands', 'materials', 'product_materials', 'product_climate_meta', 'zora_shop_projects', 'agent_task_policies', 'autonomy_schedules', 'climate_material_profiles', 'climate_experiments', 'climate_experiment_runs', 'foundation_projects', 'foundation_contributions', 'foundation_impact_log', 'organizations', 'playbooks', 'playbook_steps', 'playbook_runs', 'playbook_run_steps');
+    AND table_name IN ('tenants', 'users', 'memory_events', 'journal_entries', 'climate_profiles', 'climate_missions', 'climate_plans', 'climate_plan_items', 'frontend_configs', 'agent_suggestions', 'brands', 'products', 'product_brands', 'agent_tasks', 'agent_insights', 'agent_commands', 'materials', 'product_materials', 'product_climate_meta', 'zora_shop_projects', 'agent_task_policies', 'autonomy_schedules', 'climate_material_profiles', 'climate_experiments', 'climate_experiment_runs', 'foundation_projects', 'foundation_contributions', 'foundation_impact_log', 'organizations', 'playbooks', 'playbook_steps', 'playbook_runs', 'playbook_run_steps', 'goes_green_profiles', 'goes_green_energy_assets', 'goes_green_actions', 'goes_green_snapshots');
     
     -- Count search_memories_by_embedding functions (should be exactly 1)
     SELECT COUNT(*) INTO function_count
@@ -2282,10 +2446,10 @@ BEGIN
     WHERE proname = 'search_memories_by_embedding';
     
     RAISE NOTICE '=== ZORA CORE Schema Verification ===';
-    RAISE NOTICE 'Required tables found: % of 33', table_count;
+    RAISE NOTICE 'Required tables found: % of 37', table_count;
     RAISE NOTICE 'search_memories_by_embedding functions: % (should be 1)', function_count;
     
-    IF table_count = 33 AND function_count = 1 THEN
+    IF table_count = 37 AND function_count = 1 THEN
         RAISE NOTICE 'Schema is correctly configured!';
     ELSE
         RAISE WARNING 'Schema may have issues. Please check the tables and functions.';
