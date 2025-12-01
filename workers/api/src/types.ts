@@ -10,6 +10,10 @@ export type Bindings = {
   ZORA_API_BUILD_TIME?: string;
   // Public mashup mode (v0.18) - slug of tenant to expose publicly
   PUBLIC_TENANT_SLUG?: string;
+  // Security & Auth Hardening v1.0 bindings (Iteration 00D0)
+  ZORA_ENV?: string; // 'development' | 'production'
+  AUTH_MAX_FAILED_ATTEMPTS?: string; // Default: 5
+  AUTH_LOCKOUT_DURATION_MINUTES?: string; // Default: 15
 };
 
 export type UserRole = 'founder' | 'brand_admin' | 'member' | 'viewer';
@@ -38,6 +42,10 @@ export interface User {
   last_login_at: string | null;
   created_at: string;
   updated_at: string | null;
+  // Security & Auth Hardening v1.0 fields
+  email_verified_at: string | null;
+  failed_login_attempts: number;
+  locked_until: string | null;
 }
 
 export interface AdminStatusResponse {

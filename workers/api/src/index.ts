@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import type { AppEnv } from './types';
 import { authMiddleware, type AuthAppEnv } from './middleware/auth';
+import { createRateLimiter } from './middleware/rateLimit';
 import statusHandler from './handlers/status';
 import profilesHandler from './handlers/profiles';
 import missionsHandler from './handlers/missions';
@@ -74,6 +75,53 @@ app.use('/api/billing/*', authMiddleware);
 // Admin metrics endpoints require JWT auth (founder/brand_admin role)
 app.use('/api/admin/system-metrics', authMiddleware);
 app.use('/api/admin/autonomy-status', authMiddleware);
+
+// ============================================================================
+// RATE LIMITING (Security & Auth Hardening v1.0)
+// ============================================================================
+// Apply rate limiting to critical endpoints to prevent abuse
+
+// Auth endpoints - stricter limits to prevent brute force attacks
+app.use('/api/auth/login', createRateLimiter({
+  maxRequests: 10,
+  windowMs: 60 * 1000, // 1 minute
+  keyPrefix: 'auth_login',
+}));
+
+app.use('/api/auth/register', createRateLimiter({
+  maxRequests: 5,
+  windowMs: 60 * 1000, // 1 minute
+  keyPrefix: 'auth_register',
+}));
+
+app.use('/api/auth/password/forgot', createRateLimiter({
+  maxRequests: 5,
+  windowMs: 60 * 60 * 1000, // 1 hour
+  keyPrefix: 'auth_password_forgot',
+}));
+
+// Agent commands - moderate limits for normal usage
+app.use('/api/agents/commands', createRateLimiter({
+  maxRequests: 60,
+  windowMs: 60 * 1000, // 1 minute
+  keyPrefix: 'agent_commands',
+  useUserId: true,
+}));
+
+// Shop orders - moderate limits
+app.use('/api/shop/orders', createRateLimiter({
+  maxRequests: 10,
+  windowMs: 60 * 1000, // 1 minute
+  keyPrefix: 'shop_orders',
+  useUserId: true,
+}));
+
+// Billing webhooks - higher limits for payment provider callbacks
+app.use('/api/billing/webhooks/*', createRateLimiter({
+  maxRequests: 100,
+  windowMs: 60 * 1000, // 1 minute
+  keyPrefix: 'billing_webhooks',
+}));
 
 // Public routes (no auth required) - mounted before auth middleware check
 app.route('/api/public/mashups', publicMashupsHandler);
