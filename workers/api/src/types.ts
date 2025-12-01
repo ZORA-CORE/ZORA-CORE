@@ -1896,3 +1896,286 @@ export interface GoesGreenProfileSummary {
     estimated_total_impact_kgco2: number;
   };
 }
+
+// ============================================================================
+// Climate Academy Backend v1.0 Types
+// ============================================================================
+
+// Content type for lessons
+export type AcademyContentType = 'video' | 'article' | 'interactive' | 'quiz' | 'mixed';
+
+// Source type for lessons
+export type AcademySourceType = 'youtube' | 'web_article' | 'pdf' | 'zora_internal' | 'other';
+
+// Difficulty level for lessons
+export type AcademyDifficultyLevel = 'beginner' | 'intermediate' | 'advanced';
+
+// Progress status
+export type AcademyProgressStatus = 'not_started' | 'in_progress' | 'completed';
+
+// Quiz attempt status
+export type AcademyQuizAttemptStatus = 'started' | 'submitted' | 'passed' | 'failed';
+
+// Academy Topic
+export interface AcademyTopic {
+  id: string;
+  tenant_id: string | null;
+  code: string;
+  name: string;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// Academy Lesson
+export interface AcademyLesson {
+  id: string;
+  tenant_id: string | null;
+  title: string;
+  subtitle: string | null;
+  description: string | null;
+  content_type: string;
+  source_type: string;
+  source_url: string | null;
+  duration_minutes_estimated: number | null;
+  language_code: string | null;
+  difficulty_level: string | null;
+  primary_topic_code: string | null;
+  tags: string[] | null;
+  is_active: boolean;
+  thumbnail_url: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+// Create Lesson Input
+export interface CreateAcademyLessonInput {
+  title: string;
+  subtitle?: string;
+  description?: string;
+  content_type: string;
+  source_type: string;
+  source_url?: string;
+  duration_minutes_estimated?: number;
+  language_code?: string;
+  difficulty_level?: string;
+  primary_topic_code?: string;
+  tags?: string[];
+  is_active?: boolean;
+  thumbnail_url?: string;
+  metadata?: Record<string, unknown>;
+}
+
+// Update Lesson Input
+export interface UpdateAcademyLessonInput {
+  title?: string;
+  subtitle?: string;
+  description?: string;
+  content_type?: string;
+  source_type?: string;
+  source_url?: string;
+  duration_minutes_estimated?: number;
+  language_code?: string;
+  difficulty_level?: string;
+  primary_topic_code?: string;
+  tags?: string[];
+  is_active?: boolean;
+  thumbnail_url?: string;
+  metadata?: Record<string, unknown>;
+}
+
+// Lesson Filters
+export interface AcademyLessonFilters {
+  topic?: string;
+  content_type?: string;
+  language?: string;
+  difficulty_level?: string;
+  is_active?: boolean;
+}
+
+// Academy Module
+export interface AcademyModule {
+  id: string;
+  tenant_id: string | null;
+  code: string;
+  title: string;
+  description: string | null;
+  primary_topic_code: string | null;
+  target_audience: string | null;
+  estimated_duration_minutes: number | null;
+  is_active: boolean;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+// Module Lesson Link
+export interface AcademyModuleLesson {
+  id: string;
+  module_id: string;
+  lesson_id: string;
+  lesson_order: number;
+  is_required: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// Module with Lessons
+export interface AcademyModuleWithLessons extends AcademyModule {
+  lessons: (AcademyLesson & { lesson_order: number; is_required: boolean })[];
+}
+
+// Create Module Input
+export interface CreateAcademyModuleInput {
+  code: string;
+  title: string;
+  description?: string;
+  primary_topic_code?: string;
+  target_audience?: string;
+  estimated_duration_minutes?: number;
+  is_active?: boolean;
+  metadata?: Record<string, unknown>;
+  lessons?: { lesson_id: string; lesson_order: number; is_required?: boolean }[];
+}
+
+// Update Module Input
+export interface UpdateAcademyModuleInput {
+  code?: string;
+  title?: string;
+  description?: string;
+  primary_topic_code?: string;
+  target_audience?: string;
+  estimated_duration_minutes?: number;
+  is_active?: boolean;
+  metadata?: Record<string, unknown>;
+}
+
+// Module Filters
+export interface AcademyModuleFilters {
+  topic?: string;
+  target_audience?: string;
+  is_active?: boolean;
+}
+
+// Academy Learning Path
+export interface AcademyLearningPath {
+  id: string;
+  tenant_id: string | null;
+  code: string;
+  title: string;
+  description: string | null;
+  target_audience: string | null;
+  recommended_for_profile_type: string | null;
+  primary_topic_code: string | null;
+  is_active: boolean;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+// Learning Path Module Link
+export interface AcademyLearningPathModule {
+  id: string;
+  learning_path_id: string;
+  module_id: string;
+  module_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+// Learning Path with Modules
+export interface AcademyLearningPathWithModules extends AcademyLearningPath {
+  modules: (AcademyModule & { module_order: number })[];
+}
+
+// Create Learning Path Input
+export interface CreateAcademyLearningPathInput {
+  code: string;
+  title: string;
+  description?: string;
+  target_audience?: string;
+  recommended_for_profile_type?: string;
+  primary_topic_code?: string;
+  is_active?: boolean;
+  metadata?: Record<string, unknown>;
+  modules?: { module_id: string; module_order: number }[];
+}
+
+// Update Learning Path Input
+export interface UpdateAcademyLearningPathInput {
+  code?: string;
+  title?: string;
+  description?: string;
+  target_audience?: string;
+  recommended_for_profile_type?: string;
+  primary_topic_code?: string;
+  is_active?: boolean;
+  metadata?: Record<string, unknown>;
+}
+
+// Learning Path Filters
+export interface AcademyLearningPathFilters {
+  target_audience?: string;
+  primary_topic_code?: string;
+  is_active?: boolean;
+}
+
+// Academy User Progress
+export interface AcademyUserProgress {
+  id: string;
+  tenant_id: string;
+  user_id: string;
+  lesson_id: string | null;
+  module_id: string | null;
+  learning_path_id: string | null;
+  status: string;
+  progress_percent: number | null;
+  last_accessed_at: string | null;
+  completed_at: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+// Update Progress Input
+export interface UpdateAcademyProgressInput {
+  status: string;
+  progress_percent?: number;
+}
+
+// Progress Filters
+export interface AcademyProgressFilters {
+  learning_path_id?: string;
+  module_id?: string;
+  lesson_id?: string;
+  status?: string;
+}
+
+// Academy Quiz
+export interface AcademyQuiz {
+  id: string;
+  tenant_id: string | null;
+  lesson_id: string | null;
+  title: string;
+  description: string | null;
+  passing_score: number | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+// Academy Quiz Attempt
+export interface AcademyQuizAttempt {
+  id: string;
+  tenant_id: string;
+  user_id: string;
+  quiz_id: string;
+  score: number | null;
+  status: string;
+  answers: Record<string, unknown>;
+  started_at: string | null;
+  submitted_at: string | null;
+  created_at: string;
+  updated_at: string;
+}

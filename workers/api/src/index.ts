@@ -30,6 +30,7 @@ import foundationHandler from './handlers/foundation';
 import organizationsHandler from './handlers/organizations';
 import playbooksHandler from './handlers/playbooks';
 import goesGreenHandler from './handlers/goes-green';
+import academyHandler from './handlers/academy';
 
 const app = new Hono<AuthAppEnv>();
 
@@ -66,6 +67,7 @@ app.use('/api/org/*', authMiddleware);
 app.use('/api/playbooks/*', authMiddleware);
 app.use('/api/playbook-runs/*', authMiddleware);
 app.use('/api/goes-green/*', authMiddleware);
+app.use('/api/academy/*', authMiddleware);
 // Admin metrics endpoints require JWT auth (founder/brand_admin role)
 app.use('/api/admin/system-metrics', authMiddleware);
 app.use('/api/admin/autonomy-status', authMiddleware);
@@ -251,6 +253,9 @@ app.route('/api/playbook-runs', playbooksHandler);
 
 // ZORA GOES GREEN v1 routes (Iteration 00C5)
 app.route('/api/goes-green', goesGreenHandler);
+
+// Climate Academy v1 routes (Iteration 00C7)
+app.route('/api/academy', academyHandler);
 
 // Safety + Scheduling v1 routes (Iteration 00B5)
 app.route('/api/autonomy/schedules', autonomySchedulesHandler);

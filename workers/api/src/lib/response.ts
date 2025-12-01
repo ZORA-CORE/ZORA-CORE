@@ -67,6 +67,10 @@ export function serverErrorResponse(message = 'Internal server error'): Response
   return errorResponse('INTERNAL_ERROR', message, 500);
 }
 
+export function forbiddenResponse(message = 'Forbidden'): Response {
+  return errorResponse('FORBIDDEN', message, 403);
+}
+
 export function paginatedResponse<T>(
   data: T[],
   total: number,
