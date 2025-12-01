@@ -11,6 +11,8 @@ import type { AuthAppEnv } from '../middleware/auth';
 import { getSupabaseClient } from '../lib/supabase';
 import { jsonResponse, errorResponse } from '../lib/response';
 import { createToken } from '../lib/auth';
+import type { BillingContext, PlanFeatures } from '../middleware/billingContext';
+import { PlanLimitExceededError, handleBillingError, requirePlanLimit, ensureWriteAllowed } from '../middleware/billingContext';
 
 const adminHandler = new Hono<AuthAppEnv>();
 
@@ -373,6 +375,98 @@ adminHandler.post('/users', async (c) => {
   
   if (tenantError || !tenant) {
     return errorResponse('TENANT_NOT_FOUND', 'Tenant not found', 404);
+  }
+  
+  // Billing enforcement: Load tenant's subscription and check plan limits for users
+  const { data: subscription } = await supabase
+    .from('tenant_subscriptions')
+    .select(`
+      id,
+      status,
+      trial_ends_at,
+      current_period_end,
+      plan:billing_plans(
+        id,
+        code,
+        name,
+        features
+      )
+    `)
+    .eq('tenant_id', input.tenant_id)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single();
+  
+  // Build billing context from subscription
+  // Handle the plan data - Supabase returns array for joins, we need the first element
+  const plan = Array.isArray(subscription?.plan) ? subscription.plan[0] : subscription?.plan;
+  
+  const defaultFeatures: PlanFeatures = {
+    maxUsers: 1,
+    maxOrganizations: 1,
+    maxClimateProfiles: 1,
+    maxZoraShopProjects: 1,
+    maxGoesGreenProfiles: 1,
+    maxAcademyPaths: 1,
+    maxAutonomyTasksPerDay: 20,
+  };
+  
+  let billingCtx: BillingContext;
+  if (subscription && plan) {
+    const planFeatures = (plan.features as Record<string, unknown>) || {};
+    billingCtx = {
+      planCode: plan.code,
+      planName: plan.name,
+      status: subscription.status as 'trial' | 'active' | 'past_due' | 'canceled',
+      features: {
+        maxUsers: planFeatures.max_users === null || planFeatures.max_users === -1 ? null : (planFeatures.max_users as number | undefined) ?? 1,
+        maxOrganizations: planFeatures.max_organizations === null || planFeatures.max_organizations === -1 ? null : (planFeatures.max_organizations as number | undefined) ?? 1,
+        maxClimateProfiles: planFeatures.max_climate_profiles === null || planFeatures.max_climate_profiles === -1 ? null : (planFeatures.max_climate_profiles as number | undefined) ?? 1,
+        maxZoraShopProjects: planFeatures.max_zora_shop_projects === null || planFeatures.max_zora_shop_projects === -1 ? null : (planFeatures.max_zora_shop_projects as number | undefined) ?? 1,
+        maxGoesGreenProfiles: planFeatures.max_goes_green_profiles === null || planFeatures.max_goes_green_profiles === -1 ? null : (planFeatures.max_goes_green_profiles as number | undefined) ?? 1,
+        maxAcademyPaths: planFeatures.max_academy_paths === null || planFeatures.max_academy_paths === -1 ? null : (planFeatures.max_academy_paths as number | undefined) ?? 1,
+        maxAutonomyTasksPerDay: planFeatures.max_autonomy_tasks_per_day === null || planFeatures.max_autonomy_tasks_per_day === -1 ? null : (planFeatures.max_autonomy_tasks_per_day as number | undefined) ?? 20,
+      },
+      subscriptionId: subscription.id,
+      planId: plan.id,
+      trialEndsAt: subscription.trial_ends_at,
+      currentPeriodEnd: subscription.current_period_end,
+    };
+  } else {
+    billingCtx = {
+      planCode: 'free',
+      planName: 'Free (Default)',
+      status: 'trial',
+      features: defaultFeatures,
+      subscriptionId: null,
+      planId: null,
+      trialEndsAt: null,
+      currentPeriodEnd: null,
+    };
+  }
+  
+  // Check subscription status allows writes
+  try {
+    ensureWriteAllowed(billingCtx);
+  } catch (err) {
+    const billingResponse = handleBillingError(err);
+    if (billingResponse) return billingResponse;
+    throw err;
+  }
+  
+  // Count current users for this tenant
+  const { count: currentUserCount } = await supabase
+    .from('users')
+    .select('*', { count: 'exact', head: true })
+    .eq('tenant_id', input.tenant_id);
+  
+  // Check plan limit for users
+  try {
+    requirePlanLimit(billingCtx, currentUserCount || 0, 'maxUsers');
+  } catch (err) {
+    const billingResponse = handleBillingError(err);
+    if (billingResponse) return billingResponse;
+    throw err;
   }
   
   // Check if display_name already exists for this tenant

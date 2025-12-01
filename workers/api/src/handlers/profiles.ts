@@ -24,6 +24,11 @@ import {
   badRequestResponse,
   serverErrorResponse,
 } from '../lib/response';
+import {
+  getBillingContext,
+  enforceCreateLimit,
+  handleBillingError,
+} from '../middleware/billingContext';
 
 const app = new Hono<AuthAppEnv>();
 
@@ -105,6 +110,21 @@ app.post('/', async (c) => {
     }
     
     const supabase = getSupabaseClient(c.env);
+    
+    // Billing enforcement: Check plan limits for climate profiles
+    const billingCtx = getBillingContext(c);
+    const { count: currentProfileCount } = await supabase
+      .from('climate_profiles')
+      .select('*', { count: 'exact', head: true })
+      .eq('tenant_id', tenantId);
+    
+    try {
+      enforceCreateLimit(billingCtx, currentProfileCount || 0, 'maxClimateProfiles');
+    } catch (err) {
+      const billingResponse = handleBillingError(err);
+      if (billingResponse) return billingResponse;
+      throw err;
+    }
     
     // If this profile is being set as primary, unset any existing primary profiles
     if (body.is_primary) {
