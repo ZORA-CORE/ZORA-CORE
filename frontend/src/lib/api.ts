@@ -585,6 +585,21 @@ export async function createAgentCommand(input: CreateAgentCommandInput): Promis
   });
 }
 
+// Admin Impact & System Metrics API (Iteration 00F1 - ZORA Desk)
+import type { ImpactSummary, SystemMetrics, AutonomyStatus } from './types';
+
+export async function getImpactSummary(): Promise<{ data: ImpactSummary }> {
+  return request<{ data: ImpactSummary }>('/api/admin/impact/summary');
+}
+
+export async function getSystemMetrics(): Promise<{ data: SystemMetrics }> {
+  return request<{ data: SystemMetrics }>('/api/admin/system-metrics');
+}
+
+export async function getAutonomyStatus(): Promise<{ data: AutonomyStatus }> {
+  return request<{ data: AutonomyStatus }>('/api/admin/autonomy-status');
+}
+
 export const api = {
   getStatus,
   getClimateProfiles,
@@ -635,6 +650,10 @@ export const api = {
   getAgentCommands,
   getAgentCommand,
   createAgentCommand,
+  // Admin Impact & System Metrics API (v0.F1 - ZORA Desk)
+  getImpactSummary,
+  getSystemMetrics,
+  getAutonomyStatus,
 };
 
 export default api;

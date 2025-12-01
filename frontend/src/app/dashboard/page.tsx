@@ -1,484 +1,420 @@
-"use client";
+'use client';
 
-import Link from "next/link";
-import { useState, useEffect } from "react";
-import { useAuth } from "@/lib/AuthContext";
-import { getFrontendConfig, getClimateMissions, getClimateProfiles, getPublicProducts } from "@/lib/api";
-import type { HomePageConfig, ClimateMission, DashboardSummary, ClimateProfile, ProfileScope, PublicProduct } from "@/lib/types";
-import { DEFAULT_HOME_PAGE_CONFIG } from "@/lib/frontendConfig";
-import { PageShell } from "@/components/ui/PageShell";
-import { HeroSection } from "@/components/ui/HeroSection";
-import { SectionHeader } from "@/components/ui/SectionHeader";
-import { Card } from "@/components/ui/Card";
-import { StatCard } from "@/components/ui/StatCard";
-import { Badge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
-import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { useAuth } from '@/lib/AuthContext';
+import { AppShell } from '@/components/layout';
+import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { t } from '@/lib/i18n';
+import { getImpactSummary, getSystemMetrics } from '@/lib/api';
+import type { ImpactSummary, SystemMetrics } from '@/lib/types';
 
-const SCOPE_COLORS: Record<ProfileScope, string> = {
-  individual: "bg-blue-500",
-  household: "bg-purple-500",
-  organization: "bg-amber-500",
-  brand: "bg-emerald-500",
-};
-
-const SCOPE_LABELS: Record<ProfileScope, string> = {
-  individual: "Individual",
-  household: "Household",
-  organization: "Organization",
-  brand: "Brand",
-};
-
-interface Agent {
-  name: string;
-  role: string;
-  pronouns: string;
-  status: "active" | "idle" | "busy";
-  description: string;
-  color: string;
-}
-
-interface Task {
-  id: string;
+interface ModuleCardProps {
   title: string;
-  assignee: string;
-  status: "pending" | "in_progress" | "completed" | "failed";
-  priority: "low" | "medium" | "high" | "critical";
+  description: string;
+  icon: React.ReactNode;
+  stats: { label: string; value: string | number }[];
+  href: string;
+  buttonLabel: string;
+  secondaryButton?: { label: string; href: string };
+  accentColor?: string;
 }
 
-const agents: Agent[] = [
-  {
-    name: "CONNOR",
-    role: "Systems & Backend Engineer",
-    pronouns: "he/him",
-    status: "active",
-    description: "Designs and implements backend services, APIs, and integrations",
-    color: "bg-blue-500",
-  },
-  {
-    name: "LUMINA",
-    role: "Orchestrator & Project Lead",
-    pronouns: "she/her",
-    status: "active",
-    description: "Turns high-level goals into plans, projects and tasks",
-    color: "bg-purple-500",
-  },
-  {
-    name: "EIVOR",
-    role: "Memory & Knowledge Keeper",
-    pronouns: "she/her",
-    status: "idle",
-    description: "Maintains long-term memory for ZORA CORE",
-    color: "bg-amber-500",
-  },
-  {
-    name: "ORACLE",
-    role: "Researcher & Strategy Engine",
-    pronouns: "they/them",
-    status: "idle",
-    description: "Performs deep research on climate science and AI techniques",
-    color: "bg-cyan-500",
-  },
-  {
-    name: "AEGIS",
-    role: "Safety & Ethics Guardian",
-    pronouns: "they/them",
-    status: "active",
-    description: "Enforces rules and safety policies for ZORA CORE",
-    color: "bg-red-500",
-  },
-  {
-    name: "SAM",
-    role: "Frontend & Experience Architect",
-    pronouns: "he/him",
-    status: "busy",
-    description: "Designs and implements frontend experiences",
-    color: "bg-emerald-500",
-  },
-];
-
-const mockTasks: Task[] = [
-  {
-    id: "task_001",
-    title: "Implement Climate Profile API",
-    assignee: "CONNOR",
-    status: "in_progress",
-    priority: "high",
-  },
-  {
-    id: "task_002",
-    title: "Design Mission Dashboard Layout",
-    assignee: "SAM",
-    status: "in_progress",
-    priority: "high",
-  },
-  {
-    id: "task_003",
-    title: "Review Climate Claims for Greenwashing",
-    assignee: "AEGIS",
-    status: "pending",
-    priority: "critical",
-  },
-  {
-    id: "task_004",
-    title: "Research Carbon Offset Standards",
-    assignee: "ORACLE",
-    status: "completed",
-    priority: "medium",
-  },
-  {
-    id: "task_005",
-    title: "Store Mission Results in Memory",
-    assignee: "EIVOR",
-    status: "pending",
-    priority: "medium",
-  },
-];
-
-function AgentCard({ agent }: { agent: Agent }) {
+function ModuleCard({
+  title,
+  description,
+  icon,
+  stats,
+  href,
+  buttonLabel,
+  secondaryButton,
+  accentColor = 'var(--primary)',
+}: ModuleCardProps) {
   return (
-    <div className="agent-card">
-      <div className="flex items-start justify-between mb-3">
-        <div className={`w-10 h-10 rounded-full ${agent.color} flex items-center justify-center text-white font-bold`}>
-          {agent.name[0]}
+    <Card variant="default" padding="md" className="flex flex-col h-full">
+      <div className="flex items-start gap-4 mb-4">
+        <div
+          className="w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0"
+          style={{ backgroundColor: `color-mix(in srgb, ${accentColor} 15%, transparent)` }}
+        >
+          <span style={{ color: accentColor }}>{icon}</span>
         </div>
-        <span className={`status-badge status-${agent.status}`}>
-          {agent.status}
-        </span>
-      </div>
-      <h3 className="text-lg font-semibold">{agent.name}</h3>
-      <p className="text-sm text-gray-400 mb-1">{agent.role}</p>
-      <p className="text-xs text-gray-500">{agent.pronouns}</p>
-      <p className="text-sm text-gray-400 mt-3">{agent.description}</p>
-    </div>
-  );
-}
-
-function TaskRow({ task }: { task: Task }) {
-  const priorityColors = {
-    low: "text-gray-400",
-    medium: "text-blue-400",
-    high: "text-amber-400",
-    critical: "text-red-400",
-  };
-
-  return (
-    <tr className="border-b border-zinc-800 hover:bg-zinc-900">
-      <td className="py-3 px-4">
-        <span className="text-xs text-gray-500">{task.id}</span>
-      </td>
-      <td className="py-3 px-4">{task.title}</td>
-      <td className="py-3 px-4">
-        <span className="text-emerald-400">{task.assignee}</span>
-      </td>
-      <td className="py-3 px-4">
-        <span className={`status-badge status-${task.status === "in_progress" ? "active" : task.status}`}>
-          {task.status.replace("_", " ")}
-        </span>
-      </td>
-      <td className="py-3 px-4">
-        <span className={priorityColors[task.priority]}>{task.priority}</span>
-      </td>
-    </tr>
-  );
-}
-
-function ClimateDashboardCard({ summary }: { summary: DashboardSummary }) {
-  return (
-    <div className="agent-card">
-      <h3 className="text-lg font-semibold mb-4">Climate OS Summary</h3>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <p className="text-gray-400 text-sm">Total Missions</p>
-          <p className="text-2xl font-bold text-emerald-500">{summary.total_missions}</p>
-        </div>
-        <div>
-          <p className="text-gray-400 text-sm">Completed</p>
-          <p className="text-2xl font-bold text-emerald-500">{summary.completed_count}</p>
-        </div>
-        <div>
-          <p className="text-gray-400 text-sm">In Progress</p>
-          <p className="text-2xl font-bold text-amber-500">{summary.in_progress_count}</p>
-        </div>
-        <div>
-          <p className="text-gray-400 text-sm">CO2 Impact</p>
-          <p className="text-2xl font-bold text-emerald-500">{summary.total_impact_kgco2} kg</p>
+        <div className="flex-1 min-w-0">
+          <h3 className="text-lg font-semibold text-[var(--foreground)] truncate">{title}</h3>
+          <p className="text-sm text-[var(--foreground)]/60 line-clamp-2">{description}</p>
         </div>
       </div>
-      <Link href="/climate" className="mt-4 block text-center text-emerald-500 hover:text-emerald-400 text-sm">
-        View Climate OS
-      </Link>
-    </div>
-  );
-}
 
-function MissionsTeaser({ missions }: { missions: ClimateMission[] }) {
-  const recentMissions = missions.slice(0, 3);
-  
-  return (
-    <div className="agent-card">
-      <h3 className="text-lg font-semibold mb-4">Recent Missions</h3>
-      {recentMissions.length === 0 ? (
-        <p className="text-gray-400 text-sm">No missions yet. Create your first mission in Climate OS.</p>
-      ) : (
-        <div className="space-y-3">
-          {recentMissions.map((mission) => (
-            <div key={mission.id} className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium">{mission.title}</p>
-                <p className="text-xs text-gray-500">{mission.category || "other"}</p>
-              </div>
-              <span className={`status-badge status-${mission.status === "in_progress" ? "active" : mission.status}`}>
-                {mission.status.replace("_", " ")}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-      <Link href="/climate" className="mt-4 block text-center text-emerald-500 hover:text-emerald-400 text-sm">
-        View All Missions
-      </Link>
-    </div>
-  );
-}
-
-function ProfilesOverview({ profiles, primaryProfile }: { profiles: ClimateProfile[]; primaryProfile: ClimateProfile | null }) {
-  const profilesByScope = profiles.reduce(
-    (acc, p) => {
-      acc[p.scope] = (acc[p.scope] || 0) + 1;
-      return acc;
-    },
-    {} as Record<ProfileScope, number>
-  );
-
-  return (
-    <div className="agent-card">
-      <h3 className="text-lg font-semibold mb-4">Climate Profiles</h3>
-      {profiles.length === 0 ? (
-        <p className="text-gray-400 text-sm">No profiles yet. Create your first profile in Climate OS.</p>
-      ) : (
-        <>
-          <div className="grid grid-cols-2 gap-3 mb-4">
-            {(Object.keys(SCOPE_LABELS) as ProfileScope[]).map((scope) => (
-              <div key={scope} className="flex items-center gap-2">
-                <span className={`w-3 h-3 rounded-full ${SCOPE_COLORS[scope]}`}></span>
-                <span className="text-sm text-gray-400">{SCOPE_LABELS[scope]}:</span>
-                <span className="text-sm font-medium">{profilesByScope[scope] || 0}</span>
-              </div>
-            ))}
+      <div className="grid grid-cols-2 gap-3 mb-4 flex-1">
+        {stats.map((stat, index) => (
+          <div key={index} className="bg-[var(--background)] rounded-lg p-3">
+            <p className="text-xs text-[var(--foreground)]/50 mb-1">{stat.label}</p>
+            <p className="text-xl font-bold text-[var(--foreground)]">{stat.value}</p>
           </div>
-          {primaryProfile && (
-            <div className="border-t border-zinc-700 pt-3 mt-3">
-              <p className="text-xs text-gray-500 mb-1">Primary Profile</p>
-              <div className="flex items-center gap-2">
-                <span className={`w-2 h-2 rounded-full ${SCOPE_COLORS[primaryProfile.scope]}`}></span>
-                <span className="font-medium">{primaryProfile.name}</span>
-                <span className="text-xs text-gray-500">({SCOPE_LABELS[primaryProfile.scope]})</span>
-              </div>
-            </div>
-          )}
-        </>
-      )}
-      <Link href="/climate" className="mt-4 block text-center text-emerald-500 hover:text-emerald-400 text-sm">
-        Manage Profiles
-      </Link>
-    </div>
+        ))}
+      </div>
+
+      <div className="flex gap-2 mt-auto">
+        <Button href={href} variant="primary" size="sm" className="flex-1">
+          {buttonLabel}
+        </Button>
+        {secondaryButton && (
+          <Button href={secondaryButton.href} variant="outline" size="sm">
+            {secondaryButton.label}
+          </Button>
+        )}
+      </div>
+    </Card>
   );
 }
 
-export default function Dashboard() {
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
-  const [activeTab, setActiveTab] = useState<"agents" | "tasks">("agents");
-  const [config, setConfig] = useState<HomePageConfig>(DEFAULT_HOME_PAGE_CONFIG);
-  const [isDefault, setIsDefault] = useState(true);
-  const [configLoading, setConfigLoading] = useState(true);
-  const [missions, setMissions] = useState<ClimateMission[]>([]);
-  const [profiles, setProfiles] = useState<ClimateProfile[]>([]);
-  const [primaryProfile, setPrimaryProfile] = useState<ClimateProfile | null>(null);
-  const [climateSummary, setClimateSummary] = useState<DashboardSummary>({
-    total_missions: 0,
-    completed_count: 0,
-    in_progress_count: 0,
-    total_impact_kgco2: 0,
-  });
+const GlobeIcon = () => (
+  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+  </svg>
+);
+
+const LeafIcon = () => (
+  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+  </svg>
+);
+
+const ShoppingBagIcon = () => (
+  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+  </svg>
+);
+
+const AcademicCapIcon = () => (
+  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+  </svg>
+);
+
+const HeartIcon = () => (
+  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+  </svg>
+);
+
+const CpuChipIcon = () => (
+  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+  </svg>
+);
+
+function formatNumber(num: number): string {
+  if (num >= 1000000) {
+    return (num / 1000000).toFixed(1) + 'M';
+  }
+  if (num >= 1000) {
+    return (num / 1000).toFixed(1) + 'K';
+  }
+  return num.toString();
+}
+
+export default function DeskPage() {
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const router = useRouter();
+  const [impactSummary, setImpactSummary] = useState<ImpactSummary | null>(null);
+  const [systemMetrics, setSystemMetrics] = useState<SystemMetrics | null>(null);
+  const [dataLoading, setDataLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function loadConfig() {
-      if (!isAuthenticated) {
-        setConfigLoading(false);
-        return;
-      }
+    if (!authLoading && !isAuthenticated) {
+      router.push('/login');
+    }
+  }, [isAuthenticated, authLoading, router]);
+
+  useEffect(() => {
+    async function loadData() {
+      if (!isAuthenticated) return;
+
+      setDataLoading(true);
+      setError(null);
 
       try {
-        const response = await getFrontendConfig("home");
-        setConfig(response.config as HomePageConfig);
-        setIsDefault(response.is_default);
-      } catch (error) {
-        console.error("Failed to load frontend config:", error);
+        const [impactRes, metricsRes] = await Promise.all([
+          getImpactSummary().catch(() => null),
+          getSystemMetrics().catch(() => null),
+        ]);
+
+        if (impactRes?.data) {
+          setImpactSummary(impactRes.data);
+        }
+        if (metricsRes?.data) {
+          setSystemMetrics(metricsRes.data);
+        }
+      } catch (err) {
+        console.error('Failed to load desk data:', err);
+        setError('Failed to load some data. Showing available information.');
       } finally {
-        setConfigLoading(false);
+        setDataLoading(false);
       }
     }
 
-    if (!authLoading) {
-      loadConfig();
+    if (!authLoading && isAuthenticated) {
+      loadData();
     }
   }, [isAuthenticated, authLoading]);
 
-  useEffect(() => {
-    async function loadClimateData() {
-      if (!isAuthenticated || !config.show_climate_dashboard) {
-        return;
-      }
-
-      try {
-        const profilesResponse = await getClimateProfiles({ limit: 100 });
-        const allProfiles = profilesResponse.data;
-        setProfiles(allProfiles);
-        
-        // Find primary profile or use first profile
-        const primary = allProfiles.find((p) => p.is_primary) || allProfiles[0] || null;
-        setPrimaryProfile(primary);
-        
-        if (primary) {
-          const missionsResponse = await getClimateMissions(primary.id, { limit: 10 });
-          const missionsList = missionsResponse.data;
-          setMissions(missionsList);
-
-          const summary: DashboardSummary = {
-            total_missions: missionsList.length,
-            completed_count: missionsList.filter((m) => m.status === "completed").length,
-            in_progress_count: missionsList.filter((m) => m.status === "in_progress").length,
-            total_impact_kgco2: missionsList.reduce((sum, m) => {
-              const co2 = m.estimated_impact_kgco2 ?? (m.impact_estimate?.co2_kg as number | undefined);
-              return sum + (typeof co2 === "number" ? co2 : 0);
-            }, 0),
-          };
-          setClimateSummary(summary);
-        }
-      } catch (error) {
-        console.error("Failed to load climate data:", error);
-      }
-    }
-
-    if (!authLoading && !configLoading) {
-      loadClimateData();
-    }
-  }, [isAuthenticated, authLoading, configLoading, config.show_climate_dashboard]);
-
-  const stats = {
-    totalAgents: agents.length,
-    activeAgents: agents.filter((a) => a.status === "active").length,
-    totalTasks: mockTasks.length,
-    completedTasks: mockTasks.filter((t) => t.status === "completed").length,
-  };
-
-  if (authLoading || configLoading) {
+  if (authLoading) {
     return (
-      <PageShell isAuthenticated={isAuthenticated}>
+      <AppShell>
         <div className="min-h-[60vh] flex items-center justify-center">
           <LoadingSpinner size="lg" />
         </div>
-      </PageShell>
+      </AppShell>
     );
   }
 
-  return (
-    <PageShell isAuthenticated={isAuthenticated}>
-      <HeroSection
-        headline={config.hero_title}
-        subheadline={config.hero_subtitle}
-        primaryCta={{ label: config.primary_cta_label, href: config.primary_cta_link }}
-        size="sm"
-      />
+  if (!isAuthenticated) {
+    return null;
+  }
 
-      {isDefault && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8 mb-8">
-          <p className="text-xs text-[var(--foreground)]/40">
-            Using default configuration.{" "}
-            <Link href="/admin/frontend" className="text-[var(--primary)] hover:underline">
-              Customize
-            </Link>
+  const climateStats = impactSummary?.climate_os || {
+    profiles_count: 0,
+    missions_count: 0,
+    missions_completed: 0,
+    missions_in_progress: 0,
+    total_impact_kgco2: 0,
+  };
+
+  const goesGreenStats = impactSummary?.goes_green || {
+    profiles_count: 0,
+    actions_count: 0,
+    estimated_energy_savings_kwh: 0,
+    green_share_percent: 0,
+  };
+
+  const shopStats = impactSummary?.zora_shop || {
+    brands_count: 0,
+    products_count: 0,
+    active_projects_count: 0,
+    total_gmv: 0,
+  };
+
+  const foundationStats = impactSummary?.foundation || {
+    projects_count: 0,
+    contributions_count: 0,
+    total_contributions_amount: 0,
+    total_impact_kgco2: 0,
+  };
+
+  const academyStats = impactSummary?.academy || {
+    topics_count: 0,
+    lessons_count: 0,
+    learning_paths_count: 0,
+    enrollments_count: 0,
+  };
+
+  const agentStats = systemMetrics || {
+    agent_commands: { total: 0, pending: 0, completed: 0, failed: 0 },
+    agent_tasks: { total: 0, pending: 0, in_progress: 0, completed: 0, failed: 0 },
+    schedules: { total: 0, active: 0, due_now: 0 },
+    safety_policies: { total: 0, active: 0 },
+    pending_approvals: 0,
+    computed_at: '',
+  };
+
+  return (
+    <AppShell>
+      <div className="p-6 lg:p-8">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-[var(--foreground)] mb-2">
+            {t.desk.title}
+          </h1>
+          <p className="text-[var(--foreground)]/60">
+            {user?.display_name ? `${t.desk.welcomeBack}, ${user.display_name}` : t.desk.subtitle}
           </p>
         </div>
-      )}
 
-      <section className="py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-            <StatCard label="Total Agents" value={stats.totalAgents} variant="primary" />
-            <StatCard label="Active Agents" value={stats.activeAgents} variant="primary" />
-            <StatCard label="Total Tasks" value={stats.totalTasks} variant="accent" />
-            <StatCard label="Completed Tasks" value={stats.completedTasks} variant="primary" />
+        {error && (
+          <div className="mb-6 p-4 bg-[var(--accent)]/10 border border-[var(--accent)]/20 rounded-lg text-[var(--accent)]">
+            {error}
           </div>
+        )}
 
-          {(config.show_climate_dashboard || config.show_missions_section) && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-              <ProfilesOverview profiles={profiles} primaryProfile={primaryProfile} />
-              {config.show_climate_dashboard && (
-                <ClimateDashboardCard summary={climateSummary} />
-              )}
-              {config.show_missions_section && (
-                <MissionsTeaser missions={missions} />
-              )}
-            </div>
-          )}
-
-          <div className="flex gap-4 mb-6">
-            <button
-              onClick={() => setActiveTab("agents")}
-              className={`px-4 py-2 rounded-lg transition-colors ${
-                activeTab === "agents"
-                  ? "bg-[var(--primary)] text-white"
-                  : "bg-[var(--card-bg)] text-[var(--foreground)]/60 hover:text-[var(--foreground)]"
-              }`}
-            >
-              Agents
-            </button>
-            <button
-              onClick={() => setActiveTab("tasks")}
-              className={`px-4 py-2 rounded-lg transition-colors ${
-                activeTab === "tasks"
-                  ? "bg-[var(--primary)] text-white"
-                  : "bg-[var(--card-bg)] text-[var(--foreground)]/60 hover:text-[var(--foreground)]"
-              }`}
-            >
-              Tasks
-            </button>
+        {dataLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <LoadingSpinner size="lg" />
           </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            <ModuleCard
+              title={t.cards.climate.title}
+              description={t.cards.climate.description}
+              icon={<GlobeIcon />}
+              accentColor="#10b981"
+              stats={[
+                { label: t.cards.climate.profiles, value: climateStats.profiles_count },
+                { label: t.cards.climate.missions, value: climateStats.missions_count },
+                { label: t.cards.climate.inProgress, value: climateStats.missions_in_progress },
+                { label: t.cards.climate.co2Impact, value: `${formatNumber(climateStats.total_impact_kgco2)} kg` },
+              ]}
+              href="/climate"
+              buttonLabel={t.cards.climate.viewClimate}
+            />
 
-          {activeTab === "agents" && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {agents.map((agent) => (
-                <AgentCard key={agent.name} agent={agent} />
-              ))}
+            <ModuleCard
+              title={t.cards.goesGreen.title}
+              description={t.cards.goesGreen.description}
+              icon={<LeafIcon />}
+              accentColor="#22c55e"
+              stats={[
+                { label: t.cards.goesGreen.profiles, value: goesGreenStats.profiles_count },
+                { label: 'Actions', value: goesGreenStats.actions_count },
+                { label: t.cards.goesGreen.energySavings, value: `${formatNumber(goesGreenStats.estimated_energy_savings_kwh)} kWh` },
+                { label: t.cards.goesGreen.greenShare, value: `${goesGreenStats.green_share_percent}%` },
+              ]}
+              href="/goes-green"
+              buttonLabel={t.cards.goesGreen.viewGoesGreen}
+            />
+
+            <ModuleCard
+              title={t.cards.zoraShop.title}
+              description={t.cards.zoraShop.description}
+              icon={<ShoppingBagIcon />}
+              accentColor="#6366f1"
+              stats={[
+                { label: t.cards.zoraShop.brands, value: shopStats.brands_count },
+                { label: t.cards.zoraShop.products, value: shopStats.products_count },
+                { label: t.cards.zoraShop.activeProjects, value: shopStats.active_projects_count },
+                { label: 'GMV', value: `$${formatNumber(shopStats.total_gmv)}` },
+              ]}
+              href="/zora-shop"
+              buttonLabel={t.cards.zoraShop.viewShop}
+              secondaryButton={{ label: 'Mashups', href: '/mashups' }}
+            />
+
+            <ModuleCard
+              title={t.cards.foundation.title}
+              description={t.cards.foundation.description}
+              icon={<HeartIcon />}
+              accentColor="#ec4899"
+              stats={[
+                { label: t.cards.foundation.projects, value: foundationStats.projects_count },
+                { label: t.cards.foundation.contributions, value: foundationStats.contributions_count },
+                { label: 'Amount', value: `$${formatNumber(foundationStats.total_contributions_amount)}` },
+                { label: t.cards.foundation.impact, value: `${formatNumber(foundationStats.total_impact_kgco2)} kg` },
+              ]}
+              href="/foundation"
+              buttonLabel={t.cards.foundation.viewFoundation}
+            />
+
+            <ModuleCard
+              title={t.cards.academy.title}
+              description={t.cards.academy.description}
+              icon={<AcademicCapIcon />}
+              accentColor="#f59e0b"
+              stats={[
+                { label: t.cards.academy.topics, value: academyStats.topics_count },
+                { label: t.cards.academy.lessons, value: academyStats.lessons_count },
+                { label: t.cards.academy.learningPaths, value: academyStats.learning_paths_count },
+                { label: 'Enrollments', value: academyStats.enrollments_count },
+              ]}
+              href="/academy"
+              buttonLabel={t.cards.academy.viewAcademy}
+            />
+
+            <ModuleCard
+              title={t.cards.agents.title}
+              description={t.cards.agents.description}
+              icon={<CpuChipIcon />}
+              accentColor="#8b5cf6"
+              stats={[
+                { label: t.cards.agents.commands, value: agentStats.agent_commands.total },
+                { label: t.cards.agents.pendingTasks, value: agentStats.agent_tasks.pending },
+                { label: t.cards.agents.completedTasks, value: agentStats.agent_tasks.completed },
+                { label: t.cards.agents.pendingApproval, value: agentStats.pending_approvals },
+              ]}
+              href="/agents"
+              buttonLabel={t.cards.agents.viewAgents}
+              secondaryButton={{ label: 'Console', href: '/admin/agents/console' }}
+            />
+          </div>
+        )}
+
+        <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card variant="default" padding="md">
+            <h3 className="text-lg font-semibold text-[var(--foreground)] mb-4">Quick Actions</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <Link
+                href="/climate"
+                className="flex flex-col items-center p-4 rounded-lg bg-[var(--background)] hover:bg-[var(--primary)]/5 transition-colors text-center"
+              >
+                <GlobeIcon />
+                <span className="block mt-2 text-sm text-[var(--foreground)]/70">New Mission</span>
+              </Link>
+              <Link
+                href="/admin/agents/console"
+                className="flex flex-col items-center p-4 rounded-lg bg-[var(--background)] hover:bg-[var(--primary)]/5 transition-colors text-center"
+              >
+                <CpuChipIcon />
+                <span className="block mt-2 text-sm text-[var(--foreground)]/70">Agent Console</span>
+              </Link>
+              <Link
+                href="/mashups"
+                className="flex flex-col items-center p-4 rounded-lg bg-[var(--background)] hover:bg-[var(--primary)]/5 transition-colors text-center"
+              >
+                <ShoppingBagIcon />
+                <span className="block mt-2 text-sm text-[var(--foreground)]/70">Browse Mashups</span>
+              </Link>
+              <Link
+                href="/journal"
+                className="flex flex-col items-center p-4 rounded-lg bg-[var(--background)] hover:bg-[var(--primary)]/5 transition-colors text-center"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span className="block mt-2 text-sm text-[var(--foreground)]/70">View Journal</span>
+              </Link>
             </div>
-          )}
+          </Card>
 
-          {activeTab === "tasks" && (
-            <Card variant="default" padding="none">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-[var(--card-border)] text-left text-[var(--foreground)]/60">
-                      <th className="py-3 px-4 font-medium">ID</th>
-                      <th className="py-3 px-4 font-medium">Title</th>
-                      <th className="py-3 px-4 font-medium">Assignee</th>
-                      <th className="py-3 px-4 font-medium">Status</th>
-                      <th className="py-3 px-4 font-medium">Priority</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {mockTasks.map((task) => (
-                      <TaskRow key={task.id} task={task} />
-                    ))}
-                  </tbody>
-                </table>
+          <Card variant="default" padding="md">
+            <h3 className="text-lg font-semibold text-[var(--foreground)] mb-4">System Status</h3>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-[var(--foreground)]/60">Active Schedules</span>
+                <span className="text-sm font-medium text-[var(--foreground)]">
+                  {agentStats.schedules.active} / {agentStats.schedules.total}
+                </span>
               </div>
-            </Card>
-          )}
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-[var(--foreground)]/60">Due Now</span>
+                <span className={`text-sm font-medium ${agentStats.schedules.due_now > 0 ? 'text-[var(--accent)]' : 'text-[var(--foreground)]'}`}>
+                  {agentStats.schedules.due_now}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-[var(--foreground)]/60">Safety Policies</span>
+                <span className="text-sm font-medium text-[var(--foreground)]">
+                  {agentStats.safety_policies.active} active
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-[var(--foreground)]/60">Tasks In Progress</span>
+                <span className="text-sm font-medium text-[var(--foreground)]">
+                  {agentStats.agent_tasks.in_progress}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-[var(--foreground)]/60">Failed Tasks</span>
+                <span className={`text-sm font-medium ${agentStats.agent_tasks.failed > 0 ? 'text-[var(--danger)]' : 'text-[var(--foreground)]'}`}>
+                  {agentStats.agent_tasks.failed}
+                </span>
+              </div>
+            </div>
+          </Card>
         </div>
-      </section>
-    </PageShell>
+      </div>
+    </AppShell>
   );
 }
