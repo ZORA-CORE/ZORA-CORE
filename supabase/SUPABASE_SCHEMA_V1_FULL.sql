@@ -3477,7 +3477,82 @@ COMMENT ON COLUMN workflow_run_steps.input_context IS 'Input context for this st
 COMMENT ON COLUMN workflow_run_steps.output_context IS 'Output context after step completion';
 
 -- ============================================================================
--- STEP 14N: VERIFY SCHEMA
+-- STEP 14N: OUTCOME FEEDBACK & CONTINUAL LEARNING v1.0 (Iteration 00D6)
+-- Schema version: 3.6.0
+-- ============================================================================
+
+-- outcome_feedback: Generic feedback table for rating outcomes of key ZORA entities
+-- Supports feedback on missions, workflows, projects, plans, academy paths, etc.
+CREATE TABLE IF NOT EXISTS outcome_feedback (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    user_id UUID NULL REFERENCES users(id) ON DELETE SET NULL,
+    source TEXT NOT NULL DEFAULT 'user',
+    target_type TEXT NOT NULL,
+    target_id UUID NOT NULL,
+    rating INTEGER NULL CHECK (rating IS NULL OR (rating >= 1 AND rating <= 5)),
+    sentiment TEXT NULL,
+    tags TEXT[] NULL,
+    comment TEXT NULL,
+    context JSONB NOT NULL DEFAULT '{}'::JSONB,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_outcome_feedback_tenant_target ON outcome_feedback(tenant_id, target_type, target_id);
+CREATE INDEX IF NOT EXISTS idx_outcome_feedback_tenant_source ON outcome_feedback(tenant_id, source);
+CREATE INDEX IF NOT EXISTS idx_outcome_feedback_tenant_created ON outcome_feedback(tenant_id, created_at);
+
+-- Enable RLS for outcome_feedback
+ALTER TABLE outcome_feedback ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow all for service role" ON outcome_feedback;
+CREATE POLICY "Allow all for service role" ON outcome_feedback
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE outcome_feedback IS 'Outcome feedback for rating ZORA entities (missions, workflows, projects, etc.)';
+COMMENT ON COLUMN outcome_feedback.source IS 'Feedback source: user, agent, system, admin';
+COMMENT ON COLUMN outcome_feedback.target_type IS 'Entity type: climate_mission, workflow_run, zora_shop_project, foundation_project, goes_green_profile, goes_green_action, academy_learning_path, academy_lesson';
+COMMENT ON COLUMN outcome_feedback.target_id IS 'ID of the target entity in its domain table';
+COMMENT ON COLUMN outcome_feedback.rating IS 'Rating on 1-5 scale (1=very poor, 5=excellent)';
+COMMENT ON COLUMN outcome_feedback.sentiment IS 'Sentiment: very_positive, positive, neutral, negative, very_negative';
+COMMENT ON COLUMN outcome_feedback.tags IS 'Tags like high_impact, low_effort, expensive, confusing';
+COMMENT ON COLUMN outcome_feedback.context IS 'Extra context: environment, device, scenario, etc.';
+
+-- outcome_insights: Precomputed insight summaries per tenant and target type
+-- Used for caching aggregated stats and analysis results
+CREATE TABLE IF NOT EXISTS outcome_insights (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    target_type TEXT NOT NULL,
+    target_id UUID NULL,
+    summary_type TEXT NOT NULL DEFAULT 'basic_stats',
+    stats JSONB NOT NULL DEFAULT '{}'::JSONB,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_outcome_insights_tenant_target ON outcome_insights(tenant_id, target_type, target_id);
+CREATE INDEX IF NOT EXISTS idx_outcome_insights_tenant_type_summary ON outcome_insights(tenant_id, target_type, summary_type);
+
+-- Enable RLS for outcome_insights
+ALTER TABLE outcome_insights ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow all for service role" ON outcome_insights;
+CREATE POLICY "Allow all for service role" ON outcome_insights
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE outcome_insights IS 'Precomputed insight summaries for outcome feedback';
+COMMENT ON COLUMN outcome_insights.target_type IS 'Entity type (same values as outcome_feedback.target_type)';
+COMMENT ON COLUMN outcome_insights.target_id IS 'NULL = aggregated per type, non-null = insights for specific entity';
+COMMENT ON COLUMN outcome_insights.summary_type IS 'Summary type: basic_stats, top_tags, combined';
+COMMENT ON COLUMN outcome_insights.stats IS 'Aggregated stats: count, avg_rating, sentiment_counts, tag_counts, etc.';
+
+-- ============================================================================
+-- STEP 14O: VERIFY SCHEMA
 -- ============================================================================
 
 -- This query will show all tables that should exist
@@ -3487,11 +3562,11 @@ DECLARE
     table_count INTEGER;
     function_count INTEGER;
 BEGIN
-    -- Count required tables (now 62 with Workflow / DAG Engine tables added)
+    -- Count required tables (now 64 with Outcome Feedback tables added)
     SELECT COUNT(*) INTO table_count
     FROM information_schema.tables 
     WHERE table_schema = 'public' 
-    AND table_name IN ('schema_metadata', 'tenants', 'users', 'memory_events', 'journal_entries', 'climate_profiles', 'climate_missions', 'climate_plans', 'climate_plan_items', 'frontend_configs', 'agent_suggestions', 'brands', 'products', 'product_brands', 'agent_tasks', 'agent_insights', 'agent_commands', 'materials', 'product_materials', 'product_climate_meta', 'zora_shop_projects', 'agent_task_policies', 'autonomy_schedules', 'climate_material_profiles', 'climate_experiments', 'climate_experiment_runs', 'foundation_projects', 'foundation_contributions', 'foundation_impact_log', 'organizations', 'playbooks', 'playbook_steps', 'playbook_runs', 'playbook_run_steps', 'goes_green_profiles', 'goes_green_energy_assets', 'goes_green_actions', 'goes_green_snapshots', 'academy_topics', 'academy_lessons', 'academy_modules', 'academy_module_lessons', 'academy_learning_paths', 'academy_learning_path_modules', 'academy_user_progress', 'academy_quizzes', 'academy_quiz_attempts', 'billing_plans', 'tenant_subscriptions', 'billing_events', 'zora_shop_commission_settings', 'zora_shop_orders', 'zora_shop_order_items', 'auth_password_reset_tokens', 'auth_email_verification_tokens', 'tenant_impact_snapshots', 'workflows', 'workflow_steps', 'workflow_step_edges', 'workflow_runs', 'workflow_run_steps');
+    AND table_name IN ('schema_metadata', 'tenants', 'users', 'memory_events', 'journal_entries', 'climate_profiles', 'climate_missions', 'climate_plans', 'climate_plan_items', 'frontend_configs', 'agent_suggestions', 'brands', 'products', 'product_brands', 'agent_tasks', 'agent_insights', 'agent_commands', 'materials', 'product_materials', 'product_climate_meta', 'zora_shop_projects', 'agent_task_policies', 'autonomy_schedules', 'climate_material_profiles', 'climate_experiments', 'climate_experiment_runs', 'foundation_projects', 'foundation_contributions', 'foundation_impact_log', 'organizations', 'playbooks', 'playbook_steps', 'playbook_runs', 'playbook_run_steps', 'goes_green_profiles', 'goes_green_energy_assets', 'goes_green_actions', 'goes_green_snapshots', 'academy_topics', 'academy_lessons', 'academy_modules', 'academy_module_lessons', 'academy_learning_paths', 'academy_learning_path_modules', 'academy_user_progress', 'academy_quizzes', 'academy_quiz_attempts', 'billing_plans', 'tenant_subscriptions', 'billing_events', 'zora_shop_commission_settings', 'zora_shop_orders', 'zora_shop_order_items', 'auth_password_reset_tokens', 'auth_email_verification_tokens', 'tenant_impact_snapshots', 'workflows', 'workflow_steps', 'workflow_step_edges', 'workflow_runs', 'workflow_run_steps', 'outcome_feedback', 'outcome_insights');
     
     -- Count search_memories_by_embedding functions (should be exactly 1)
     SELECT COUNT(*) INTO function_count
@@ -3499,10 +3574,10 @@ BEGIN
     WHERE proname = 'search_memories_by_embedding';
     
     RAISE NOTICE '=== ZORA CORE Schema Verification ===';
-    RAISE NOTICE 'Required tables found: % of 62', table_count;
+    RAISE NOTICE 'Required tables found: % of 64', table_count;
     RAISE NOTICE 'search_memories_by_embedding functions: % (should be 1)', function_count;
     
-    IF table_count = 62 AND function_count = 1 THEN
+    IF table_count = 64 AND function_count = 1 THEN
         RAISE NOTICE 'Schema is correctly configured!';
     ELSE
         RAISE WARNING 'Schema may have issues. Please check the tables and functions.';
@@ -3516,7 +3591,7 @@ END$$;
 -- Safe to run multiple times - each run adds a new version record.
 
 INSERT INTO schema_metadata (schema_version, notes)
-VALUES ('3.5.0', 'Workflow / DAG Engine v1.0');
+VALUES ('3.6.0', 'Outcome Feedback & Continual Learning v1.0');
 
 -- ============================================================================
 -- DONE!
