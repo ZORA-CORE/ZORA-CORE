@@ -20,7 +20,7 @@
 --   - /admin/setup will work correctly
 -- 
 -- Date: 2025-12-01
--- Version: 3.1.0 (Security & Auth Hardening v1.0)
+-- Version: 3.2.0 (Billing & Subscription Enforcement v1.1)
 -- ============================================================================
 
 -- ============================================================================
@@ -2961,14 +2961,18 @@ CREATE POLICY "Allow all for service role" ON billing_plans
 COMMENT ON TABLE billing_plans IS 'Subscription plans available to tenants';
 COMMENT ON COLUMN billing_plans.code IS 'Unique plan code: free, starter, pro';
 COMMENT ON COLUMN billing_plans.billing_interval IS 'Billing interval: month, year';
-COMMENT ON COLUMN billing_plans.features IS 'JSON object with plan features/limits';
+COMMENT ON COLUMN billing_plans.features IS 'JSON object with plan features/limits. Canonical keys: max_users, max_organizations, max_climate_profiles, max_zora_shop_projects, max_goes_green_profiles, max_academy_paths, max_autonomy_tasks_per_day. Use null or -1 for unlimited.';
 
--- Seed default billing plans (idempotent)
+-- Seed default billing plans (idempotent) - Billing & Subscription Enforcement v1.1
+-- Plan limits are enforced by the Workers API billing context middleware
 INSERT INTO billing_plans (code, name, description, price_amount, price_currency, billing_interval, features)
 VALUES 
-    ('free', 'Free', 'Basic access to ZORA CORE', 0, 'DKK', 'month', '{"seats": 1, "projects": 3, "api_calls_per_month": 1000}'),
-    ('starter', 'Starter', 'For small brands and individuals', 99, 'DKK', 'month', '{"seats": 3, "projects": 10, "api_calls_per_month": 10000}'),
-    ('pro', 'Pro', 'For growing organizations', 499, 'DKK', 'month', '{"seats": 10, "projects": -1, "api_calls_per_month": 100000}')
+    ('free', 'Free', 'Basic access to ZORA CORE for solo users testing the product', 0, 'DKK', 'month', 
+     '{"max_users": 1, "max_organizations": 1, "max_climate_profiles": 1, "max_zora_shop_projects": 1, "max_goes_green_profiles": 1, "max_academy_paths": 1, "max_autonomy_tasks_per_day": 20}'),
+    ('starter', 'Starter', 'For small brands and individuals with reasonable small-team limits', 99, 'DKK', 'month', 
+     '{"max_users": 5, "max_organizations": 3, "max_climate_profiles": 10, "max_zora_shop_projects": 5, "max_goes_green_profiles": 5, "max_academy_paths": 5, "max_autonomy_tasks_per_day": 100}'),
+    ('pro', 'Pro', 'For growing organizations with high or unlimited limits', 499, 'DKK', 'month', 
+     '{"max_users": null, "max_organizations": null, "max_climate_profiles": null, "max_zora_shop_projects": null, "max_goes_green_profiles": null, "max_academy_paths": null, "max_autonomy_tasks_per_day": null}')
 ON CONFLICT (code) DO UPDATE SET
     name = EXCLUDED.name,
     description = EXCLUDED.description,
@@ -3275,7 +3279,7 @@ END$$;
 -- Safe to run multiple times - each run adds a new version record.
 
 INSERT INTO schema_metadata (schema_version, notes)
-VALUES ('3.1.0', 'Security & Auth Hardening v1.0');
+VALUES ('3.2.0', 'Billing & Subscription Enforcement v1.1');
 
 -- ============================================================================
 -- DONE!

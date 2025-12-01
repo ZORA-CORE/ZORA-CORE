@@ -9,6 +9,11 @@ import {
   badRequestResponse,
   serverErrorResponse,
 } from '../lib/response';
+import {
+  getBillingContext,
+  enforceCreateLimit,
+  handleBillingError,
+} from '../middleware/billingContext';
 import type {
   ZoraShopProject,
   ZoraShopProjectWithBrands,
@@ -150,6 +155,21 @@ app.post('/', async (c) => {
     }
     
     const supabase = getSupabaseClient(c.env);
+    
+    // Billing enforcement: Check plan limits for ZORA SHOP projects
+    const billingCtx = getBillingContext(c);
+    const { count: currentProjectCount } = await supabase
+      .from('zora_shop_projects')
+      .select('*', { count: 'exact', head: true })
+      .eq('tenant_id', tenantId);
+    
+    try {
+      enforceCreateLimit(billingCtx, currentProjectCount || 0, 'maxZoraShopProjects');
+    } catch (err) {
+      const billingResponse = handleBillingError(err);
+      if (billingResponse) return billingResponse;
+      throw err;
+    }
     
     // Verify primary brand exists and belongs to tenant
     const { data: primaryBrand, error: brandError } = await supabase

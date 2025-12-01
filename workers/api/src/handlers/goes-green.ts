@@ -10,6 +10,11 @@ import {
   badRequestResponse,
   serverErrorResponse,
 } from '../lib/response';
+import {
+  getBillingContext,
+  enforceCreateLimit,
+  handleBillingError,
+} from '../middleware/billingContext';
 import type {
   GoesGreenProfile,
   GoesGreenEnergyAsset,
@@ -95,6 +100,21 @@ app.post('/profiles', async (c) => {
     // Validate profile_type
     if (!['household', 'organization'].includes(body.profile_type)) {
       return badRequestResponse('profile_type must be "household" or "organization"');
+    }
+
+    // Billing enforcement: Check plan limits for GOES GREEN profiles
+    const billingCtx = getBillingContext(c);
+    const { count: currentProfileCount } = await supabase
+      .from('goes_green_profiles')
+      .select('*', { count: 'exact', head: true })
+      .eq('tenant_id', tenantId);
+    
+    try {
+      enforceCreateLimit(billingCtx, currentProfileCount || 0, 'maxGoesGreenProfiles');
+    } catch (err) {
+      const billingResponse = handleBillingError(err);
+      if (billingResponse) return billingResponse;
+      throw err;
     }
 
     // If organization profile, validate organization_id exists

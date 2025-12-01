@@ -387,6 +387,7 @@ app.post('/subscription', async (c) => {
 
 // ============================================================================
 // POST /webhooks/stripe - Handle Stripe webhook events
+// Billing & Subscription Enforcement v1.1: Updates subscription status based on events
 // ============================================================================
 app.post('/webhooks/stripe', async (c) => {
   try {
@@ -414,14 +415,105 @@ app.post('/webhooks/stripe', async (c) => {
       return serverErrorResponse('Failed to log webhook event');
     }
 
-    // Process specific event types
-    // In v1, we just log events. Actual processing would happen here in future versions.
+    // Process specific event types - Billing & Subscription Enforcement v1.1
     const eventType = payload.type;
+    const stripeSubscription = payload.data?.object;
+    const stripeCustomerId = stripeSubscription?.customer;
     
-    if (eventType === 'customer.subscription.created' || 
-        eventType === 'customer.subscription.updated' ||
-        eventType === 'customer.subscription.deleted') {
-      // Mark as processed
+    // Helper to update subscription status by provider_customer_id
+    const updateSubscriptionStatus = async (
+      customerId: string,
+      newStatus: 'active' | 'past_due' | 'canceled',
+      periodStart?: number,
+      periodEnd?: number
+    ) => {
+      if (!customerId) return;
+      
+      const updateData: Record<string, unknown> = {
+        status: newStatus,
+        updated_at: new Date().toISOString(),
+      };
+      
+      // Update period dates if available (Stripe uses Unix timestamps)
+      if (periodStart) {
+        updateData.current_period_start = new Date(periodStart * 1000).toISOString();
+      }
+      if (periodEnd) {
+        updateData.current_period_end = new Date(periodEnd * 1000).toISOString();
+      }
+      
+      const { error: updateError } = await supabase
+        .from('tenant_subscriptions')
+        .update(updateData)
+        .eq('provider', 'stripe')
+        .eq('provider_customer_id', customerId);
+      
+      if (updateError) {
+        console.error(`Error updating subscription status for Stripe customer ${customerId}:`, updateError);
+      }
+    };
+    
+    // Handle Stripe events that affect subscription status
+    if (eventType === 'invoice.paid' || eventType === 'checkout.session.completed') {
+      // Payment successful - set subscription to active
+      if (stripeCustomerId) {
+        await updateSubscriptionStatus(
+          stripeCustomerId,
+          'active',
+          stripeSubscription?.current_period_start,
+          stripeSubscription?.current_period_end
+        );
+      }
+      // Mark event as processed
+      await supabase
+        .from('billing_events')
+        .update({ processed_at: new Date().toISOString() })
+        .eq('id', event.id);
+    } else if (eventType === 'invoice.payment_failed') {
+      // Payment failed - set subscription to past_due
+      if (stripeCustomerId) {
+        await updateSubscriptionStatus(stripeCustomerId, 'past_due');
+      }
+      // Mark event as processed
+      await supabase
+        .from('billing_events')
+        .update({ processed_at: new Date().toISOString() })
+        .eq('id', event.id);
+    } else if (eventType === 'customer.subscription.deleted') {
+      // Subscription canceled - set subscription to canceled
+      if (stripeCustomerId) {
+        await updateSubscriptionStatus(stripeCustomerId, 'canceled');
+      }
+      // Mark event as processed
+      await supabase
+        .from('billing_events')
+        .update({ processed_at: new Date().toISOString() })
+        .eq('id', event.id);
+    } else if (eventType === 'customer.subscription.created' || 
+               eventType === 'customer.subscription.updated') {
+      // Subscription created/updated - sync status from Stripe
+      const stripeStatus = stripeSubscription?.status;
+      let newStatus: 'active' | 'past_due' | 'canceled' | 'trial' = 'active';
+      
+      if (stripeStatus === 'trialing') {
+        newStatus = 'trial';
+      } else if (stripeStatus === 'active') {
+        newStatus = 'active';
+      } else if (stripeStatus === 'past_due') {
+        newStatus = 'past_due';
+      } else if (stripeStatus === 'canceled' || stripeStatus === 'unpaid') {
+        newStatus = 'canceled';
+      }
+      
+      if (stripeCustomerId && newStatus !== 'trial') {
+        await updateSubscriptionStatus(
+          stripeCustomerId,
+          newStatus as 'active' | 'past_due' | 'canceled',
+          stripeSubscription?.current_period_start,
+          stripeSubscription?.current_period_end
+        );
+      }
+      // Mark event as processed
       await supabase
         .from('billing_events')
         .update({ processed_at: new Date().toISOString() })
@@ -438,6 +530,7 @@ app.post('/webhooks/stripe', async (c) => {
 
 // ============================================================================
 // POST /webhooks/paypal - Handle PayPal webhook events
+// Billing & Subscription Enforcement v1.1: Updates subscription status based on events
 // ============================================================================
 app.post('/webhooks/paypal', async (c) => {
   try {
@@ -465,14 +558,120 @@ app.post('/webhooks/paypal', async (c) => {
       return serverErrorResponse('Failed to log webhook event');
     }
 
-    // Process specific event types
-    // In v1, we just log events. Actual processing would happen here in future versions.
+    // Process specific event types - Billing & Subscription Enforcement v1.1
     const eventType = payload.event_type;
+    const paypalResource = payload.resource;
+    const paypalSubscriptionId = paypalResource?.id;
     
-    if (eventType === 'BILLING.SUBSCRIPTION.CREATED' || 
-        eventType === 'BILLING.SUBSCRIPTION.ACTIVATED' ||
-        eventType === 'BILLING.SUBSCRIPTION.CANCELLED') {
-      // Mark as processed
+    // Helper to update subscription status by provider_subscription_id
+    const updateSubscriptionStatus = async (
+      subscriptionId: string,
+      newStatus: 'active' | 'past_due' | 'canceled',
+      periodStart?: string,
+      periodEnd?: string
+    ) => {
+      if (!subscriptionId) return;
+      
+      const updateData: Record<string, unknown> = {
+        status: newStatus,
+        updated_at: new Date().toISOString(),
+      };
+      
+      // Update period dates if available (PayPal uses ISO strings)
+      if (periodStart) {
+        updateData.current_period_start = periodStart;
+      }
+      if (periodEnd) {
+        updateData.current_period_end = periodEnd;
+      }
+      
+      const { error: updateError } = await supabase
+        .from('tenant_subscriptions')
+        .update(updateData)
+        .eq('provider', 'paypal')
+        .eq('provider_subscription_id', subscriptionId);
+      
+      if (updateError) {
+        console.error(`Error updating subscription status for PayPal subscription ${subscriptionId}:`, updateError);
+      }
+    };
+    
+    // Handle PayPal events that affect subscription status
+    if (eventType === 'BILLING.SUBSCRIPTION.ACTIVATED') {
+      // Subscription activated - set subscription to active
+      if (paypalSubscriptionId) {
+        const billingInfo = paypalResource?.billing_info;
+        await updateSubscriptionStatus(
+          paypalSubscriptionId,
+          'active',
+          billingInfo?.last_payment?.time,
+          billingInfo?.next_billing_time
+        );
+      }
+      // Mark event as processed
+      await supabase
+        .from('billing_events')
+        .update({ processed_at: new Date().toISOString() })
+        .eq('id', event.id);
+    } else if (eventType === 'BILLING.SUBSCRIPTION.PAYMENT.FAILED' || 
+               eventType === 'PAYMENT.SALE.DENIED') {
+      // Payment failed - set subscription to past_due
+      if (paypalSubscriptionId) {
+        await updateSubscriptionStatus(paypalSubscriptionId, 'past_due');
+      }
+      // Mark event as processed
+      await supabase
+        .from('billing_events')
+        .update({ processed_at: new Date().toISOString() })
+        .eq('id', event.id);
+    } else if (eventType === 'BILLING.SUBSCRIPTION.CANCELLED' ||
+               eventType === 'BILLING.SUBSCRIPTION.SUSPENDED' ||
+               eventType === 'BILLING.SUBSCRIPTION.EXPIRED') {
+      // Subscription canceled/suspended/expired - set subscription to canceled
+      if (paypalSubscriptionId) {
+        await updateSubscriptionStatus(paypalSubscriptionId, 'canceled');
+      }
+      // Mark event as processed
+      await supabase
+        .from('billing_events')
+        .update({ processed_at: new Date().toISOString() })
+        .eq('id', event.id);
+    } else if (eventType === 'BILLING.SUBSCRIPTION.CREATED' ||
+               eventType === 'BILLING.SUBSCRIPTION.UPDATED') {
+      // Subscription created/updated - sync status from PayPal
+      const paypalStatus = paypalResource?.status;
+      let newStatus: 'active' | 'past_due' | 'canceled' = 'active';
+      
+      if (paypalStatus === 'ACTIVE') {
+        newStatus = 'active';
+      } else if (paypalStatus === 'SUSPENDED') {
+        newStatus = 'past_due';
+      } else if (paypalStatus === 'CANCELLED' || paypalStatus === 'EXPIRED') {
+        newStatus = 'canceled';
+      }
+      
+      if (paypalSubscriptionId) {
+        const billingInfo = paypalResource?.billing_info;
+        await updateSubscriptionStatus(
+          paypalSubscriptionId,
+          newStatus,
+          billingInfo?.last_payment?.time,
+          billingInfo?.next_billing_time
+        );
+      }
+      // Mark event as processed
+      await supabase
+        .from('billing_events')
+        .update({ processed_at: new Date().toISOString() })
+        .eq('id', event.id);
+    } else if (eventType === 'PAYMENT.SALE.COMPLETED') {
+      // Payment completed - set subscription to active
+      // For PayPal, we need to find the subscription by the billing_agreement_id
+      const billingAgreementId = paypalResource?.billing_agreement_id;
+      if (billingAgreementId) {
+        await updateSubscriptionStatus(billingAgreementId, 'active');
+      }
+      // Mark event as processed
       await supabase
         .from('billing_events')
         .update({ processed_at: new Date().toISOString() })

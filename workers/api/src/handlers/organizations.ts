@@ -11,6 +11,12 @@ import {
   serverErrorResponse,
   errorResponse,
 } from '../lib/response';
+import {
+  getBillingContext,
+  enforceCreateLimit,
+  handleBillingError,
+  BillingError,
+} from '../middleware/billingContext';
 import type {
   Organization,
   CreateOrganizationInput,
@@ -87,6 +93,21 @@ app.post('/', async (c) => {
     // Validate required fields
     if (!body.name || !body.organization_type) {
       return badRequestResponse('name and organization_type are required');
+    }
+
+    // Billing enforcement: Check plan limits for organizations
+    const billingCtx = getBillingContext(c);
+    const { count: currentOrgCount } = await supabase
+      .from('organizations')
+      .select('*', { count: 'exact', head: true })
+      .eq('tenant_id', tenantId);
+    
+    try {
+      enforceCreateLimit(billingCtx, currentOrgCount || 0, 'maxOrganizations');
+    } catch (err) {
+      const billingResponse = handleBillingError(err);
+      if (billingResponse) return billingResponse;
+      throw err;
     }
 
     // Insert organization
