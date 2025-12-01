@@ -37,6 +37,7 @@ import shopOrdersHandler from './handlers/shop-orders';
 import adminImpactHandler from './handlers/admin-impact';
 import workflowsHandler from './handlers/workflows';
 import workflowRunsHandler from './handlers/workflow-runs';
+import outcomesHandler from './handlers/outcomes';
 
 const app = new Hono<AuthAppEnv>();
 
@@ -83,6 +84,8 @@ app.use('/api/admin/impact/*', authMiddleware);
 // Workflow endpoints require JWT auth - Workflow / DAG Engine v1 (Iteration 00D5)
 app.use('/api/workflows/*', authMiddleware);
 app.use('/api/workflow-runs/*', authMiddleware);
+// Outcome feedback endpoints require JWT auth - Outcome Feedback & Continual Learning v1 (Iteration 00D6)
+app.use('/api/outcomes/*', authMiddleware);
 
 // ============================================================================
 // RATE LIMITING (Security & Auth Hardening v1.0)
@@ -346,6 +349,9 @@ app.route('/api/autonomy/schedules', autonomySchedulesHandler);
 // Workflow / DAG Engine v1 routes (Iteration 00D5)
 app.route('/api/workflows', workflowsHandler);
 app.route('/api/workflow-runs', workflowRunsHandler);
+
+// Outcome Feedback & Continual Learning v1 routes (Iteration 00D6)
+app.route('/api/outcomes', outcomesHandler);
 
 app.notFound((c) => {
   const requestId = c.get('requestId') || 'unknown';
