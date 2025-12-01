@@ -608,4 +608,482 @@ adminHandler.post('/users/:id/token', async (c) => {
   return jsonResponse(response);
 });
 
+// ============================================================================
+// SEED DATA & ONBOARDING v1.0 (Iteration 00D2)
+// ============================================================================
+
+/**
+ * Available seed sets for v1
+ */
+const SEED_SETS_V1: Record<string, string> = {
+  'climate_default_missions_v1': 'Default climate missions for new tenants',
+  'hemp_materials_v1': 'Hemp-based and sustainable materials for ZORA SHOP',
+  'zora_shop_starter_v1': 'Example brands, products, and ZORA SHOP projects',
+  'foundation_starter_v1': 'Example ZORA FOUNDATION projects',
+  'academy_starter_v1': 'Basic Climate Academy learning content',
+  'goes_green_starter_v1': 'Example GOES GREEN profiles and energy actions',
+};
+
+interface SeedResult {
+  seed_key: string;
+  status: 'completed' | 'skipped_already_run' | 'error';
+  details?: string;
+}
+
+interface SeedRequestBody {
+  seeds?: string[];
+}
+
+/**
+ * POST /api/admin/tenants/:id/seed
+ * Run seed data for a tenant
+ * 
+ * Body (optional):
+ *   { "seeds": ["climate_default_missions_v1", "hemp_materials_v1"] }
+ * 
+ * If seeds array is omitted, runs all v1 seeds.
+ */
+adminHandler.post('/tenants/:id/seed', async (c) => {
+  const tenantId = c.req.param('id');
+  const supabase = getSupabaseClient(c.env);
+  
+  // Validate tenant ID format
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(tenantId)) {
+    return errorResponse('INVALID_TENANT_ID', 'Invalid tenant ID format', 400);
+  }
+  
+  // Verify tenant exists
+  const { data: tenant, error: tenantError } = await supabase
+    .from('tenants')
+    .select('id, name')
+    .eq('id', tenantId)
+    .single();
+  
+  if (tenantError || !tenant) {
+    return errorResponse('TENANT_NOT_FOUND', 'Tenant not found', 404);
+  }
+  
+  // Parse request body
+  let seedsToRun: string[];
+  try {
+    const body = await c.req.json<SeedRequestBody>().catch(() => ({ seeds: undefined }));
+    if (body.seeds && Array.isArray(body.seeds)) {
+      // Validate provided seed keys
+      const invalidSeeds = body.seeds.filter((s: string) => !SEED_SETS_V1[s]);
+      if (invalidSeeds.length > 0) {
+        return errorResponse(
+          'INVALID_SEED_KEYS',
+          `Unknown seed keys: ${invalidSeeds.join(', ')}. Available: ${Object.keys(SEED_SETS_V1).join(', ')}`,
+          400
+        );
+      }
+      seedsToRun = body.seeds;
+    } else {
+      // Run all v1 seeds
+      seedsToRun = Object.keys(SEED_SETS_V1);
+    }
+  } catch {
+    seedsToRun = Object.keys(SEED_SETS_V1);
+  }
+  
+  const results: SeedResult[] = [];
+  
+  for (const seedKey of seedsToRun) {
+    try {
+      // Check if seed already run
+      const { data: existingRun } = await supabase
+        .from('seed_runs')
+        .select('id')
+        .eq('tenant_id', tenantId)
+        .eq('seed_key', seedKey)
+        .eq('status', 'completed')
+        .single();
+      
+      if (existingRun) {
+        results.push({
+          seed_key: seedKey,
+          status: 'skipped_already_run',
+          details: 'Seed already applied to this tenant',
+        });
+        continue;
+      }
+      
+      // Run the seed based on key
+      const seedResult = await runSeed(supabase, tenantId, seedKey);
+      results.push(seedResult);
+      
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      results.push({
+        seed_key: seedKey,
+        status: 'error',
+        details: errorMessage,
+      });
+      
+      // Record the error (ignore failures)
+      try {
+        await supabase.from('seed_runs').upsert({
+          tenant_id: tenantId,
+          seed_key: seedKey,
+          status: 'error',
+          details: errorMessage,
+        }, { onConflict: 'tenant_id,seed_key' });
+      } catch {
+        // Ignore errors when recording seed run failure
+      }
+    }
+  }
+  
+  return jsonResponse({
+    tenant_id: tenantId,
+    tenant_name: tenant.name,
+    results,
+  });
+});
+
+/**
+ * Run a specific seed for a tenant
+ */
+async function runSeed(
+  supabase: ReturnType<typeof getSupabaseClient>,
+  tenantId: string,
+  seedKey: string
+): Promise<SeedResult> {
+  const now = new Date().toISOString();
+  
+  switch (seedKey) {
+    case 'climate_default_missions_v1':
+      return await seedClimateMissions(supabase, tenantId, seedKey, now);
+    case 'hemp_materials_v1':
+      return await seedHempMaterials(supabase, tenantId, seedKey, now);
+    case 'zora_shop_starter_v1':
+      return await seedZoraShopStarter(supabase, tenantId, seedKey, now);
+    case 'foundation_starter_v1':
+      return await seedFoundationStarter(supabase, tenantId, seedKey, now);
+    case 'academy_starter_v1':
+      return await seedAcademyStarter(supabase, tenantId, seedKey, now);
+    case 'goes_green_starter_v1':
+      return await seedGoesGreenStarter(supabase, tenantId, seedKey, now);
+    default:
+      return {
+        seed_key: seedKey,
+        status: 'error',
+        details: `Unknown seed key: ${seedKey}`,
+      };
+  }
+}
+
+/**
+ * Record a successful seed run
+ */
+async function recordSeedRun(
+  supabase: ReturnType<typeof getSupabaseClient>,
+  tenantId: string,
+  seedKey: string,
+  details: string
+): Promise<void> {
+  await supabase.from('seed_runs').upsert({
+    tenant_id: tenantId,
+    seed_key: seedKey,
+    status: 'completed',
+    details,
+  }, { onConflict: 'tenant_id,seed_key' });
+}
+
+/**
+ * Seed climate missions
+ */
+async function seedClimateMissions(
+  supabase: ReturnType<typeof getSupabaseClient>,
+  tenantId: string,
+  seedKey: string,
+  now: string
+): Promise<SeedResult> {
+  // Check/create default profile
+  const { data: profiles } = await supabase
+    .from('climate_profiles')
+    .select('id')
+    .eq('tenant_id', tenantId)
+    .limit(1);
+  
+  let profileId: string;
+  if (!profiles || profiles.length === 0) {
+    const { data: newProfile } = await supabase
+      .from('climate_profiles')
+      .insert({
+        tenant_id: tenantId,
+        name: 'Default Climate Profile',
+        scope: 'individual',
+        is_primary: true,
+        baseline_kgco2_per_year: 8000,
+        target_kgco2_per_year: 4000,
+      })
+      .select('id')
+      .single();
+    profileId = newProfile?.id;
+  } else {
+    profileId = profiles[0].id;
+  }
+  
+  const baseDate = new Date();
+  const missions = [
+    { title: 'Switch to renewable energy provider', category: 'energy', estimated_impact_kgco2: 1200, days: 30 },
+    { title: 'Install LED lighting throughout home', category: 'energy', estimated_impact_kgco2: 150, days: 14 },
+    { title: 'Reduce car usage by 50%', category: 'transport', estimated_impact_kgco2: 800, days: 60 },
+    { title: 'Try one meat-free day per week', category: 'food', estimated_impact_kgco2: 200, days: 7 },
+    { title: 'Buy local and seasonal produce', category: 'food', estimated_impact_kgco2: 300, days: 21 },
+    { title: 'Reduce single-use plastics', category: 'products', estimated_impact_kgco2: 50, days: 14 },
+    { title: 'Choose sustainable clothing brands', category: 'products', estimated_impact_kgco2: 250, days: 45 },
+    { title: 'Optimize home heating/cooling', category: 'energy', estimated_impact_kgco2: 400, days: 30 },
+    { title: 'Calculate your carbon footprint', category: 'general', estimated_impact_kgco2: 0, days: 3 },
+    { title: 'Share climate goals with friends/family', category: 'general', estimated_impact_kgco2: 0, days: 7 },
+  ].map(m => ({
+    tenant_id: tenantId,
+    profile_id: profileId,
+    title: m.title,
+    category: m.category,
+    status: 'planned',
+    estimated_impact_kgco2: m.estimated_impact_kgco2,
+    due_date: new Date(baseDate.getTime() + m.days * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+  }));
+  
+  await supabase.from('climate_missions').insert(missions);
+  await recordSeedRun(supabase, tenantId, seedKey, `Created ${missions.length} missions`);
+  
+  return { seed_key: seedKey, status: 'completed', details: `Created ${missions.length} missions` };
+}
+
+/**
+ * Seed hemp materials
+ */
+async function seedHempMaterials(
+  supabase: ReturnType<typeof getSupabaseClient>,
+  tenantId: string,
+  seedKey: string,
+  now: string
+): Promise<SeedResult> {
+  const materials = [
+    { name: 'Organic Hemp Fleece', is_hemp: true, hemp_category: 'textile', co2: 2.5 },
+    { name: 'Hemp-Cotton Blend (55/45)', is_hemp: true, hemp_category: 'textile', co2: 3.2 },
+    { name: 'Hemp Canvas', is_hemp: true, hemp_category: 'textile', co2: 2.8 },
+    { name: 'Hemp Packaging Board', is_hemp: true, hemp_category: 'packaging', co2: 1.5 },
+    { name: 'Hempcrete Block', is_hemp: true, hemp_category: 'building_material', co2: -0.5 },
+    { name: 'Organic Cotton', is_hemp: false, hemp_category: null, co2: 5.0 },
+    { name: 'Recycled Polyester (rPET)', is_hemp: false, hemp_category: null, co2: 4.5 },
+    { name: 'Tencel Lyocell', is_hemp: false, hemp_category: null, co2: 3.8 },
+  ].map(m => ({
+    tenant_id: tenantId,
+    name: m.name,
+    is_hemp_or_cannabis_material: m.is_hemp,
+    hemp_category: m.hemp_category,
+    co2_intensity_kg_per_kg: m.co2,
+  }));
+  
+  await supabase.from('materials').insert(materials);
+  await recordSeedRun(supabase, tenantId, seedKey, `Created ${materials.length} materials`);
+  
+  return { seed_key: seedKey, status: 'completed', details: `Created ${materials.length} materials` };
+}
+
+/**
+ * Seed ZORA SHOP starter data
+ */
+async function seedZoraShopStarter(
+  supabase: ReturnType<typeof getSupabaseClient>,
+  tenantId: string,
+  seedKey: string,
+  now: string
+): Promise<SeedResult> {
+  // Create brands
+  const { data: brands } = await supabase
+    .from('brands')
+    .insert([
+      { tenant_id: tenantId, name: 'ZORA CORE Demo Brand', is_verified: true },
+      { tenant_id: tenantId, name: 'Green Fiber Co.', is_verified: true },
+    ])
+    .select('id');
+  
+  const brandIds = brands?.map(b => b.id) || [];
+  
+  // Create products
+  const products = [
+    { name: 'Climate Action Hoodie', sku: 'ZORA-HOODIE-001', price: 599, category: 'apparel' },
+    { name: 'Hemp Essential T-Shirt', sku: 'ZORA-TEE-001', price: 299, category: 'apparel' },
+    { name: 'Eco Canvas Cap', sku: 'ZORA-CAP-001', price: 199, category: 'accessories' },
+    { name: 'Sustainable Tote Bag', sku: 'ZORA-TOTE-001', price: 149, category: 'accessories' },
+  ].map(p => ({
+    tenant_id: tenantId,
+    name: p.name,
+    sku: p.sku,
+    price_amount: p.price,
+    price_currency: 'DKK',
+    category: p.category,
+    is_active: true,
+  }));
+  
+  const { data: createdProducts } = await supabase.from('products').insert(products).select('id');
+  const productIds = createdProducts?.map(p => p.id) || [];
+  
+  // Link products to brands
+  if (brandIds.length > 0 && productIds.length > 0) {
+    const productBrands = productIds.map((pid, i) => ({
+      product_id: pid,
+      brand_id: brandIds[0],
+      is_primary: true,
+    }));
+    await supabase.from('product_brands').insert(productBrands);
+  }
+  
+  // Create projects
+  if (brandIds.length > 0) {
+    await supabase.from('zora_shop_projects').insert([
+      { tenant_id: tenantId, title: 'ZORA x Green Fiber Hemp Capsule', primary_brand_id: brandIds[0], status: 'in_progress' },
+      { tenant_id: tenantId, title: 'GOES GREEN Energy Hoodie Collection', primary_brand_id: brandIds[0], status: 'planned' },
+    ]);
+  }
+  
+  const details = `Created ${brandIds.length} brands, ${productIds.length} products, 2 projects`;
+  await recordSeedRun(supabase, tenantId, seedKey, details);
+  
+  return { seed_key: seedKey, status: 'completed', details };
+}
+
+/**
+ * Seed foundation starter data
+ */
+async function seedFoundationStarter(
+  supabase: ReturnType<typeof getSupabaseClient>,
+  tenantId: string,
+  seedKey: string,
+  now: string
+): Promise<SeedResult> {
+  const projects = [
+    { name: 'Urban Tree Planting (City Demo)', status: 'active', domain: 'reforestation', target: 500000, current: 125000 },
+    { name: 'Coastal Restoration (Demo)', status: 'active', domain: 'ecosystem_restoration', target: 1000000, current: 350000 },
+    { name: 'Solar For Schools (Demo)', status: 'planned', domain: 'renewable_energy', target: 2500000, current: 0 },
+  ].map(p => ({
+    tenant_id: tenantId,
+    name: p.name,
+    status: p.status,
+    climate_focus_domain: p.domain,
+    target_amount: p.target,
+    target_currency: 'DKK',
+    current_amount: p.current,
+  }));
+  
+  await supabase.from('foundation_projects').insert(projects);
+  await recordSeedRun(supabase, tenantId, seedKey, `Created ${projects.length} foundation projects`);
+  
+  return { seed_key: seedKey, status: 'completed', details: `Created ${projects.length} foundation projects` };
+}
+
+/**
+ * Seed academy starter data
+ */
+async function seedAcademyStarter(
+  supabase: ReturnType<typeof getSupabaseClient>,
+  tenantId: string,
+  seedKey: string,
+  now: string
+): Promise<SeedResult> {
+  // Create topics
+  const { data: topics } = await supabase
+    .from('academy_topics')
+    .insert([
+      { tenant_id: tenantId, name: 'Climate Basics', sort_order: 1 },
+      { tenant_id: tenantId, name: 'Hemp & Materials', sort_order: 2 },
+      { tenant_id: tenantId, name: 'GOES GREEN Energy', sort_order: 3 },
+    ])
+    .select('id, name');
+  
+  const topicMap: Record<string, string> = {};
+  topics?.forEach(t => { topicMap[t.name] = t.id; });
+  
+  // Create lessons
+  const lessons = [
+    { topic: 'Climate Basics', title: 'What is Climate Change?', difficulty: 'beginner', minutes: 15 },
+    { topic: 'Climate Basics', title: 'Understanding Carbon Footprints', difficulty: 'beginner', minutes: 10 },
+    { topic: 'Hemp & Materials', title: 'Introduction to Hemp', difficulty: 'beginner', minutes: 15 },
+    { topic: 'Hemp & Materials', title: 'Hemp vs Cotton: Environmental Impact', difficulty: 'intermediate', minutes: 12 },
+    { topic: 'GOES GREEN Energy', title: 'Solar Energy Basics', difficulty: 'beginner', minutes: 10 },
+    { topic: 'GOES GREEN Energy', title: 'Heat Pumps Explained', difficulty: 'intermediate', minutes: 15 },
+  ].map((l, i) => ({
+    tenant_id: tenantId,
+    topic_id: topicMap[l.topic],
+    title: l.title,
+    difficulty: l.difficulty,
+    duration_minutes: l.minutes,
+    sort_order: i + 1,
+  }));
+  
+  await supabase.from('academy_lessons').insert(lessons);
+  
+  // Create learning paths
+  await supabase.from('academy_learning_paths').insert([
+    { tenant_id: tenantId, name: 'Climate Basics for Individuals', difficulty: 'beginner', estimated_hours: 2, is_published: true },
+    { tenant_id: tenantId, name: 'Hemp & Materials 101', difficulty: 'intermediate', estimated_hours: 1, is_published: true },
+  ]);
+  
+  const details = `Created ${topics?.length || 0} topics, ${lessons.length} lessons, 2 learning paths`;
+  await recordSeedRun(supabase, tenantId, seedKey, details);
+  
+  return { seed_key: seedKey, status: 'completed', details };
+}
+
+/**
+ * Seed GOES GREEN starter data
+ */
+async function seedGoesGreenStarter(
+  supabase: ReturnType<typeof getSupabaseClient>,
+  tenantId: string,
+  seedKey: string,
+  now: string
+): Promise<SeedResult> {
+  // Create profile
+  const { data: profile } = await supabase
+    .from('goes_green_profiles')
+    .insert({
+      tenant_id: tenantId,
+      name: 'Demo Home',
+      profile_type: 'household',
+      location_country: 'DK',
+      location_city: 'Copenhagen',
+      annual_energy_kwh: 4500,
+      current_energy_source: 'grid_mixed',
+    })
+    .select('id')
+    .single();
+  
+  const profileId = profile?.id;
+  
+  if (profileId) {
+    // Create actions
+    const actions = [
+      { type: 'switch_to_green_tariff', title: 'Switch to 100% Green Electricity', status: 'planned', cost: 0, savings: 1200, payback: 0 },
+      { type: 'install_solar_pv', title: 'Install Rooftop Solar Panels', status: 'planned', cost: 85000, savings: 2000, payback: 8 },
+      { type: 'install_heat_pump', title: 'Replace Gas Boiler with Heat Pump', status: 'under_evaluation', cost: 120000, savings: 3000, payback: 10 },
+      { type: 'improve_insulation', title: 'Improve Home Insulation', status: 'under_evaluation', cost: 50000, savings: 800, payback: 6 },
+      { type: 'smart_thermostat', title: 'Install Smart Thermostat', status: 'completed', cost: 2500, savings: 200, payback: 2 },
+    ].map(a => ({
+      tenant_id: tenantId,
+      profile_id: profileId,
+      action_type: a.type,
+      title: a.title,
+      status: a.status,
+      estimated_cost_amount: a.cost,
+      estimated_cost_currency: 'DKK',
+      estimated_savings_kgco2: a.savings,
+      payback_years: a.payback,
+    }));
+    
+    await supabase.from('goes_green_actions').insert(actions);
+  }
+  
+  const details = `Created 1 profile, 5 actions`;
+  await recordSeedRun(supabase, tenantId, seedKey, details);
+  
+  return { seed_key: seedKey, status: 'completed', details };
+}
+
 export default adminHandler;
