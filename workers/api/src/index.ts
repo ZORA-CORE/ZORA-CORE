@@ -34,6 +34,7 @@ import goesGreenHandler from './handlers/goes-green';
 import academyHandler from './handlers/academy';
 import billingHandler from './handlers/billing';
 import shopOrdersHandler from './handlers/shop-orders';
+import adminImpactHandler from './handlers/admin-impact';
 
 const app = new Hono<AuthAppEnv>();
 
@@ -75,6 +76,8 @@ app.use('/api/billing/*', authMiddleware);
 // Admin metrics endpoints require JWT auth (founder/brand_admin role)
 app.use('/api/admin/system-metrics', authMiddleware);
 app.use('/api/admin/autonomy-status', authMiddleware);
+// Admin impact endpoints require JWT auth (founder/brand_admin role) - Global Impact v1 (Iteration 00D4)
+app.use('/api/admin/impact/*', authMiddleware);
 
 // ============================================================================
 // RATE LIMITING (Security & Auth Hardening v1.0)
@@ -265,23 +268,27 @@ app.get('/', (c) => {
           'GET /api/shop/commission-settings',
           'PUT /api/shop/commission-settings',
         ],
-        admin_endpoints: [
-      'GET /api/admin/status (requires X-ZORA-ADMIN-SECRET)',
-      'GET /api/admin/schema-status (requires X-ZORA-ADMIN-SECRET)',
-      'POST /api/admin/bootstrap-tenant (requires X-ZORA-ADMIN-SECRET)',
-      'GET /api/admin/tenants (requires X-ZORA-ADMIN-SECRET)',
-      'GET /api/admin/users (requires X-ZORA-ADMIN-SECRET)',
-      'POST /api/admin/users (requires X-ZORA-ADMIN-SECRET)',
-      'POST /api/admin/users/:id/token (requires X-ZORA-ADMIN-SECRET)',
-      'GET /api/admin/system-metrics (requires JWT, founder/brand_admin)',
-      'GET /api/admin/autonomy-status (requires JWT, founder/brand_admin)',
-    ],
+            admin_endpoints: [
+          'GET /api/admin/status (requires X-ZORA-ADMIN-SECRET)',
+          'GET /api/admin/schema-status (requires X-ZORA-ADMIN-SECRET)',
+          'POST /api/admin/bootstrap-tenant (requires X-ZORA-ADMIN-SECRET)',
+          'GET /api/admin/tenants (requires X-ZORA-ADMIN-SECRET)',
+          'GET /api/admin/users (requires X-ZORA-ADMIN-SECRET)',
+          'POST /api/admin/users (requires X-ZORA-ADMIN-SECRET)',
+          'POST /api/admin/users/:id/token (requires X-ZORA-ADMIN-SECRET)',
+          'GET /api/admin/system-metrics (requires JWT, founder/brand_admin)',
+          'GET /api/admin/autonomy-status (requires JWT, founder/brand_admin)',
+          'GET /api/admin/impact/summary (requires JWT, founder/brand_admin)',
+          'GET /api/admin/impact/timeseries (requires JWT, founder/brand_admin)',
+          'POST /api/admin/impact/snapshot (requires JWT, founder/brand_admin)',
+        ],
   });
 });
 
 app.route('/api/status', statusHandler);
 app.route('/api/admin', adminHandler);
 app.route('/api/admin', adminMetricsHandler);  // Observability & Metrics v1 (Iteration 00B6)
+app.route('/api/admin', adminImpactHandler);  // Global Impact & Data Aggregates v1 (Iteration 00D4)
 app.route('/api/auth', authHandler);
 app.route('/api/agents', agentsHandler);
 app.route('/api/agents', memoryHandler);
