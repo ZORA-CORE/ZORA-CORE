@@ -13,6 +13,7 @@ import { jsonResponse, errorResponse } from '../lib/response';
 import { createToken } from '../lib/auth';
 import type { BillingContext, PlanFeatures } from '../middleware/billingContext';
 import { PlanLimitExceededError, handleBillingError, requirePlanLimit, ensureWriteAllowed } from '../middleware/billingContext';
+import { getDevManifest, getManifestStats } from '../dev/devManifest';
 
 const adminHandler = new Hono<AuthAppEnv>();
 
@@ -1085,5 +1086,40 @@ async function seedGoesGreenStarter(
   
   return { seed_key: seedKey, status: 'completed', details };
 }
+
+// ============================================================================
+// DEV KNOWLEDGE & API MANIFEST v1.0 (Iteration 00D3)
+// ============================================================================
+
+/**
+ * GET /api/admin/dev/manifest
+ * Returns the Dev Knowledge & API Manifest for ZORA CORE.
+ * 
+ * This endpoint provides a machine-readable description of all ZORA CORE
+ * modules, tables, and API endpoints. It's designed for:
+ * - Future agent consumption (EIVOR, LUMINA, CONNOR, etc.)
+ * - Developer documentation
+ * - System introspection
+ * 
+ * Auth: Requires founder or brand_admin role
+ */
+adminHandler.get('/dev/manifest', async (c) => {
+  const manifest = getDevManifest();
+  const stats = getManifestStats();
+  
+  return jsonResponse({
+    ...manifest,
+    stats,
+  });
+});
+
+/**
+ * GET /api/admin/dev/manifest/stats
+ * Returns statistics about the Dev Manifest.
+ */
+adminHandler.get('/dev/manifest/stats', async (c) => {
+  const stats = getManifestStats();
+  return jsonResponse(stats);
+});
 
 export default adminHandler;
