@@ -3274,7 +3274,43 @@ CREATE POLICY "seed_runs_service_role_full_access" ON seed_runs
     FOR ALL USING (current_setting('role', true) = 'service_role');
 
 -- ============================================================================
--- STEP 14K: VERIFY SCHEMA
+-- STEP 14K: GLOBAL IMPACT & DATA AGGREGATES v1.0 (Iteration 00D4)
+-- Schema version: 3.4.0
+-- ============================================================================
+
+-- tenant_impact_snapshots: stores periodic impact snapshots per tenant
+-- Used for historical tracking and time-series analytics
+CREATE TABLE IF NOT EXISTS tenant_impact_snapshots (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    snapshot_period TEXT NOT NULL,
+    period_start TIMESTAMPTZ NOT NULL,
+    period_end TIMESTAMPTZ NOT NULL,
+    metrics JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Indexes for tenant_impact_snapshots
+CREATE INDEX IF NOT EXISTS idx_tenant_impact_snapshots_tenant_period ON tenant_impact_snapshots(tenant_id, snapshot_period, period_start);
+CREATE INDEX IF NOT EXISTS idx_tenant_impact_snapshots_tenant_period_end ON tenant_impact_snapshots(tenant_id, snapshot_period, period_end);
+CREATE INDEX IF NOT EXISTS idx_tenant_impact_snapshots_created_at ON tenant_impact_snapshots(created_at DESC);
+
+-- Enable RLS for tenant_impact_snapshots
+ALTER TABLE tenant_impact_snapshots ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy for tenant_impact_snapshots
+DROP POLICY IF EXISTS "Allow all for service role" ON tenant_impact_snapshots;
+CREATE POLICY "Allow all for service role" ON tenant_impact_snapshots
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE tenant_impact_snapshots IS 'Periodic impact snapshots per tenant for historical tracking and time-series analytics';
+COMMENT ON COLUMN tenant_impact_snapshots.snapshot_period IS 'Period type: daily, weekly, monthly';
+COMMENT ON COLUMN tenant_impact_snapshots.metrics IS 'JSON object with impact metrics: climate_os, goes_green, zora_shop, foundation, academy, autonomy';
+
+-- ============================================================================
+-- STEP 14L: VERIFY SCHEMA
 -- ============================================================================
 
 -- This query will show all tables that should exist
@@ -3288,7 +3324,7 @@ BEGIN
     SELECT COUNT(*) INTO table_count
     FROM information_schema.tables 
     WHERE table_schema = 'public' 
-    AND table_name IN ('schema_metadata', 'tenants', 'users', 'memory_events', 'journal_entries', 'climate_profiles', 'climate_missions', 'climate_plans', 'climate_plan_items', 'frontend_configs', 'agent_suggestions', 'brands', 'products', 'product_brands', 'agent_tasks', 'agent_insights', 'agent_commands', 'materials', 'product_materials', 'product_climate_meta', 'zora_shop_projects', 'agent_task_policies', 'autonomy_schedules', 'climate_material_profiles', 'climate_experiments', 'climate_experiment_runs', 'foundation_projects', 'foundation_contributions', 'foundation_impact_log', 'organizations', 'playbooks', 'playbook_steps', 'playbook_runs', 'playbook_run_steps', 'goes_green_profiles', 'goes_green_energy_assets', 'goes_green_actions', 'goes_green_snapshots', 'academy_topics', 'academy_lessons', 'academy_modules', 'academy_module_lessons', 'academy_learning_paths', 'academy_learning_path_modules', 'academy_user_progress', 'academy_quizzes', 'academy_quiz_attempts', 'billing_plans', 'tenant_subscriptions', 'billing_events', 'zora_shop_commission_settings', 'zora_shop_orders', 'zora_shop_order_items', 'auth_password_reset_tokens', 'auth_email_verification_tokens');
+    AND table_name IN ('schema_metadata', 'tenants', 'users', 'memory_events', 'journal_entries', 'climate_profiles', 'climate_missions', 'climate_plans', 'climate_plan_items', 'frontend_configs', 'agent_suggestions', 'brands', 'products', 'product_brands', 'agent_tasks', 'agent_insights', 'agent_commands', 'materials', 'product_materials', 'product_climate_meta', 'zora_shop_projects', 'agent_task_policies', 'autonomy_schedules', 'climate_material_profiles', 'climate_experiments', 'climate_experiment_runs', 'foundation_projects', 'foundation_contributions', 'foundation_impact_log', 'organizations', 'playbooks', 'playbook_steps', 'playbook_runs', 'playbook_run_steps', 'goes_green_profiles', 'goes_green_energy_assets', 'goes_green_actions', 'goes_green_snapshots', 'academy_topics', 'academy_lessons', 'academy_modules', 'academy_module_lessons', 'academy_learning_paths', 'academy_learning_path_modules', 'academy_user_progress', 'academy_quizzes', 'academy_quiz_attempts', 'billing_plans', 'tenant_subscriptions', 'billing_events', 'zora_shop_commission_settings', 'zora_shop_orders', 'zora_shop_order_items', 'auth_password_reset_tokens', 'auth_email_verification_tokens', 'tenant_impact_snapshots');
     
     -- Count search_memories_by_embedding functions (should be exactly 1)
     SELECT COUNT(*) INTO function_count
@@ -3296,10 +3332,10 @@ BEGIN
     WHERE proname = 'search_memories_by_embedding';
     
     RAISE NOTICE '=== ZORA CORE Schema Verification ===';
-    RAISE NOTICE 'Required tables found: % of 56', table_count;
+    RAISE NOTICE 'Required tables found: % of 57', table_count;
     RAISE NOTICE 'search_memories_by_embedding functions: % (should be 1)', function_count;
     
-    IF table_count = 56 AND function_count = 1 THEN
+    IF table_count = 57 AND function_count = 1 THEN
         RAISE NOTICE 'Schema is correctly configured!';
     ELSE
         RAISE WARNING 'Schema may have issues. Please check the tables and functions.';
@@ -3313,7 +3349,7 @@ END$$;
 -- Safe to run multiple times - each run adds a new version record.
 
 INSERT INTO schema_metadata (schema_version, notes)
-VALUES ('3.3.0', 'Seed Data & Onboarding Backend v1.0');
+VALUES ('3.4.0', 'Global Impact & Data Aggregates v1.0');
 
 -- ============================================================================
 -- DONE!
