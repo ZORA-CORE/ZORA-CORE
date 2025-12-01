@@ -809,3 +809,85 @@ export interface AgentCommandDetailResponse {
   data: AgentCommand;
   tasks: AgentTaskListItem[];
 }
+
+// Admin Impact & System Metrics types (Iteration 00F1 - ZORA Desk)
+export interface ImpactSummary {
+  climate_os: {
+    profiles_count: number;
+    missions_count: number;
+    missions_completed: number;
+    missions_in_progress: number;
+    total_impact_kgco2: number;
+  };
+  goes_green: {
+    profiles_count: number;
+    actions_count: number;
+    estimated_energy_savings_kwh: number;
+    green_share_percent: number;
+  };
+  zora_shop: {
+    brands_count: number;
+    products_count: number;
+    active_projects_count: number;
+    total_gmv: number;
+  };
+  foundation: {
+    projects_count: number;
+    contributions_count: number;
+    total_contributions_amount: number;
+    total_impact_kgco2: number;
+  };
+  academy: {
+    topics_count: number;
+    lessons_count: number;
+    learning_paths_count: number;
+    enrollments_count: number;
+  };
+  computed_at: string;
+}
+
+export interface SystemMetrics {
+  agent_commands: {
+    total: number;
+    pending: number;
+    completed: number;
+    failed: number;
+  };
+  agent_tasks: {
+    total: number;
+    pending: number;
+    in_progress: number;
+    completed: number;
+    failed: number;
+  };
+  schedules: {
+    total: number;
+    active: number;
+    due_now: number;
+  };
+  safety_policies: {
+    total: number;
+    active: number;
+  };
+  pending_approvals: number;
+  computed_at: string;
+}
+
+export interface AutonomyStatus {
+  schedules: {
+    total: number;
+    active: number;
+    due_now: number;
+  };
+  safety_policies: {
+    total: number;
+    active: number;
+  };
+  agent_tasks: {
+    pending: number;
+    in_progress: number;
+    completed: number;
+    failed: number;
+  };
+  pending_approvals: number;
+}
