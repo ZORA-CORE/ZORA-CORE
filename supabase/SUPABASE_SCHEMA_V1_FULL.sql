@@ -20,7 +20,7 @@
 --   - /admin/setup will work correctly
 -- 
 -- Date: 2025-12-01
--- Version: 2.8.0 (GOES GREEN + Foundation + Quantum Lab + Orgs/Playbooks + Schema Versioning)
+-- Version: 2.9.0 (Climate Academy Backend v1.0)
 -- ============================================================================
 
 -- ============================================================================
@@ -2445,7 +2445,468 @@ COMMENT ON TABLE goes_green_snapshots IS 'Periodic snapshots of energy and green
 COMMENT ON COLUMN goes_green_snapshots.computed_green_share_percent IS 'Calculated as green_energy_kwh / total_energy_kwh * 100';
 
 -- ============================================================================
--- STEP 14G: VERIFY SCHEMA
+-- STEP 14G: CLIMATE ACADEMY TABLES (Climate Academy Backend v1.0)
+-- ============================================================================
+
+-- academy_topics: reusable taxonomy of climate topics
+CREATE TABLE IF NOT EXISTS academy_topics (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE,
+    code TEXT NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Add unique constraint for code (global or per-tenant)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'academy_topics_code_unique'
+    ) THEN
+        ALTER TABLE academy_topics ADD CONSTRAINT academy_topics_code_unique UNIQUE(code);
+    END IF;
+EXCEPTION WHEN duplicate_object THEN
+    -- Constraint already exists
+END$$;
+
+-- Indexes for academy_topics
+CREATE INDEX IF NOT EXISTS idx_academy_topics_tenant ON academy_topics(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_academy_topics_code ON academy_topics(code);
+
+-- Trigger for updated_at
+DROP TRIGGER IF EXISTS update_academy_topics_updated_at ON academy_topics;
+CREATE TRIGGER update_academy_topics_updated_at
+    BEFORE UPDATE ON academy_topics
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Enable RLS for academy_topics
+ALTER TABLE academy_topics ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy for academy_topics
+DROP POLICY IF EXISTS "Allow all for service role" ON academy_topics;
+CREATE POLICY "Allow all for service role" ON academy_topics
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE academy_topics IS 'Climate Academy topics taxonomy - global (tenant_id NULL) or tenant-specific';
+COMMENT ON COLUMN academy_topics.code IS 'Unique topic code e.g. energy, transport, materials, hemp, ocean, food';
+
+-- academy_lessons: individual learning units (video, article, etc.)
+CREATE TABLE IF NOT EXISTS academy_lessons (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    subtitle TEXT,
+    description TEXT,
+    content_type TEXT NOT NULL,
+    source_type TEXT NOT NULL,
+    source_url TEXT,
+    duration_minutes_estimated INTEGER,
+    language_code TEXT,
+    difficulty_level TEXT,
+    primary_topic_code TEXT,
+    tags TEXT[],
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    thumbnail_url TEXT,
+    metadata JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Indexes for academy_lessons
+CREATE INDEX IF NOT EXISTS idx_academy_lessons_tenant ON academy_lessons(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_academy_lessons_tenant_active ON academy_lessons(tenant_id, is_active);
+CREATE INDEX IF NOT EXISTS idx_academy_lessons_topic ON academy_lessons(primary_topic_code);
+CREATE INDEX IF NOT EXISTS idx_academy_lessons_content_type ON academy_lessons(content_type);
+CREATE INDEX IF NOT EXISTS idx_academy_lessons_difficulty ON academy_lessons(difficulty_level);
+CREATE INDEX IF NOT EXISTS idx_academy_lessons_language ON academy_lessons(language_code);
+CREATE INDEX IF NOT EXISTS idx_academy_lessons_tags ON academy_lessons USING GIN(tags);
+
+-- Trigger for updated_at
+DROP TRIGGER IF EXISTS update_academy_lessons_updated_at ON academy_lessons;
+CREATE TRIGGER update_academy_lessons_updated_at
+    BEFORE UPDATE ON academy_lessons
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Enable RLS for academy_lessons
+ALTER TABLE academy_lessons ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy for academy_lessons
+DROP POLICY IF EXISTS "Allow all for service role" ON academy_lessons;
+CREATE POLICY "Allow all for service role" ON academy_lessons
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE academy_lessons IS 'Climate Academy lessons - individual learning units (videos, articles, etc.)';
+COMMENT ON COLUMN academy_lessons.content_type IS 'Type: video, article, interactive, quiz, mixed';
+COMMENT ON COLUMN academy_lessons.source_type IS 'Source: youtube, web_article, pdf, zora_internal, other';
+COMMENT ON COLUMN academy_lessons.difficulty_level IS 'Level: beginner, intermediate, advanced';
+
+-- academy_modules: groups of related lessons
+CREATE TABLE IF NOT EXISTS academy_modules (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE,
+    code TEXT NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT,
+    primary_topic_code TEXT,
+    target_audience TEXT,
+    estimated_duration_minutes INTEGER,
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    metadata JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Add unique constraint for code
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'academy_modules_code_unique'
+    ) THEN
+        ALTER TABLE academy_modules ADD CONSTRAINT academy_modules_code_unique UNIQUE(code);
+    END IF;
+EXCEPTION WHEN duplicate_object THEN
+    -- Constraint already exists
+END$$;
+
+-- Indexes for academy_modules
+CREATE INDEX IF NOT EXISTS idx_academy_modules_tenant ON academy_modules(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_academy_modules_code ON academy_modules(code);
+CREATE INDEX IF NOT EXISTS idx_academy_modules_topic ON academy_modules(primary_topic_code);
+CREATE INDEX IF NOT EXISTS idx_academy_modules_audience ON academy_modules(target_audience);
+CREATE INDEX IF NOT EXISTS idx_academy_modules_active ON academy_modules(is_active);
+
+-- Trigger for updated_at
+DROP TRIGGER IF EXISTS update_academy_modules_updated_at ON academy_modules;
+CREATE TRIGGER update_academy_modules_updated_at
+    BEFORE UPDATE ON academy_modules
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Enable RLS for academy_modules
+ALTER TABLE academy_modules ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy for academy_modules
+DROP POLICY IF EXISTS "Allow all for service role" ON academy_modules;
+CREATE POLICY "Allow all for service role" ON academy_modules
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE academy_modules IS 'Climate Academy modules - groups of related lessons';
+COMMENT ON COLUMN academy_modules.target_audience IS 'Target: households, brands, cities, students, etc.';
+
+-- academy_module_lessons: join table for module-lesson ordering
+CREATE TABLE IF NOT EXISTS academy_module_lessons (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    module_id UUID NOT NULL REFERENCES academy_modules(id) ON DELETE CASCADE,
+    lesson_id UUID NOT NULL REFERENCES academy_lessons(id) ON DELETE CASCADE,
+    lesson_order INTEGER NOT NULL,
+    is_required BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Add unique constraints
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'academy_module_lessons_order_unique'
+    ) THEN
+        ALTER TABLE academy_module_lessons ADD CONSTRAINT academy_module_lessons_order_unique UNIQUE(module_id, lesson_order);
+    END IF;
+EXCEPTION WHEN duplicate_object THEN
+    -- Constraint already exists
+END$$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'academy_module_lessons_lesson_unique'
+    ) THEN
+        ALTER TABLE academy_module_lessons ADD CONSTRAINT academy_module_lessons_lesson_unique UNIQUE(module_id, lesson_id);
+    END IF;
+EXCEPTION WHEN duplicate_object THEN
+    -- Constraint already exists
+END$$;
+
+-- Indexes for academy_module_lessons
+CREATE INDEX IF NOT EXISTS idx_academy_module_lessons_module ON academy_module_lessons(module_id);
+CREATE INDEX IF NOT EXISTS idx_academy_module_lessons_lesson ON academy_module_lessons(lesson_id);
+
+-- Trigger for updated_at
+DROP TRIGGER IF EXISTS update_academy_module_lessons_updated_at ON academy_module_lessons;
+CREATE TRIGGER update_academy_module_lessons_updated_at
+    BEFORE UPDATE ON academy_module_lessons
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Enable RLS for academy_module_lessons
+ALTER TABLE academy_module_lessons ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy for academy_module_lessons
+DROP POLICY IF EXISTS "Allow all for service role" ON academy_module_lessons;
+CREATE POLICY "Allow all for service role" ON academy_module_lessons
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE academy_module_lessons IS 'Join table linking lessons to modules with ordering';
+
+-- academy_learning_paths: longer tracks made of modules
+CREATE TABLE IF NOT EXISTS academy_learning_paths (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE,
+    code TEXT NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT,
+    target_audience TEXT,
+    recommended_for_profile_type TEXT,
+    primary_topic_code TEXT,
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    metadata JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Add unique constraint for code
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'academy_learning_paths_code_unique'
+    ) THEN
+        ALTER TABLE academy_learning_paths ADD CONSTRAINT academy_learning_paths_code_unique UNIQUE(code);
+    END IF;
+EXCEPTION WHEN duplicate_object THEN
+    -- Constraint already exists
+END$$;
+
+-- Indexes for academy_learning_paths
+CREATE INDEX IF NOT EXISTS idx_academy_learning_paths_tenant ON academy_learning_paths(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_academy_learning_paths_code ON academy_learning_paths(code);
+CREATE INDEX IF NOT EXISTS idx_academy_learning_paths_topic ON academy_learning_paths(primary_topic_code);
+CREATE INDEX IF NOT EXISTS idx_academy_learning_paths_audience ON academy_learning_paths(target_audience);
+CREATE INDEX IF NOT EXISTS idx_academy_learning_paths_active ON academy_learning_paths(is_active);
+
+-- Trigger for updated_at
+DROP TRIGGER IF EXISTS update_academy_learning_paths_updated_at ON academy_learning_paths;
+CREATE TRIGGER update_academy_learning_paths_updated_at
+    BEFORE UPDATE ON academy_learning_paths
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Enable RLS for academy_learning_paths
+ALTER TABLE academy_learning_paths ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy for academy_learning_paths
+DROP POLICY IF EXISTS "Allow all for service role" ON academy_learning_paths;
+CREATE POLICY "Allow all for service role" ON academy_learning_paths
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE academy_learning_paths IS 'Climate Academy learning paths - longer tracks made of modules';
+COMMENT ON COLUMN academy_learning_paths.recommended_for_profile_type IS 'Profile type: household, organization, any';
+
+-- academy_learning_path_modules: join table for path-module ordering
+CREATE TABLE IF NOT EXISTS academy_learning_path_modules (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    learning_path_id UUID NOT NULL REFERENCES academy_learning_paths(id) ON DELETE CASCADE,
+    module_id UUID NOT NULL REFERENCES academy_modules(id) ON DELETE CASCADE,
+    module_order INTEGER NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Add unique constraints
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'academy_learning_path_modules_order_unique'
+    ) THEN
+        ALTER TABLE academy_learning_path_modules ADD CONSTRAINT academy_learning_path_modules_order_unique UNIQUE(learning_path_id, module_order);
+    END IF;
+EXCEPTION WHEN duplicate_object THEN
+    -- Constraint already exists
+END$$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'academy_learning_path_modules_module_unique'
+    ) THEN
+        ALTER TABLE academy_learning_path_modules ADD CONSTRAINT academy_learning_path_modules_module_unique UNIQUE(learning_path_id, module_id);
+    END IF;
+EXCEPTION WHEN duplicate_object THEN
+    -- Constraint already exists
+END$$;
+
+-- Indexes for academy_learning_path_modules
+CREATE INDEX IF NOT EXISTS idx_academy_learning_path_modules_path ON academy_learning_path_modules(learning_path_id);
+CREATE INDEX IF NOT EXISTS idx_academy_learning_path_modules_module ON academy_learning_path_modules(module_id);
+
+-- Trigger for updated_at
+DROP TRIGGER IF EXISTS update_academy_learning_path_modules_updated_at ON academy_learning_path_modules;
+CREATE TRIGGER update_academy_learning_path_modules_updated_at
+    BEFORE UPDATE ON academy_learning_path_modules
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Enable RLS for academy_learning_path_modules
+ALTER TABLE academy_learning_path_modules ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy for academy_learning_path_modules
+DROP POLICY IF EXISTS "Allow all for service role" ON academy_learning_path_modules;
+CREATE POLICY "Allow all for service role" ON academy_learning_path_modules
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE academy_learning_path_modules IS 'Join table linking modules to learning paths with ordering';
+
+-- academy_user_progress: track user progress through academy content
+CREATE TABLE IF NOT EXISTS academy_user_progress (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    lesson_id UUID REFERENCES academy_lessons(id) ON DELETE CASCADE,
+    module_id UUID REFERENCES academy_modules(id) ON DELETE CASCADE,
+    learning_path_id UUID REFERENCES academy_learning_paths(id) ON DELETE CASCADE,
+    status TEXT NOT NULL DEFAULT 'not_started',
+    progress_percent NUMERIC,
+    last_accessed_at TIMESTAMPTZ,
+    completed_at TIMESTAMPTZ,
+    metadata JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Indexes for academy_user_progress
+CREATE INDEX IF NOT EXISTS idx_academy_user_progress_tenant ON academy_user_progress(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_academy_user_progress_user ON academy_user_progress(user_id);
+CREATE INDEX IF NOT EXISTS idx_academy_user_progress_lesson ON academy_user_progress(lesson_id);
+CREATE INDEX IF NOT EXISTS idx_academy_user_progress_module ON academy_user_progress(module_id);
+CREATE INDEX IF NOT EXISTS idx_academy_user_progress_path ON academy_user_progress(learning_path_id);
+CREATE INDEX IF NOT EXISTS idx_academy_user_progress_status ON academy_user_progress(status);
+CREATE INDEX IF NOT EXISTS idx_academy_user_progress_tenant_user ON academy_user_progress(tenant_id, user_id);
+
+-- Trigger for updated_at
+DROP TRIGGER IF EXISTS update_academy_user_progress_updated_at ON academy_user_progress;
+CREATE TRIGGER update_academy_user_progress_updated_at
+    BEFORE UPDATE ON academy_user_progress
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Enable RLS for academy_user_progress
+ALTER TABLE academy_user_progress ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy for academy_user_progress
+DROP POLICY IF EXISTS "Allow all for service role" ON academy_user_progress;
+CREATE POLICY "Allow all for service role" ON academy_user_progress
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE academy_user_progress IS 'Track user progress through Climate Academy content';
+COMMENT ON COLUMN academy_user_progress.status IS 'Status: not_started, in_progress, completed';
+COMMENT ON COLUMN academy_user_progress.progress_percent IS 'Progress percentage 0-100';
+
+-- academy_quizzes: optional quiz/assessment for lessons
+CREATE TABLE IF NOT EXISTS academy_quizzes (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE,
+    lesson_id UUID REFERENCES academy_lessons(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    description TEXT,
+    passing_score INTEGER,
+    metadata JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Indexes for academy_quizzes
+CREATE INDEX IF NOT EXISTS idx_academy_quizzes_tenant ON academy_quizzes(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_academy_quizzes_lesson ON academy_quizzes(lesson_id);
+
+-- Trigger for updated_at
+DROP TRIGGER IF EXISTS update_academy_quizzes_updated_at ON academy_quizzes;
+CREATE TRIGGER update_academy_quizzes_updated_at
+    BEFORE UPDATE ON academy_quizzes
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Enable RLS for academy_quizzes
+ALTER TABLE academy_quizzes ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy for academy_quizzes
+DROP POLICY IF EXISTS "Allow all for service role" ON academy_quizzes;
+CREATE POLICY "Allow all for service role" ON academy_quizzes
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE academy_quizzes IS 'Climate Academy quizzes - assessments linked to lessons';
+COMMENT ON COLUMN academy_quizzes.passing_score IS 'Minimum score to pass (e.g., 70)';
+
+-- academy_quiz_attempts: track user quiz attempts
+CREATE TABLE IF NOT EXISTS academy_quiz_attempts (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    quiz_id UUID NOT NULL REFERENCES academy_quizzes(id) ON DELETE CASCADE,
+    score INTEGER,
+    status TEXT NOT NULL DEFAULT 'started',
+    answers JSONB NOT NULL DEFAULT '{}',
+    started_at TIMESTAMPTZ,
+    submitted_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Indexes for academy_quiz_attempts
+CREATE INDEX IF NOT EXISTS idx_academy_quiz_attempts_tenant ON academy_quiz_attempts(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_academy_quiz_attempts_user ON academy_quiz_attempts(user_id);
+CREATE INDEX IF NOT EXISTS idx_academy_quiz_attempts_quiz ON academy_quiz_attempts(quiz_id);
+CREATE INDEX IF NOT EXISTS idx_academy_quiz_attempts_status ON academy_quiz_attempts(status);
+CREATE INDEX IF NOT EXISTS idx_academy_quiz_attempts_tenant_user ON academy_quiz_attempts(tenant_id, user_id);
+
+-- Trigger for updated_at
+DROP TRIGGER IF EXISTS update_academy_quiz_attempts_updated_at ON academy_quiz_attempts;
+CREATE TRIGGER update_academy_quiz_attempts_updated_at
+    BEFORE UPDATE ON academy_quiz_attempts
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Enable RLS for academy_quiz_attempts
+ALTER TABLE academy_quiz_attempts ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy for academy_quiz_attempts
+DROP POLICY IF EXISTS "Allow all for service role" ON academy_quiz_attempts;
+CREATE POLICY "Allow all for service role" ON academy_quiz_attempts
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE academy_quiz_attempts IS 'Track user quiz attempts and scores';
+COMMENT ON COLUMN academy_quiz_attempts.status IS 'Status: started, submitted, passed, failed';
+COMMENT ON COLUMN academy_quiz_attempts.answers IS 'JSON structure storing user answers';
+
+-- ============================================================================
+-- STEP 14H: VERIFY SCHEMA
 -- ============================================================================
 
 -- This query will show all tables that should exist
@@ -2455,11 +2916,11 @@ DECLARE
     table_count INTEGER;
     function_count INTEGER;
 BEGIN
-    -- Count required tables (now 38 with schema_metadata added for versioning)
+    -- Count required tables (now 47 with Climate Academy tables added)
     SELECT COUNT(*) INTO table_count
     FROM information_schema.tables 
     WHERE table_schema = 'public' 
-    AND table_name IN ('schema_metadata', 'tenants', 'users', 'memory_events', 'journal_entries', 'climate_profiles', 'climate_missions', 'climate_plans', 'climate_plan_items', 'frontend_configs', 'agent_suggestions', 'brands', 'products', 'product_brands', 'agent_tasks', 'agent_insights', 'agent_commands', 'materials', 'product_materials', 'product_climate_meta', 'zora_shop_projects', 'agent_task_policies', 'autonomy_schedules', 'climate_material_profiles', 'climate_experiments', 'climate_experiment_runs', 'foundation_projects', 'foundation_contributions', 'foundation_impact_log', 'organizations', 'playbooks', 'playbook_steps', 'playbook_runs', 'playbook_run_steps', 'goes_green_profiles', 'goes_green_energy_assets', 'goes_green_actions', 'goes_green_snapshots');
+    AND table_name IN ('schema_metadata', 'tenants', 'users', 'memory_events', 'journal_entries', 'climate_profiles', 'climate_missions', 'climate_plans', 'climate_plan_items', 'frontend_configs', 'agent_suggestions', 'brands', 'products', 'product_brands', 'agent_tasks', 'agent_insights', 'agent_commands', 'materials', 'product_materials', 'product_climate_meta', 'zora_shop_projects', 'agent_task_policies', 'autonomy_schedules', 'climate_material_profiles', 'climate_experiments', 'climate_experiment_runs', 'foundation_projects', 'foundation_contributions', 'foundation_impact_log', 'organizations', 'playbooks', 'playbook_steps', 'playbook_runs', 'playbook_run_steps', 'goes_green_profiles', 'goes_green_energy_assets', 'goes_green_actions', 'goes_green_snapshots', 'academy_topics', 'academy_lessons', 'academy_modules', 'academy_module_lessons', 'academy_learning_paths', 'academy_learning_path_modules', 'academy_user_progress', 'academy_quizzes', 'academy_quiz_attempts');
     
     -- Count search_memories_by_embedding functions (should be exactly 1)
     SELECT COUNT(*) INTO function_count
@@ -2467,10 +2928,10 @@ BEGIN
     WHERE proname = 'search_memories_by_embedding';
     
     RAISE NOTICE '=== ZORA CORE Schema Verification ===';
-    RAISE NOTICE 'Required tables found: % of 38', table_count;
+    RAISE NOTICE 'Required tables found: % of 47', table_count;
     RAISE NOTICE 'search_memories_by_embedding functions: % (should be 1)', function_count;
     
-    IF table_count = 38 AND function_count = 1 THEN
+    IF table_count = 47 AND function_count = 1 THEN
         RAISE NOTICE 'Schema is correctly configured!';
     ELSE
         RAISE WARNING 'Schema may have issues. Please check the tables and functions.';
@@ -2478,13 +2939,13 @@ BEGIN
 END$$;
 
 -- ============================================================================
--- STEP 14H: RECORD SCHEMA VERSION (Idempotent)
+-- STEP 14I: RECORD SCHEMA VERSION (Idempotent)
 -- ============================================================================
 -- This inserts the current schema version into schema_metadata.
 -- Safe to run multiple times - each run adds a new version record.
 
 INSERT INTO schema_metadata (schema_version, notes)
-VALUES ('2.8.0', 'GOES GREEN + Foundation + Quantum Lab + Orgs/Playbooks + Schema Versioning v1.0');
+VALUES ('2.9.0', 'Climate Academy Backend v1.0');
 
 -- ============================================================================
 -- DONE!
