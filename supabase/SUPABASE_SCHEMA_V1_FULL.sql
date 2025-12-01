@@ -3310,7 +3310,174 @@ COMMENT ON COLUMN tenant_impact_snapshots.snapshot_period IS 'Period type: daily
 COMMENT ON COLUMN tenant_impact_snapshots.metrics IS 'JSON object with impact metrics: climate_os, goes_green, zora_shop, foundation, academy, autonomy';
 
 -- ============================================================================
--- STEP 14L: VERIFY SCHEMA
+-- STEP 14M: WORKFLOW / DAG ENGINE v1.0 (Iteration 00D5)
+-- Schema version: 3.5.0
+-- ============================================================================
+
+-- workflows: Workflow definitions (DAG templates)
+-- tenant_id NULL = global template available to all tenants
+CREATE TABLE IF NOT EXISTS workflows (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    key TEXT NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT NULL,
+    category TEXT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Unique constraint on (tenant_id, key) - allows same key for different tenants
+CREATE UNIQUE INDEX IF NOT EXISTS idx_workflows_tenant_key ON workflows(COALESCE(tenant_id, '00000000-0000-0000-0000-000000000000'::UUID), key);
+CREATE INDEX IF NOT EXISTS idx_workflows_tenant_category ON workflows(tenant_id, category);
+CREATE INDEX IF NOT EXISTS idx_workflows_is_active ON workflows(is_active);
+
+-- Enable RLS for workflows
+ALTER TABLE workflows ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow all for service role" ON workflows;
+CREATE POLICY "Allow all for service role" ON workflows
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE workflows IS 'Workflow definitions (DAG templates) for system orchestration';
+COMMENT ON COLUMN workflows.tenant_id IS 'NULL = global template available to all tenants';
+COMMENT ON COLUMN workflows.key IS 'Machine-readable key, e.g. climate_onboarding_v1';
+COMMENT ON COLUMN workflows.category IS 'Category: climate_os, zora_shop, goes_green, foundation, academy, autonomy, billing';
+
+-- workflow_steps: Nodes in the workflow DAG
+CREATE TABLE IF NOT EXISTS workflow_steps (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    workflow_id UUID NOT NULL REFERENCES workflows(id) ON DELETE CASCADE,
+    key TEXT NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT NULL,
+    step_type TEXT NOT NULL,
+    agent_id TEXT NULL,
+    task_type TEXT NULL,
+    config JSONB NOT NULL DEFAULT '{}'::JSONB,
+    order_index INTEGER NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_workflow_steps_workflow_order ON workflow_steps(workflow_id, order_index);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_workflow_steps_workflow_key ON workflow_steps(workflow_id, key);
+
+-- Enable RLS for workflow_steps
+ALTER TABLE workflow_steps ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow all for service role" ON workflow_steps;
+CREATE POLICY "Allow all for service role" ON workflow_steps
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE workflow_steps IS 'Steps (nodes) in a workflow DAG';
+COMMENT ON COLUMN workflow_steps.step_type IS 'Step type: agent_task, api_call, noop, wait_for_approval';
+COMMENT ON COLUMN workflow_steps.agent_id IS 'Agent ID for agent_task steps: LUMINA, CONNOR, SAM, etc.';
+COMMENT ON COLUMN workflow_steps.task_type IS 'Task type for agent_task steps';
+COMMENT ON COLUMN workflow_steps.config IS 'Step-specific configuration (templates, payload hints)';
+COMMENT ON COLUMN workflow_steps.order_index IS 'Optional linear ordering for simple flows';
+
+-- workflow_step_edges: Edges between steps for DAG semantics
+CREATE TABLE IF NOT EXISTS workflow_step_edges (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    workflow_id UUID NOT NULL REFERENCES workflows(id) ON DELETE CASCADE,
+    from_step_id UUID NOT NULL REFERENCES workflow_steps(id) ON DELETE CASCADE,
+    to_step_id UUID NOT NULL REFERENCES workflow_steps(id) ON DELETE CASCADE,
+    condition TEXT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_workflow_step_edges_unique ON workflow_step_edges(workflow_id, from_step_id, to_step_id, COALESCE(condition, ''));
+CREATE INDEX IF NOT EXISTS idx_workflow_step_edges_from ON workflow_step_edges(from_step_id);
+CREATE INDEX IF NOT EXISTS idx_workflow_step_edges_to ON workflow_step_edges(to_step_id);
+
+-- Enable RLS for workflow_step_edges
+ALTER TABLE workflow_step_edges ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow all for service role" ON workflow_step_edges;
+CREATE POLICY "Allow all for service role" ON workflow_step_edges
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE workflow_step_edges IS 'Edges between workflow steps for DAG semantics';
+COMMENT ON COLUMN workflow_step_edges.condition IS 'Edge condition: on_success, on_failure, always';
+
+-- workflow_runs: Execution instances of workflows
+CREATE TABLE IF NOT EXISTS workflow_runs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    workflow_id UUID NOT NULL REFERENCES workflows(id) ON DELETE CASCADE,
+    triggered_by_user_id UUID NULL REFERENCES users(id) ON DELETE SET NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    context JSONB NOT NULL DEFAULT '{}'::JSONB,
+    result JSONB NULL,
+    error_message TEXT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    started_at TIMESTAMPTZ NULL,
+    completed_at TIMESTAMPTZ NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_workflow_runs_tenant_workflow ON workflow_runs(tenant_id, workflow_id);
+CREATE INDEX IF NOT EXISTS idx_workflow_runs_tenant_status ON workflow_runs(tenant_id, status);
+CREATE INDEX IF NOT EXISTS idx_workflow_runs_created_at ON workflow_runs(created_at DESC);
+
+-- Enable RLS for workflow_runs
+ALTER TABLE workflow_runs ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow all for service role" ON workflow_runs;
+CREATE POLICY "Allow all for service role" ON workflow_runs
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE workflow_runs IS 'Execution instances of workflows';
+COMMENT ON COLUMN workflow_runs.status IS 'Run status: pending, running, completed, failed, canceled, paused';
+COMMENT ON COLUMN workflow_runs.context IS 'Initial context variables (profile_id, org_id, etc.)';
+COMMENT ON COLUMN workflow_runs.result IS 'Final result data after completion';
+
+-- workflow_run_steps: Step status within a workflow run
+CREATE TABLE IF NOT EXISTS workflow_run_steps (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    run_id UUID NOT NULL REFERENCES workflow_runs(id) ON DELETE CASCADE,
+    step_id UUID NOT NULL REFERENCES workflow_steps(id) ON DELETE CASCADE,
+    status TEXT NOT NULL DEFAULT 'pending',
+    agent_task_id UUID NULL REFERENCES agent_tasks(id) ON DELETE SET NULL,
+    input_context JSONB NOT NULL DEFAULT '{}'::JSONB,
+    output_context JSONB NULL,
+    error_message TEXT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    started_at TIMESTAMPTZ NULL,
+    completed_at TIMESTAMPTZ NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_workflow_run_steps_run_status ON workflow_run_steps(run_id, status);
+CREATE INDEX IF NOT EXISTS idx_workflow_run_steps_run_step ON workflow_run_steps(run_id, step_id);
+CREATE INDEX IF NOT EXISTS idx_workflow_run_steps_agent_task ON workflow_run_steps(agent_task_id);
+
+-- Enable RLS for workflow_run_steps
+ALTER TABLE workflow_run_steps ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow all for service role" ON workflow_run_steps;
+CREATE POLICY "Allow all for service role" ON workflow_run_steps
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE workflow_run_steps IS 'Step status within a workflow run';
+COMMENT ON COLUMN workflow_run_steps.status IS 'Step status: pending, waiting_for_task, running, completed, failed, skipped';
+COMMENT ON COLUMN workflow_run_steps.agent_task_id IS 'FK to agent_tasks for steps that create agent tasks';
+COMMENT ON COLUMN workflow_run_steps.input_context IS 'Input context for this step';
+COMMENT ON COLUMN workflow_run_steps.output_context IS 'Output context after step completion';
+
+-- ============================================================================
+-- STEP 14N: VERIFY SCHEMA
 -- ============================================================================
 
 -- This query will show all tables that should exist
@@ -3320,11 +3487,11 @@ DECLARE
     table_count INTEGER;
     function_count INTEGER;
 BEGIN
-    -- Count required tables (now 55 with Security & Auth Hardening tables added)
+    -- Count required tables (now 62 with Workflow / DAG Engine tables added)
     SELECT COUNT(*) INTO table_count
     FROM information_schema.tables 
     WHERE table_schema = 'public' 
-    AND table_name IN ('schema_metadata', 'tenants', 'users', 'memory_events', 'journal_entries', 'climate_profiles', 'climate_missions', 'climate_plans', 'climate_plan_items', 'frontend_configs', 'agent_suggestions', 'brands', 'products', 'product_brands', 'agent_tasks', 'agent_insights', 'agent_commands', 'materials', 'product_materials', 'product_climate_meta', 'zora_shop_projects', 'agent_task_policies', 'autonomy_schedules', 'climate_material_profiles', 'climate_experiments', 'climate_experiment_runs', 'foundation_projects', 'foundation_contributions', 'foundation_impact_log', 'organizations', 'playbooks', 'playbook_steps', 'playbook_runs', 'playbook_run_steps', 'goes_green_profiles', 'goes_green_energy_assets', 'goes_green_actions', 'goes_green_snapshots', 'academy_topics', 'academy_lessons', 'academy_modules', 'academy_module_lessons', 'academy_learning_paths', 'academy_learning_path_modules', 'academy_user_progress', 'academy_quizzes', 'academy_quiz_attempts', 'billing_plans', 'tenant_subscriptions', 'billing_events', 'zora_shop_commission_settings', 'zora_shop_orders', 'zora_shop_order_items', 'auth_password_reset_tokens', 'auth_email_verification_tokens', 'tenant_impact_snapshots');
+    AND table_name IN ('schema_metadata', 'tenants', 'users', 'memory_events', 'journal_entries', 'climate_profiles', 'climate_missions', 'climate_plans', 'climate_plan_items', 'frontend_configs', 'agent_suggestions', 'brands', 'products', 'product_brands', 'agent_tasks', 'agent_insights', 'agent_commands', 'materials', 'product_materials', 'product_climate_meta', 'zora_shop_projects', 'agent_task_policies', 'autonomy_schedules', 'climate_material_profiles', 'climate_experiments', 'climate_experiment_runs', 'foundation_projects', 'foundation_contributions', 'foundation_impact_log', 'organizations', 'playbooks', 'playbook_steps', 'playbook_runs', 'playbook_run_steps', 'goes_green_profiles', 'goes_green_energy_assets', 'goes_green_actions', 'goes_green_snapshots', 'academy_topics', 'academy_lessons', 'academy_modules', 'academy_module_lessons', 'academy_learning_paths', 'academy_learning_path_modules', 'academy_user_progress', 'academy_quizzes', 'academy_quiz_attempts', 'billing_plans', 'tenant_subscriptions', 'billing_events', 'zora_shop_commission_settings', 'zora_shop_orders', 'zora_shop_order_items', 'auth_password_reset_tokens', 'auth_email_verification_tokens', 'tenant_impact_snapshots', 'workflows', 'workflow_steps', 'workflow_step_edges', 'workflow_runs', 'workflow_run_steps');
     
     -- Count search_memories_by_embedding functions (should be exactly 1)
     SELECT COUNT(*) INTO function_count
@@ -3332,10 +3499,10 @@ BEGIN
     WHERE proname = 'search_memories_by_embedding';
     
     RAISE NOTICE '=== ZORA CORE Schema Verification ===';
-    RAISE NOTICE 'Required tables found: % of 57', table_count;
+    RAISE NOTICE 'Required tables found: % of 62', table_count;
     RAISE NOTICE 'search_memories_by_embedding functions: % (should be 1)', function_count;
     
-    IF table_count = 57 AND function_count = 1 THEN
+    IF table_count = 62 AND function_count = 1 THEN
         RAISE NOTICE 'Schema is correctly configured!';
     ELSE
         RAISE WARNING 'Schema may have issues. Please check the tables and functions.';
@@ -3349,7 +3516,7 @@ END$$;
 -- Safe to run multiple times - each run adds a new version record.
 
 INSERT INTO schema_metadata (schema_version, notes)
-VALUES ('3.4.0', 'Global Impact & Data Aggregates v1.0');
+VALUES ('3.5.0', 'Workflow / DAG Engine v1.0');
 
 -- ============================================================================
 -- DONE!
