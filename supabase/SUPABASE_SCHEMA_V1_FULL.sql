@@ -2073,7 +2073,194 @@ COMMENT ON COLUMN foundation_impact_log.impact_kgco2 IS 'Impact in kg CO2 equiva
 COMMENT ON COLUMN foundation_impact_log.impact_units IS 'Human-readable units: trees_planted, m2_restored, kWh_clean_energy, etc.';
 
 -- ============================================================================
--- STEP 14E: VERIFY SCHEMA
+-- STEP 14E: BRAND/ORG & PLAYBOOKS v1.0 (Iteration 00C4)
+-- Schema version: 2.7.0
+-- ============================================================================
+
+-- Organizations table - represents entities (brands, NGOs, cities, startups, etc.) within a tenant
+-- Can optionally link to existing ZORA SHOP brands for integration
+CREATE TABLE IF NOT EXISTS organizations (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    organization_type TEXT NOT NULL,
+    description TEXT,
+    homepage_url TEXT,
+    country TEXT,
+    city_or_region TEXT,
+    industry TEXT,
+    tags TEXT[],
+    linked_shop_brand_id UUID REFERENCES brands(id) ON DELETE SET NULL,
+    metadata JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Indexes for organizations
+CREATE INDEX IF NOT EXISTS idx_organizations_tenant ON organizations(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_organizations_type ON organizations(organization_type);
+CREATE INDEX IF NOT EXISTS idx_organizations_tags ON organizations USING GIN(tags);
+
+-- Enable RLS for organizations
+ALTER TABLE organizations ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy for organizations
+DROP POLICY IF EXISTS "Allow all for service role" ON organizations;
+CREATE POLICY "Allow all for service role" ON organizations
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE organizations IS 'Organizations/brands within a tenant for playbook workflows';
+COMMENT ON COLUMN organizations.organization_type IS 'Type: brand, ngo, city, startup, energy_utility, etc.';
+COMMENT ON COLUMN organizations.linked_shop_brand_id IS 'Optional link to existing ZORA SHOP brands table';
+
+-- Playbooks table - reusable workflow templates
+CREATE TABLE IF NOT EXISTS playbooks (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE,
+    code TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    description TEXT,
+    category TEXT NOT NULL,
+    target_entity_type TEXT NOT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    metadata JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Indexes for playbooks
+CREATE INDEX IF NOT EXISTS idx_playbooks_tenant_active ON playbooks(tenant_id, is_active);
+CREATE INDEX IF NOT EXISTS idx_playbooks_category_target ON playbooks(category, target_entity_type);
+
+-- Enable RLS for playbooks
+ALTER TABLE playbooks ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy for playbooks
+DROP POLICY IF EXISTS "Allow all for service role" ON playbooks;
+CREATE POLICY "Allow all for service role" ON playbooks
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE playbooks IS 'Reusable workflow templates for onboarding, climate plans, ZORA SHOP collabs, etc.';
+COMMENT ON COLUMN playbooks.tenant_id IS 'NULL = global template available to all tenants, NOT NULL = tenant-specific';
+COMMENT ON COLUMN playbooks.code IS 'Machine-friendly identifier: ONBOARDING_BRAND_V1, CLIMATE_STARTER_PLAN_V1, etc.';
+COMMENT ON COLUMN playbooks.category IS 'Category: onboarding, climate, zora_shop, foundation, goes_green';
+COMMENT ON COLUMN playbooks.target_entity_type IS 'Target: tenant, organization, climate_profile, zora_shop_project';
+
+-- Playbook steps table - step templates within a playbook
+CREATE TABLE IF NOT EXISTS playbook_steps (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    playbook_id UUID NOT NULL REFERENCES playbooks(id) ON DELETE CASCADE,
+    step_order INTEGER NOT NULL,
+    code TEXT NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT,
+    agent_suggestion TEXT,
+    task_type TEXT,
+    config JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(playbook_id, step_order)
+);
+
+-- Indexes for playbook_steps
+CREATE INDEX IF NOT EXISTS idx_playbook_steps_playbook ON playbook_steps(playbook_id);
+
+-- Enable RLS for playbook_steps
+ALTER TABLE playbook_steps ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy for playbook_steps
+DROP POLICY IF EXISTS "Allow all for service role" ON playbook_steps;
+CREATE POLICY "Allow all for service role" ON playbook_steps
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE playbook_steps IS 'Step templates within a playbook workflow';
+COMMENT ON COLUMN playbook_steps.code IS 'Step code: CREATE_CLIMATE_PROFILE, SUGGEST_WEEKLY_PLAN, etc.';
+COMMENT ON COLUMN playbook_steps.agent_suggestion IS 'Primary agent: LUMINA, CONNOR, SAM, ORACLE, EIVOR, AEGIS';
+COMMENT ON COLUMN playbook_steps.task_type IS 'Optional mapping to agent_tasks.task_type for autonomy integration';
+
+-- Playbook runs table - instances of playbooks for a tenant/entity
+CREATE TABLE IF NOT EXISTS playbook_runs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    playbook_id UUID NOT NULL REFERENCES playbooks(id) ON DELETE CASCADE,
+    target_entity_type TEXT NOT NULL,
+    target_entity_id UUID,
+    status TEXT NOT NULL DEFAULT 'not_started',
+    started_at TIMESTAMPTZ,
+    completed_at TIMESTAMPTZ,
+    failed_at TIMESTAMPTZ,
+    failure_reason TEXT,
+    metadata JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Indexes for playbook_runs
+CREATE INDEX IF NOT EXISTS idx_playbook_runs_tenant_playbook ON playbook_runs(tenant_id, playbook_id);
+CREATE INDEX IF NOT EXISTS idx_playbook_runs_tenant_status ON playbook_runs(tenant_id, status);
+
+-- Enable RLS for playbook_runs
+ALTER TABLE playbook_runs ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy for playbook_runs
+DROP POLICY IF EXISTS "Allow all for service role" ON playbook_runs;
+CREATE POLICY "Allow all for service role" ON playbook_runs
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE playbook_runs IS 'Instances of playbooks running for a specific tenant/entity';
+COMMENT ON COLUMN playbook_runs.status IS 'Status: not_started, in_progress, completed, failed, paused';
+COMMENT ON COLUMN playbook_runs.target_entity_type IS 'Type: tenant, organization, climate_profile, zora_shop_project';
+COMMENT ON COLUMN playbook_runs.target_entity_id IS 'ID of target entity (organization_id, climate_profile_id, etc.)';
+
+-- Playbook run steps table - instances of steps within a run
+CREATE TABLE IF NOT EXISTS playbook_run_steps (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    playbook_run_id UUID NOT NULL REFERENCES playbook_runs(id) ON DELETE CASCADE,
+    playbook_step_id UUID NOT NULL REFERENCES playbook_steps(id) ON DELETE CASCADE,
+    step_order INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'not_started',
+    agent_id TEXT,
+    agent_task_id UUID,
+    started_at TIMESTAMPTZ,
+    completed_at TIMESTAMPTZ,
+    failed_at TIMESTAMPTZ,
+    failure_reason TEXT,
+    notes TEXT,
+    metadata JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Indexes for playbook_run_steps
+CREATE INDEX IF NOT EXISTS idx_playbook_run_steps_tenant_run ON playbook_run_steps(tenant_id, playbook_run_id);
+CREATE INDEX IF NOT EXISTS idx_playbook_run_steps_tenant_status ON playbook_run_steps(tenant_id, status);
+
+-- Enable RLS for playbook_run_steps
+ALTER TABLE playbook_run_steps ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy for playbook_run_steps
+DROP POLICY IF EXISTS "Allow all for service role" ON playbook_run_steps;
+CREATE POLICY "Allow all for service role" ON playbook_run_steps
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE playbook_run_steps IS 'Instances of steps within a playbook run';
+COMMENT ON COLUMN playbook_run_steps.status IS 'Status: not_started, pending, in_progress, completed, failed, skipped';
+COMMENT ON COLUMN playbook_run_steps.agent_id IS 'Agent assigned: LUMINA, CONNOR, EIVOR, ORACLE, AEGIS, SAM';
+COMMENT ON COLUMN playbook_run_steps.agent_task_id IS 'Optional FK to agent_tasks.id for autonomy integration';
+
+-- ============================================================================
+-- STEP 14F: VERIFY SCHEMA
 -- ============================================================================
 
 -- This query will show all tables that should exist
@@ -2083,11 +2270,11 @@ DECLARE
     table_count INTEGER;
     function_count INTEGER;
 BEGIN
-    -- Count required tables (now 28 with foundation_projects, foundation_contributions, foundation_impact_log)
+    -- Count required tables (now 33 with organizations, playbooks, playbook_steps, playbook_runs, playbook_run_steps)
     SELECT COUNT(*) INTO table_count
     FROM information_schema.tables 
     WHERE table_schema = 'public' 
-    AND table_name IN ('tenants', 'users', 'memory_events', 'journal_entries', 'climate_profiles', 'climate_missions', 'climate_plans', 'climate_plan_items', 'frontend_configs', 'agent_suggestions', 'brands', 'products', 'product_brands', 'agent_tasks', 'agent_insights', 'agent_commands', 'materials', 'product_materials', 'product_climate_meta', 'zora_shop_projects', 'agent_task_policies', 'autonomy_schedules', 'climate_material_profiles', 'climate_experiments', 'climate_experiment_runs', 'foundation_projects', 'foundation_contributions', 'foundation_impact_log');
+    AND table_name IN ('tenants', 'users', 'memory_events', 'journal_entries', 'climate_profiles', 'climate_missions', 'climate_plans', 'climate_plan_items', 'frontend_configs', 'agent_suggestions', 'brands', 'products', 'product_brands', 'agent_tasks', 'agent_insights', 'agent_commands', 'materials', 'product_materials', 'product_climate_meta', 'zora_shop_projects', 'agent_task_policies', 'autonomy_schedules', 'climate_material_profiles', 'climate_experiments', 'climate_experiment_runs', 'foundation_projects', 'foundation_contributions', 'foundation_impact_log', 'organizations', 'playbooks', 'playbook_steps', 'playbook_runs', 'playbook_run_steps');
     
     -- Count search_memories_by_embedding functions (should be exactly 1)
     SELECT COUNT(*) INTO function_count
@@ -2095,10 +2282,10 @@ BEGIN
     WHERE proname = 'search_memories_by_embedding';
     
     RAISE NOTICE '=== ZORA CORE Schema Verification ===';
-    RAISE NOTICE 'Required tables found: % of 28', table_count;
+    RAISE NOTICE 'Required tables found: % of 33', table_count;
     RAISE NOTICE 'search_memories_by_embedding functions: % (should be 1)', function_count;
     
-    IF table_count = 28 AND function_count = 1 THEN
+    IF table_count = 33 AND function_count = 1 THEN
         RAISE NOTICE 'Schema is correctly configured!';
     ELSE
         RAISE WARNING 'Schema may have issues. Please check the tables and functions.';
