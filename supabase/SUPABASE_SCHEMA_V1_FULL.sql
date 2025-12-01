@@ -20,7 +20,7 @@
 --   - /admin/setup will work correctly
 -- 
 -- Date: 2025-12-01
--- Version: 3.2.0 (Billing & Subscription Enforcement v1.1)
+-- Version: 3.3.0 (Seed Data & Onboarding Backend v1.0)
 -- ============================================================================
 
 -- ============================================================================
@@ -3240,6 +3240,40 @@ COMMENT ON COLUMN auth_email_verification_tokens.expires_at IS 'Token expires af
 COMMENT ON COLUMN auth_email_verification_tokens.used_at IS 'Timestamp when token was used, NULL if not yet used';
 
 -- ============================================================================
+-- STEP 14L: SEED DATA & ONBOARDING v1.0 (Iteration 00D2)
+-- ============================================================================
+-- Track which seed sets have been applied per tenant to prevent duplicate seeding.
+
+CREATE TABLE IF NOT EXISTS seed_runs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    seed_key TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'completed',
+    details TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT seed_runs_unique_tenant_seed UNIQUE (tenant_id, seed_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_seed_runs_tenant_id ON seed_runs(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_seed_runs_seed_key ON seed_runs(seed_key);
+
+COMMENT ON TABLE seed_runs IS 'Tracks which seed sets have been applied per tenant - prevents duplicate seeding';
+COMMENT ON COLUMN seed_runs.seed_key IS 'Stable identifier for the seed set (e.g. climate_default_missions_v1, hemp_materials_v1)';
+COMMENT ON COLUMN seed_runs.status IS 'Status of the seed run: completed, error, skipped_already_run';
+COMMENT ON COLUMN seed_runs.details IS 'Optional details about the seed run (e.g. error message, count of records created)';
+
+-- RLS for seed_runs
+ALTER TABLE seed_runs ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "seed_runs_tenant_isolation" ON seed_runs;
+CREATE POLICY "seed_runs_tenant_isolation" ON seed_runs
+    FOR ALL USING (tenant_id = current_setting('app.tenant_id', true)::uuid);
+
+DROP POLICY IF EXISTS "seed_runs_service_role_full_access" ON seed_runs;
+CREATE POLICY "seed_runs_service_role_full_access" ON seed_runs
+    FOR ALL USING (current_setting('role', true) = 'service_role');
+
+-- ============================================================================
 -- STEP 14K: VERIFY SCHEMA
 -- ============================================================================
 
@@ -3262,10 +3296,10 @@ BEGIN
     WHERE proname = 'search_memories_by_embedding';
     
     RAISE NOTICE '=== ZORA CORE Schema Verification ===';
-    RAISE NOTICE 'Required tables found: % of 55', table_count;
+    RAISE NOTICE 'Required tables found: % of 56', table_count;
     RAISE NOTICE 'search_memories_by_embedding functions: % (should be 1)', function_count;
     
-    IF table_count = 55 AND function_count = 1 THEN
+    IF table_count = 56 AND function_count = 1 THEN
         RAISE NOTICE 'Schema is correctly configured!';
     ELSE
         RAISE WARNING 'Schema may have issues. Please check the tables and functions.';
@@ -3279,7 +3313,7 @@ END$$;
 -- Safe to run multiple times - each run adds a new version record.
 
 INSERT INTO schema_metadata (schema_version, notes)
-VALUES ('3.2.0', 'Billing & Subscription Enforcement v1.1');
+VALUES ('3.3.0', 'Seed Data & Onboarding Backend v1.0');
 
 -- ============================================================================
 -- DONE!
