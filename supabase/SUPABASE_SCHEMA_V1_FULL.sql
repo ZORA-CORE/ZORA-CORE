@@ -19,8 +19,8 @@
 --   - The search_memories_by_embedding function will be correctly defined
 --   - /admin/setup will work correctly
 -- 
--- Date: 2025-11-28
--- Version: 2.3.0 (Safety + Scheduling v1 - Task approval policies and autonomy schedules)
+-- Date: 2025-12-01
+-- Version: 2.8.0 (GOES GREEN + Foundation + Quantum Lab + Orgs/Playbooks + Schema Versioning)
 -- ============================================================================
 
 -- ============================================================================
@@ -30,6 +30,27 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pg_trgm";
 CREATE EXTENSION IF NOT EXISTS "vector";
+
+-- ============================================================================
+-- STEP 1B: CREATE SCHEMA_METADATA TABLE (Schema Versioning v1.0)
+-- ============================================================================
+-- This table tracks which schema version is currently deployed.
+-- It serves as the single source of truth for schema versioning.
+
+CREATE TABLE IF NOT EXISTS schema_metadata (
+    id BIGSERIAL PRIMARY KEY,
+    schema_version TEXT NOT NULL,
+    applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    notes TEXT
+);
+
+-- Index for quick version lookups
+CREATE INDEX IF NOT EXISTS idx_schema_metadata_applied_at ON schema_metadata(applied_at DESC);
+
+COMMENT ON TABLE schema_metadata IS 'Tracks schema versions applied to this database - single source of truth for versioning';
+COMMENT ON COLUMN schema_metadata.schema_version IS 'Semantic version string (e.g., 2.8.0)';
+COMMENT ON COLUMN schema_metadata.applied_at IS 'Timestamp when this version was applied';
+COMMENT ON COLUMN schema_metadata.notes IS 'Optional notes about what changed in this version';
 
 -- ============================================================================
 -- STEP 2: CREATE ENUM TYPES (IF NOT EXISTS)
@@ -2434,11 +2455,11 @@ DECLARE
     table_count INTEGER;
     function_count INTEGER;
 BEGIN
-    -- Count required tables (now 37 with goes_green_profiles, goes_green_energy_assets, goes_green_actions, goes_green_snapshots)
+    -- Count required tables (now 38 with schema_metadata added for versioning)
     SELECT COUNT(*) INTO table_count
     FROM information_schema.tables 
     WHERE table_schema = 'public' 
-    AND table_name IN ('tenants', 'users', 'memory_events', 'journal_entries', 'climate_profiles', 'climate_missions', 'climate_plans', 'climate_plan_items', 'frontend_configs', 'agent_suggestions', 'brands', 'products', 'product_brands', 'agent_tasks', 'agent_insights', 'agent_commands', 'materials', 'product_materials', 'product_climate_meta', 'zora_shop_projects', 'agent_task_policies', 'autonomy_schedules', 'climate_material_profiles', 'climate_experiments', 'climate_experiment_runs', 'foundation_projects', 'foundation_contributions', 'foundation_impact_log', 'organizations', 'playbooks', 'playbook_steps', 'playbook_runs', 'playbook_run_steps', 'goes_green_profiles', 'goes_green_energy_assets', 'goes_green_actions', 'goes_green_snapshots');
+    AND table_name IN ('schema_metadata', 'tenants', 'users', 'memory_events', 'journal_entries', 'climate_profiles', 'climate_missions', 'climate_plans', 'climate_plan_items', 'frontend_configs', 'agent_suggestions', 'brands', 'products', 'product_brands', 'agent_tasks', 'agent_insights', 'agent_commands', 'materials', 'product_materials', 'product_climate_meta', 'zora_shop_projects', 'agent_task_policies', 'autonomy_schedules', 'climate_material_profiles', 'climate_experiments', 'climate_experiment_runs', 'foundation_projects', 'foundation_contributions', 'foundation_impact_log', 'organizations', 'playbooks', 'playbook_steps', 'playbook_runs', 'playbook_run_steps', 'goes_green_profiles', 'goes_green_energy_assets', 'goes_green_actions', 'goes_green_snapshots');
     
     -- Count search_memories_by_embedding functions (should be exactly 1)
     SELECT COUNT(*) INTO function_count
@@ -2446,15 +2467,24 @@ BEGIN
     WHERE proname = 'search_memories_by_embedding';
     
     RAISE NOTICE '=== ZORA CORE Schema Verification ===';
-    RAISE NOTICE 'Required tables found: % of 37', table_count;
+    RAISE NOTICE 'Required tables found: % of 38', table_count;
     RAISE NOTICE 'search_memories_by_embedding functions: % (should be 1)', function_count;
     
-    IF table_count = 37 AND function_count = 1 THEN
+    IF table_count = 38 AND function_count = 1 THEN
         RAISE NOTICE 'Schema is correctly configured!';
     ELSE
         RAISE WARNING 'Schema may have issues. Please check the tables and functions.';
     END IF;
 END$$;
+
+-- ============================================================================
+-- STEP 14H: RECORD SCHEMA VERSION (Idempotent)
+-- ============================================================================
+-- This inserts the current schema version into schema_metadata.
+-- Safe to run multiple times - each run adds a new version record.
+
+INSERT INTO schema_metadata (schema_version, notes)
+VALUES ('2.8.0', 'GOES GREEN + Foundation + Quantum Lab + Orgs/Playbooks + Schema Versioning v1.0');
 
 -- ============================================================================
 -- DONE!

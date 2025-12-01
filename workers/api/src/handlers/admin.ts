@@ -93,13 +93,14 @@ adminHandler.get('/status', async (c) => {
 
 /**
  * GET /api/admin/schema-status
- * Returns schema health status - checks for expected tables and columns
+ * Returns schema health status - checks for expected tables, columns, and schema version
  */
 adminHandler.get('/schema-status', async (c) => {
   const supabase = getSupabaseClient(c.env);
   
   // Define expected tables and their required columns
   const expectedSchema: Record<string, string[]> = {
+    schema_metadata: ['id', 'schema_version', 'applied_at'],
     tenants: ['id', 'name', 'slug', 'description', 'metadata', 'created_at'],
     users: ['id', 'tenant_id', 'email', 'display_name', 'role', 'metadata', 'created_at'],
     memory_events: ['id', 'agent', 'memory_type', 'content', 'tags', 'metadata', 'created_at'],
@@ -112,8 +113,21 @@ adminHandler.get('/schema-status', async (c) => {
   
   const missingTables: string[] = [];
   const missingColumns: string[] = [];
+  let schemaVersion: string | null = null;
   
   try {
+    // First, try to get the current schema version from schema_metadata
+    const { data: versionData, error: versionError } = await supabase
+      .from('schema_metadata')
+      .select('schema_version')
+      .order('applied_at', { ascending: false })
+      .limit(1)
+      .single();
+    
+    if (!versionError && versionData) {
+      schemaVersion = versionData.schema_version;
+    }
+    
     // Check each expected table
     for (const [tableName, expectedColumns] of Object.entries(expectedSchema)) {
       // Try to query the table to check if it exists
@@ -155,6 +169,7 @@ adminHandler.get('/schema-status', async (c) => {
   const schemaOk = missingTables.length === 0 && missingColumns.length === 0;
   
   const response: SchemaStatusResponse = {
+    schema_version: schemaVersion,
     schema_ok: schemaOk,
     missing_tables: missingTables,
     missing_columns: missingColumns,

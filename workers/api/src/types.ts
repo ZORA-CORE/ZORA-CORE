@@ -428,6 +428,7 @@ export interface ClimateContext {
 
 // Schema health check types
 export interface SchemaStatusResponse {
+  schema_version: string | null;
   schema_ok: boolean;
   missing_tables: string[];
   missing_columns: string[];
