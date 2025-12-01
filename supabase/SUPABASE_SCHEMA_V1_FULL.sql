@@ -20,7 +20,7 @@
 --   - /admin/setup will work correctly
 -- 
 -- Date: 2025-12-01
--- Version: 3.0.0 (Billing, Subscriptions & ZORA SHOP Commission Backend v1.0)
+-- Version: 3.1.0 (Security & Auth Hardening v1.0)
 -- ============================================================================
 
 -- ============================================================================
@@ -291,6 +291,16 @@ COMMENT ON COLUMN users.password_hash IS 'Bcrypt-hashed password for password-ba
 
 -- Add index for display_name lookups (used in login)
 CREATE INDEX IF NOT EXISTS idx_users_display_name ON users(display_name);
+
+-- Security & Auth Hardening v1.0 columns
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMPTZ;
+COMMENT ON COLUMN users.email_verified_at IS 'Timestamp when email was verified, NULL if not verified';
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS failed_login_attempts INTEGER NOT NULL DEFAULT 0;
+COMMENT ON COLUMN users.failed_login_attempts IS 'Consecutive failed login attempts since last success';
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS locked_until TIMESTAMPTZ;
+COMMENT ON COLUMN users.locked_until IS 'Account locked until this timestamp, NULL if not locked';
 
 -- ============================================================================
 -- STEP 6: CREATE MEMORY_EVENTS TABLE
@@ -3159,7 +3169,74 @@ COMMENT ON TABLE zora_shop_order_items IS 'Line items for ZORA SHOP orders';
 COMMENT ON COLUMN zora_shop_order_items.line_total IS 'Calculated as quantity * unit_price';
 
 -- ============================================================================
--- STEP 14I: VERIFY SCHEMA
+-- STEP 14J: SECURITY & AUTH HARDENING v1.0
+-- ============================================================================
+-- Password reset tokens and email verification tokens for secure auth flows
+
+-- Password Reset Tokens
+CREATE TABLE IF NOT EXISTS auth_password_reset_tokens (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_hash TEXT NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    used_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Indexes for password reset tokens
+CREATE INDEX IF NOT EXISTS idx_auth_password_reset_tokens_tenant_user ON auth_password_reset_tokens(tenant_id, user_id);
+CREATE INDEX IF NOT EXISTS idx_auth_password_reset_tokens_expires_at ON auth_password_reset_tokens(expires_at);
+CREATE INDEX IF NOT EXISTS idx_auth_password_reset_tokens_token_hash ON auth_password_reset_tokens(token_hash);
+
+-- Enable RLS
+ALTER TABLE auth_password_reset_tokens ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy - service role only (sensitive security table)
+DROP POLICY IF EXISTS "Allow all for service role" ON auth_password_reset_tokens;
+CREATE POLICY "Allow all for service role" ON auth_password_reset_tokens
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE auth_password_reset_tokens IS 'Secure password reset tokens - service role access only';
+COMMENT ON COLUMN auth_password_reset_tokens.token_hash IS 'SHA-256 hash of the reset token (never store raw token)';
+COMMENT ON COLUMN auth_password_reset_tokens.expires_at IS 'Token expires after this timestamp (typically 1 hour)';
+COMMENT ON COLUMN auth_password_reset_tokens.used_at IS 'Timestamp when token was used, NULL if not yet used';
+
+-- Email Verification Tokens
+CREATE TABLE IF NOT EXISTS auth_email_verification_tokens (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_hash TEXT NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    used_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Indexes for email verification tokens
+CREATE INDEX IF NOT EXISTS idx_auth_email_verification_tokens_tenant_user ON auth_email_verification_tokens(tenant_id, user_id);
+CREATE INDEX IF NOT EXISTS idx_auth_email_verification_tokens_expires_at ON auth_email_verification_tokens(expires_at);
+CREATE INDEX IF NOT EXISTS idx_auth_email_verification_tokens_token_hash ON auth_email_verification_tokens(token_hash);
+
+-- Enable RLS
+ALTER TABLE auth_email_verification_tokens ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy - service role only (sensitive security table)
+DROP POLICY IF EXISTS "Allow all for service role" ON auth_email_verification_tokens;
+CREATE POLICY "Allow all for service role" ON auth_email_verification_tokens
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE auth_email_verification_tokens IS 'Secure email verification tokens - service role access only';
+COMMENT ON COLUMN auth_email_verification_tokens.token_hash IS 'SHA-256 hash of the verification token (never store raw token)';
+COMMENT ON COLUMN auth_email_verification_tokens.expires_at IS 'Token expires after this timestamp (typically 24 hours)';
+COMMENT ON COLUMN auth_email_verification_tokens.used_at IS 'Timestamp when token was used, NULL if not yet used';
+
+-- ============================================================================
+-- STEP 14K: VERIFY SCHEMA
 -- ============================================================================
 
 -- This query will show all tables that should exist
@@ -3169,11 +3246,11 @@ DECLARE
     table_count INTEGER;
     function_count INTEGER;
 BEGIN
-    -- Count required tables (now 53 with Billing & Commission tables added)
+    -- Count required tables (now 55 with Security & Auth Hardening tables added)
     SELECT COUNT(*) INTO table_count
     FROM information_schema.tables 
     WHERE table_schema = 'public' 
-    AND table_name IN ('schema_metadata', 'tenants', 'users', 'memory_events', 'journal_entries', 'climate_profiles', 'climate_missions', 'climate_plans', 'climate_plan_items', 'frontend_configs', 'agent_suggestions', 'brands', 'products', 'product_brands', 'agent_tasks', 'agent_insights', 'agent_commands', 'materials', 'product_materials', 'product_climate_meta', 'zora_shop_projects', 'agent_task_policies', 'autonomy_schedules', 'climate_material_profiles', 'climate_experiments', 'climate_experiment_runs', 'foundation_projects', 'foundation_contributions', 'foundation_impact_log', 'organizations', 'playbooks', 'playbook_steps', 'playbook_runs', 'playbook_run_steps', 'goes_green_profiles', 'goes_green_energy_assets', 'goes_green_actions', 'goes_green_snapshots', 'academy_topics', 'academy_lessons', 'academy_modules', 'academy_module_lessons', 'academy_learning_paths', 'academy_learning_path_modules', 'academy_user_progress', 'academy_quizzes', 'academy_quiz_attempts', 'billing_plans', 'tenant_subscriptions', 'billing_events', 'zora_shop_commission_settings', 'zora_shop_orders', 'zora_shop_order_items');
+    AND table_name IN ('schema_metadata', 'tenants', 'users', 'memory_events', 'journal_entries', 'climate_profiles', 'climate_missions', 'climate_plans', 'climate_plan_items', 'frontend_configs', 'agent_suggestions', 'brands', 'products', 'product_brands', 'agent_tasks', 'agent_insights', 'agent_commands', 'materials', 'product_materials', 'product_climate_meta', 'zora_shop_projects', 'agent_task_policies', 'autonomy_schedules', 'climate_material_profiles', 'climate_experiments', 'climate_experiment_runs', 'foundation_projects', 'foundation_contributions', 'foundation_impact_log', 'organizations', 'playbooks', 'playbook_steps', 'playbook_runs', 'playbook_run_steps', 'goes_green_profiles', 'goes_green_energy_assets', 'goes_green_actions', 'goes_green_snapshots', 'academy_topics', 'academy_lessons', 'academy_modules', 'academy_module_lessons', 'academy_learning_paths', 'academy_learning_path_modules', 'academy_user_progress', 'academy_quizzes', 'academy_quiz_attempts', 'billing_plans', 'tenant_subscriptions', 'billing_events', 'zora_shop_commission_settings', 'zora_shop_orders', 'zora_shop_order_items', 'auth_password_reset_tokens', 'auth_email_verification_tokens');
     
     -- Count search_memories_by_embedding functions (should be exactly 1)
     SELECT COUNT(*) INTO function_count
@@ -3181,10 +3258,10 @@ BEGIN
     WHERE proname = 'search_memories_by_embedding';
     
     RAISE NOTICE '=== ZORA CORE Schema Verification ===';
-    RAISE NOTICE 'Required tables found: % of 53', table_count;
+    RAISE NOTICE 'Required tables found: % of 55', table_count;
     RAISE NOTICE 'search_memories_by_embedding functions: % (should be 1)', function_count;
     
-    IF table_count = 53 AND function_count = 1 THEN
+    IF table_count = 55 AND function_count = 1 THEN
         RAISE NOTICE 'Schema is correctly configured!';
     ELSE
         RAISE WARNING 'Schema may have issues. Please check the tables and functions.';
@@ -3198,7 +3275,7 @@ END$$;
 -- Safe to run multiple times - each run adds a new version record.
 
 INSERT INTO schema_metadata (schema_version, notes)
-VALUES ('3.0.0', 'Billing, Subscriptions & ZORA SHOP Commission Backend v1.0');
+VALUES ('3.1.0', 'Security & Auth Hardening v1.0');
 
 -- ============================================================================
 -- DONE!
