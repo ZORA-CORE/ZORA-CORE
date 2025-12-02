@@ -231,7 +231,7 @@ export default function DeskPage() {
             {t.desk.title}
           </h1>
           <p className="text-[var(--foreground)]/60">
-            {user?.display_name ? `${t.desk.welcomeBack}, ${user.display_name}` : t.desk.subtitle}
+            {user ? t.desk.welcomeBack : t.desk.subtitle}
           </p>
         </div>
 
