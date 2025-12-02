@@ -3707,6 +3707,94 @@ INSERT INTO schema_metadata (schema_version, notes)
 VALUES ('3.7.0', 'Nordic Agent Rename - CONNOR→ODIN, LUMINA→TYR, SAM→BALDUR, ORACLE→HEIMDALL, AEGIS→TYR, added THOR and FREYA');
 
 -- ============================================================================
+-- STEP 15: WORLD MODEL / KNOWLEDGE GRAPH v1.0
+-- Schema version: 3.8.0
+-- ============================================================================
+-- The World Model provides a graph-based view of ZORA CORE for Nordic agents
+-- (ODIN, HEIMDALL, EIVOR, TYR) to reason about system relationships.
+-- 
+-- Nodes represent: modules, tables, endpoints, workflows, domain_objects
+-- Edges represent: depends_on, reads_from, writes_to, belongs_to, etc.
+
+-- world_nodes: Nodes in the ZORA World Model knowledge graph
+CREATE TABLE IF NOT EXISTS world_nodes (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    entity_type TEXT NOT NULL,
+    key TEXT NOT NULL,
+    label TEXT NOT NULL,
+    description TEXT NULL,
+    module TEXT NULL,
+    tags JSONB NOT NULL DEFAULT '[]'::JSONB,
+    metadata JSONB NOT NULL DEFAULT '{}'::JSONB,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(entity_type, key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_world_nodes_entity_type ON world_nodes(entity_type);
+CREATE INDEX IF NOT EXISTS idx_world_nodes_module ON world_nodes(module);
+CREATE INDEX IF NOT EXISTS idx_world_nodes_tags ON world_nodes USING GIN(tags);
+
+-- Enable RLS for world_nodes
+ALTER TABLE world_nodes ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow all for service role" ON world_nodes;
+CREATE POLICY "Allow all for service role" ON world_nodes
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE world_nodes IS 'Nodes in the ZORA World Model knowledge graph';
+COMMENT ON COLUMN world_nodes.entity_type IS 'Node type: module, table, endpoint, workflow, domain_object';
+COMMENT ON COLUMN world_nodes.key IS 'Unique key within entity_type (e.g., climate_os, climate_profiles, /api/climate/profiles)';
+COMMENT ON COLUMN world_nodes.label IS 'Human-readable label';
+COMMENT ON COLUMN world_nodes.description IS 'Short description of the node';
+COMMENT ON COLUMN world_nodes.module IS 'Parent module name (if applicable)';
+COMMENT ON COLUMN world_nodes.tags IS 'Searchable tags (e.g., ["climate", "impact", "shop"])';
+COMMENT ON COLUMN world_nodes.metadata IS 'Additional metadata (e.g., owner_agent, http_method for endpoints)';
+
+-- world_edges: Edges (relationships) in the ZORA World Model knowledge graph
+CREATE TABLE IF NOT EXISTS world_edges (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    from_node_id UUID NOT NULL REFERENCES world_nodes(id) ON DELETE CASCADE,
+    to_node_id UUID NOT NULL REFERENCES world_nodes(id) ON DELETE CASCADE,
+    relation_type TEXT NOT NULL,
+    source TEXT NOT NULL DEFAULT 'dev_manifest_v2',
+    weight NUMERIC NULL,
+    notes TEXT NULL,
+    metadata JSONB NOT NULL DEFAULT '{}'::JSONB,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(from_node_id, to_node_id, relation_type)
+);
+
+CREATE INDEX IF NOT EXISTS idx_world_edges_from_node ON world_edges(from_node_id);
+CREATE INDEX IF NOT EXISTS idx_world_edges_to_node ON world_edges(to_node_id);
+CREATE INDEX IF NOT EXISTS idx_world_edges_relation_type ON world_edges(relation_type);
+CREATE INDEX IF NOT EXISTS idx_world_edges_source ON world_edges(source);
+
+-- Enable RLS for world_edges
+ALTER TABLE world_edges ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow all for service role" ON world_edges;
+CREATE POLICY "Allow all for service role" ON world_edges
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE world_edges IS 'Edges (relationships) in the ZORA World Model knowledge graph';
+COMMENT ON COLUMN world_edges.from_node_id IS 'Source node ID';
+COMMENT ON COLUMN world_edges.to_node_id IS 'Target node ID';
+COMMENT ON COLUMN world_edges.relation_type IS 'Relationship type: depends_on, reads_from, writes_to, belongs_to, composed_of, flows_to, impact_related, has_many, uses_material, linked_to_module';
+COMMENT ON COLUMN world_edges.source IS 'Source of this edge: dev_manifest_v2, manual_domain_mapping, inferred';
+COMMENT ON COLUMN world_edges.weight IS 'Optional importance/confidence weight (0.0-1.0)';
+COMMENT ON COLUMN world_edges.notes IS 'Human-readable notes about this relationship';
+COMMENT ON COLUMN world_edges.metadata IS 'Additional metadata about the edge';
+
+-- Record the World Model v1 schema version
+INSERT INTO schema_metadata (schema_version, notes)
+VALUES ('3.8.0', 'World Model / Knowledge Graph v1.0 - world_nodes and world_edges tables');
+
+-- ============================================================================
 -- DONE!
 -- ============================================================================
 -- 
