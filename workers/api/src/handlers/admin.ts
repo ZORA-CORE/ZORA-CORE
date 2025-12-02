@@ -14,6 +14,13 @@ import { createToken } from '../lib/auth';
 import type { BillingContext, PlanFeatures } from '../middleware/billingContext';
 import { PlanLimitExceededError, handleBillingError, requirePlanLimit, ensureWriteAllowed } from '../middleware/billingContext';
 import { getDevManifest, getManifestStats } from '../dev/devManifest';
+import { 
+  getDevManifestV2, 
+  getManifestStatsV2, 
+  getModuleDependencies, 
+  explainResource,
+  type ExplainResourceInput 
+} from '../dev/devManifestV2';
 
 const adminHandler = new Hono<AuthAppEnv>();
 
@@ -1120,6 +1127,114 @@ adminHandler.get('/dev/manifest', async (c) => {
 adminHandler.get('/dev/manifest/stats', async (c) => {
   const stats = getManifestStats();
   return jsonResponse(stats);
+});
+
+// ============================================================================
+// DEV MANIFEST v2.0 - Enhanced System Map for Nordic Agents
+// ============================================================================
+
+/**
+ * GET /api/admin/dev/manifest/v2
+ * Returns the full Dev Manifest v2 with modules, tables, endpoints, workflows, and dependencies.
+ * 
+ * This is the "system map" for Nordic AI agents (ODIN, THOR, FREYA, BALDUR, HEIMDALL, TYR, EIVOR)
+ * and the Dev Console UI. It provides a comprehensive, machine-readable description of ZORA CORE.
+ * 
+ * Auth: Requires founder or brand_admin role (via X-ZORA-ADMIN-SECRET)
+ */
+adminHandler.get('/dev/manifest/v2', async (c) => {
+  const manifest = getDevManifestV2();
+  const stats = getManifestStatsV2();
+  
+  return jsonResponse({
+    ...manifest,
+    stats,
+  });
+});
+
+/**
+ * GET /api/admin/dev/manifest/v2/stats
+ * Returns statistics about the Dev Manifest v2.
+ */
+adminHandler.get('/dev/manifest/v2/stats', async (c) => {
+  const stats = getManifestStatsV2();
+  return jsonResponse(stats);
+});
+
+/**
+ * GET /api/admin/dev/dependencies
+ * Returns module dependencies for the specified module or all modules.
+ * 
+ * Query params:
+ * - module (optional): Filter by module name to get its direct dependencies and dependants
+ * 
+ * Response structure:
+ * - If module specified: { module, dependencies: [...], dependants: [...] }
+ * - If no module: { all_dependencies: [...] }
+ * 
+ * Auth: Requires founder or brand_admin role (via X-ZORA-ADMIN-SECRET)
+ */
+adminHandler.get('/dev/dependencies', async (c) => {
+  const moduleName = c.req.query('module');
+  
+  if (moduleName) {
+    const deps = getModuleDependencies(moduleName);
+    return jsonResponse({
+      module: moduleName,
+      dependencies: deps.dependencies,
+      dependants: deps.dependants,
+    });
+  }
+  
+  const manifest = getDevManifestV2();
+  return jsonResponse({
+    all_dependencies: manifest.dependencies,
+  });
+});
+
+/**
+ * POST /api/admin/dev/explain-resource
+ * Explains a specific resource (module, table, endpoint, or workflow).
+ * 
+ * Request body:
+ * - type: "module" | "table" | "endpoint" | "workflow"
+ * - identifier: string (module name, table name, endpoint path, or workflow name)
+ * 
+ * Response:
+ * - title: Human-readable title
+ * - summary: Description of the resource
+ * - module: Parent module (if applicable)
+ * - relevant_tables: Related tables
+ * - relevant_endpoints: Related endpoints
+ * - relevant_workflows: Related workflows
+ * - dependencies: Module dependencies (if type is "module")
+ * 
+ * Auth: Requires founder or brand_admin role (via X-ZORA-ADMIN-SECRET)
+ */
+adminHandler.post('/dev/explain-resource', async (c) => {
+  let input: ExplainResourceInput;
+  try {
+    input = await c.req.json();
+  } catch {
+    return errorResponse('INVALID_JSON', 'Request body must be valid JSON', 400);
+  }
+  
+  if (!input.type || !input.identifier) {
+    return errorResponse('MISSING_FIELDS', 'type and identifier are required', 400);
+  }
+  
+  const validTypes = ['module', 'table', 'endpoint', 'workflow'];
+  if (!validTypes.includes(input.type)) {
+    return errorResponse('INVALID_TYPE', `type must be one of: ${validTypes.join(', ')}`, 400);
+  }
+  
+  const result = explainResource(input);
+  
+  if (!result) {
+    return errorResponse('NOT_FOUND', `Resource not found: ${input.type} "${input.identifier}"`, 404);
+  }
+  
+  return jsonResponse(result);
 });
 
 export default adminHandler;
