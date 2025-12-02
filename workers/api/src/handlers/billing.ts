@@ -276,6 +276,132 @@ app.get('/subscription', async (c) => {
 });
 
 // ============================================================================
+// GET /current-plan - Get current tenant's plan with resolved features
+// Returns plan_code, name, plan_type, currency, base_price_monthly, 
+// effective_price_monthly, and resolved features object
+// ============================================================================
+app.get('/current-plan', async (c) => {
+  try {
+    const tenantId = getTenantId(c);
+    const supabase = getSupabaseClient(c.env);
+
+    // Fetch subscription with plan details
+    const { data: subscription, error } = await supabase
+      .from('tenant_subscriptions')
+      .select(`
+        id,
+        status,
+        trial_ends_at,
+        current_period_start,
+        current_period_end,
+        effective_price_amount,
+        effective_price_currency,
+        plan:billing_plans(
+          id,
+          code,
+          name,
+          description,
+          price_amount,
+          price_currency,
+          billing_interval,
+          is_active,
+          plan_type,
+          features
+        )
+      `)
+      .eq('tenant_id', tenantId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    // Handle the plan data - Supabase returns array for joins, we need the first element
+    const plan = Array.isArray(subscription?.plan) ? subscription.plan[0] : subscription?.plan;
+
+    if (error || !subscription || !plan) {
+      // No subscription found - return default CLIMATE_ASPECT plan info
+      return jsonResponse({
+        plan_code: 'CLIMATE_ASPECT',
+        name: 'Climate Aspect',
+        plan_type: 'citizen',
+        description: 'ZORA for everyone - basic personal climate OS for individuals',
+        currency: 'DKK',
+        billing_interval: 'month',
+        base_price_monthly: 0,
+        effective_price_monthly: 0,
+        subscription_status: 'trial',
+        subscription_id: null,
+        trial_ends_at: null,
+        current_period_start: null,
+        current_period_end: null,
+        features: {
+          max_users: 1,
+          max_organizations: 1,
+          max_climate_profiles: 1,
+          max_zora_shop_projects: 0,
+          max_goes_green_profiles: 1,
+          max_goes_green_assets: 3,
+          max_shop_products_live: 0,
+          max_academy_paths: 1,
+          max_autonomy_tasks_per_day: 10,
+          academy_level: 1,
+          can_access_simulation_studio: false,
+          can_access_quantum_climate_lab: false,
+          can_access_brand_mashups: false,
+          foundation_partner: false,
+          priority_support: false,
+        },
+      });
+    }
+
+    // Parse features from plan
+    const planFeatures = (plan.features as Record<string, unknown>) || {};
+    
+    // Calculate effective price (use custom price if set, otherwise base price)
+    const effectivePriceAmount = subscription.effective_price_amount !== null 
+      ? subscription.effective_price_amount 
+      : plan.price_amount;
+    const effectivePriceCurrency = subscription.effective_price_currency || plan.price_currency;
+
+    return jsonResponse({
+      plan_code: plan.code,
+      name: plan.name,
+      plan_type: plan.plan_type || 'brand',
+      description: plan.description,
+      currency: plan.price_currency,
+      billing_interval: plan.billing_interval,
+      base_price_monthly: plan.price_amount,
+      effective_price_monthly: effectivePriceAmount,
+      effective_price_currency: effectivePriceCurrency,
+      subscription_status: subscription.status,
+      subscription_id: subscription.id,
+      trial_ends_at: subscription.trial_ends_at,
+      current_period_start: subscription.current_period_start,
+      current_period_end: subscription.current_period_end,
+      features: {
+        max_users: planFeatures.max_users ?? null,
+        max_organizations: planFeatures.max_organizations ?? null,
+        max_climate_profiles: planFeatures.max_climate_profiles ?? null,
+        max_zora_shop_projects: planFeatures.max_zora_shop_projects ?? null,
+        max_goes_green_profiles: planFeatures.max_goes_green_profiles ?? null,
+        max_goes_green_assets: planFeatures.max_goes_green_assets ?? null,
+        max_shop_products_live: planFeatures.max_shop_products_live ?? null,
+        max_academy_paths: planFeatures.max_academy_paths ?? null,
+        max_autonomy_tasks_per_day: planFeatures.max_autonomy_tasks_per_day ?? null,
+        academy_level: planFeatures.academy_level ?? null,
+        can_access_simulation_studio: planFeatures.can_access_simulation_studio === true,
+        can_access_quantum_climate_lab: planFeatures.can_access_quantum_climate_lab === true,
+        can_access_brand_mashups: planFeatures.can_access_brand_mashups === true,
+        foundation_partner: planFeatures.foundation_partner === true,
+        priority_support: planFeatures.priority_support === true,
+      },
+    });
+  } catch (err) {
+    console.error('Error in GET /current-plan:', err);
+    return serverErrorResponse('Internal server error');
+  }
+});
+
+// ============================================================================
 // POST /subscription - Create or update tenant subscription
 // ============================================================================
 app.post('/subscription', async (c) => {

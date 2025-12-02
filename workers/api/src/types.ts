@@ -2192,6 +2192,9 @@ export interface AcademyQuizAttempt {
 // Billing & Commission Types (Iteration 00C8)
 // ============================================================================
 
+// Plan Type - citizen (individual users), brand (organizations), foundation (NGOs/partners)
+export type PlanType = 'citizen' | 'brand' | 'foundation';
+
 // Billing Plan
 export interface BillingPlan {
   id: string;
@@ -2202,6 +2205,7 @@ export interface BillingPlan {
   price_currency: string;
   billing_interval: 'month' | 'year';
   is_active: boolean;
+  plan_type: PlanType;
   features: Record<string, unknown>;
   created_at: string;
   updated_at: string;
@@ -2249,6 +2253,8 @@ export interface TenantSubscription {
   provider_customer_id: string | null;
   provider_subscription_id: string | null;
   trial_ends_at: string | null;
+  effective_price_amount: number | null;
+  effective_price_currency: string | null;
   created_at: string;
   updated_at: string;
 }
