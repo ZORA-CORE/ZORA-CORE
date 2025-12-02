@@ -32,6 +32,8 @@ import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Card } from "@/components/ui/Card";
 import { StatCard } from "@/components/ui/StatCard";
 import { useAuth } from "@/lib/AuthContext";
+import { AgentPanel } from "@/components/cockpit/AgentPanel";
+import type { AgentPanelSuggestion } from "@/lib/types";
 
 const DEFAULT_CLIMATE_CONFIG: ClimatePageConfig = {
   hero_title: "Climate OS",
@@ -1258,6 +1260,20 @@ export default function ClimatePage() {
                   settingPrimary={settingPrimary}
                 />
               )}
+
+              <div className="mt-8">
+                <AgentPanel
+                  context="climate"
+                  profileId={selectedProfile.id}
+                  title="Ask HEIMDALL"
+                  description="Nordic agent for climate mission intelligence"
+                  onSuggestionSelect={(suggestion: AgentPanelSuggestion) => {
+                    if (suggestion.type === 'mission') {
+                      setShowCreateMission(true);
+                    }
+                  }}
+                />
+              </div>
             </>
           ) : (
             <div className="agent-card text-center">

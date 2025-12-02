@@ -40,6 +40,7 @@ import workflowRunsHandler from './handlers/workflow-runs';
 import outcomesHandler from './handlers/outcomes';
 import worldModelHandler from './handlers/world-model';
 import hybridSearchHandler from './handlers/hybrid-search';
+import agentPanelHandler from './handlers/agent-panel';
 
 const app = new Hono<AuthAppEnv>();
 
@@ -88,6 +89,8 @@ app.use('/api/workflows/*', authMiddleware);
 app.use('/api/workflow-runs/*', authMiddleware);
 // Outcome feedback endpoints require JWT auth - Outcome Feedback & Continual Learning v1 (Iteration 00D6)
 app.use('/api/outcomes/*', authMiddleware);
+// Agent Panel endpoints require JWT auth - Cockpit v1 (Iteration 00F2)
+app.use('/api/agent-panel/*', authMiddleware);
 
 // ============================================================================
 // RATE LIMITING (Security & Auth Hardening v1.0)
@@ -360,6 +363,9 @@ app.route('/api/admin/world-model', worldModelHandler);
 
 // Hybrid Search & Reasoner v1 routes
 app.route('/api/admin/hybrid-search', hybridSearchHandler);
+
+// Agent Panel v1 routes (Cockpit v1 - Iteration 00F2)
+app.route('/api/agent-panel', agentPanelHandler);
 
 app.notFound((c) => {
   const requestId = c.get('requestId') || 'unknown';

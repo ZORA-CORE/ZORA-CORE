@@ -30,6 +30,7 @@ import type {
   UpdateProductInput,
   ProductsListResponse,
   ProductStatus,
+  ShopMaterial,
   PublicProductsResponse,
   PublicBrandsResponse,
   PublicMashupStats,
@@ -456,6 +457,15 @@ export async function deleteProduct(id: string): Promise<{ success: boolean; mes
   });
 }
 
+// Materials API functions (Cockpit v1)
+export async function getMaterials(): Promise<{ data: ShopMaterial[] }> {
+  return request<{ data: ShopMaterial[] }>('/api/shop/materials');
+}
+
+export async function getMaterial(id: string): Promise<ShopMaterial> {
+  return request<ShopMaterial>(`/api/shop/materials/${id}`);
+}
+
 // Public Mashup API functions (v0.18) - no authentication required
 export async function getPublicProducts(params?: {
   sector?: string;
@@ -600,6 +610,157 @@ export async function getAutonomyStatus(): Promise<{ data: AutonomyStatus }> {
   return request<{ data: AutonomyStatus }>('/api/admin/autonomy-status');
 }
 
+// Agent Panel API (Cockpit v1)
+import type {
+  AgentPanelSuggestInput,
+  AgentPanelSuggestResponse,
+  GoesGreenProfile,
+  GoesGreenProfilesResponse,
+  GoesGreenAction,
+  GoesGreenActionsResponse,
+  CreateGoesGreenProfileInput,
+  CreateGoesGreenActionInput,
+  FoundationProject,
+  FoundationProjectsResponse,
+  FoundationContribution,
+  CreateFoundationProjectInput,
+  CreateFoundationContributionInput,
+  AcademyLesson,
+  AcademyLessonsResponse,
+  AcademyModule,
+  AcademyModulesResponse,
+  AcademyLearningPath,
+  AcademyLearningPathsResponse,
+  AcademyUserProgress,
+  AcademyProgressResponse,
+} from './types';
+
+export async function getAgentPanelSuggestions(
+  input: AgentPanelSuggestInput
+): Promise<AgentPanelSuggestResponse> {
+  return request<AgentPanelSuggestResponse>('/api/agent-panel/suggest', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+// GOES GREEN API (Cockpit v1)
+export async function getGoesGreenProfiles(): Promise<GoesGreenProfilesResponse> {
+  return request<GoesGreenProfilesResponse>('/api/goes-green/profiles');
+}
+
+export async function getGoesGreenProfile(id: string): Promise<{ data: GoesGreenProfile }> {
+  return request<{ data: GoesGreenProfile }>(`/api/goes-green/profiles/${id}`);
+}
+
+export async function createGoesGreenProfile(
+  input: CreateGoesGreenProfileInput
+): Promise<GoesGreenProfile> {
+  return request<GoesGreenProfile>('/api/goes-green/profiles', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export async function getGoesGreenActions(profileId: string): Promise<GoesGreenActionsResponse> {
+  return request<GoesGreenActionsResponse>(`/api/goes-green/profiles/${profileId}/actions`);
+}
+
+export async function createGoesGreenAction(
+  profileId: string,
+  input: CreateGoesGreenActionInput
+): Promise<GoesGreenAction> {
+  return request<GoesGreenAction>(`/api/goes-green/profiles/${profileId}/actions`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export async function updateGoesGreenActionStatus(
+  profileId: string,
+  actionId: string,
+  status: string
+): Promise<GoesGreenAction> {
+  return request<GoesGreenAction>(`/api/goes-green/profiles/${profileId}/actions/${actionId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  });
+}
+
+// Foundation API (Cockpit v1)
+export async function getFoundationProjects(): Promise<FoundationProjectsResponse> {
+  return request<FoundationProjectsResponse>('/api/foundation/projects');
+}
+
+export async function getFoundationProject(id: string): Promise<{ data: FoundationProject }> {
+  return request<{ data: FoundationProject }>(`/api/foundation/projects/${id}`);
+}
+
+export async function createFoundationProject(
+  input: CreateFoundationProjectInput
+): Promise<FoundationProject> {
+  return request<FoundationProject>('/api/foundation/projects', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export async function getFoundationContributions(
+  projectId: string
+): Promise<{ data: FoundationContribution[]; pagination: { total: number } }> {
+  return request<{ data: FoundationContribution[]; pagination: { total: number } }>(
+    `/api/foundation/projects/${projectId}/contributions`
+  );
+}
+
+export async function createFoundationContribution(
+  projectId: string,
+  input: CreateFoundationContributionInput
+): Promise<FoundationContribution> {
+  return request<FoundationContribution>(`/api/foundation/projects/${projectId}/contributions`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+// Academy API (Cockpit v1)
+export async function getAcademyLessons(): Promise<AcademyLessonsResponse> {
+  return request<AcademyLessonsResponse>('/api/academy/lessons');
+}
+
+export async function getAcademyLesson(id: string): Promise<{ data: AcademyLesson }> {
+  return request<{ data: AcademyLesson }>(`/api/academy/lessons/${id}`);
+}
+
+export async function getAcademyModules(): Promise<AcademyModulesResponse> {
+  return request<AcademyModulesResponse>('/api/academy/modules');
+}
+
+export async function getAcademyModule(id: string): Promise<{ data: AcademyModule }> {
+  return request<{ data: AcademyModule }>(`/api/academy/modules/${id}`);
+}
+
+export async function getAcademyLearningPaths(): Promise<AcademyLearningPathsResponse> {
+  return request<AcademyLearningPathsResponse>('/api/academy/learning-paths');
+}
+
+export async function getAcademyLearningPath(id: string): Promise<{ data: AcademyLearningPath }> {
+  return request<{ data: AcademyLearningPath }>(`/api/academy/learning-paths/${id}`);
+}
+
+export async function getAcademyProgress(): Promise<AcademyProgressResponse> {
+  return request<AcademyProgressResponse>('/api/academy/progress');
+}
+
+export async function updateAcademyProgress(
+  entityType: 'lesson' | 'module' | 'learning_path',
+  entityId: string
+): Promise<{ data: AcademyUserProgress }> {
+  return request<{ data: AcademyUserProgress }>(`/api/academy/progress/${entityType}/${entityId}`, {
+    method: 'POST',
+  });
+}
+
 export const api = {
   getStatus,
   getClimateProfiles,
@@ -633,6 +794,9 @@ export const api = {
   createProduct,
   updateProduct,
   deleteProduct,
+  // Materials API (Cockpit v1)
+  getMaterials,
+  getMaterial,
   // Public Mashup API (v0.18)
   getPublicProducts,
   getPublicProduct,
@@ -654,6 +818,30 @@ export const api = {
   getImpactSummary,
   getSystemMetrics,
   getAutonomyStatus,
+  // Agent Panel API (Cockpit v1)
+  getAgentPanelSuggestions,
+  // GOES GREEN API (Cockpit v1)
+  getGoesGreenProfiles,
+  getGoesGreenProfile,
+  createGoesGreenProfile,
+  getGoesGreenActions,
+  createGoesGreenAction,
+  updateGoesGreenActionStatus,
+  // Foundation API (Cockpit v1)
+  getFoundationProjects,
+  getFoundationProject,
+  createFoundationProject,
+  getFoundationContributions,
+  createFoundationContribution,
+  // Academy API (Cockpit v1)
+  getAcademyLessons,
+  getAcademyLesson,
+  getAcademyModules,
+  getAcademyModule,
+  getAcademyLearningPaths,
+  getAcademyLearningPath,
+  getAcademyProgress,
+  updateAcademyProgress,
 };
 
 export default api;
