@@ -2959,24 +2959,43 @@ CREATE POLICY "Allow all for service role" ON billing_plans
     WITH CHECK (true);
 
 COMMENT ON TABLE billing_plans IS 'Subscription plans available to tenants';
-COMMENT ON COLUMN billing_plans.code IS 'Unique plan code: free, starter, pro';
+COMMENT ON COLUMN billing_plans.code IS 'Unique plan code: CLIMATE_ASPECT, CLIMATE_HERO, BRAND_STARTER, BRAND_PRO, BRAND_INFINITY, FOUNDATION_PARTNER';
 COMMENT ON COLUMN billing_plans.billing_interval IS 'Billing interval: month, year';
-COMMENT ON COLUMN billing_plans.features IS 'JSON object with plan features/limits. Canonical keys: max_users, max_organizations, max_climate_profiles, max_zora_shop_projects, max_goes_green_profiles, max_academy_paths, max_autonomy_tasks_per_day. Use null or -1 for unlimited.';
+COMMENT ON COLUMN billing_plans.features IS 'JSON object with plan features/limits. Canonical keys: max_users, max_organizations, max_climate_profiles, max_zora_shop_projects, max_goes_green_profiles, max_goes_green_assets, max_shop_products_live, max_academy_paths, max_autonomy_tasks_per_day, academy_level (1-3), can_access_simulation_studio, can_access_quantum_climate_lab, can_access_brand_mashups, foundation_partner, priority_support. Use null or -1 for unlimited.';
 
--- Seed default billing plans (idempotent) - Billing & Subscription Enforcement v1.1
+-- Add plan_type column to billing_plans (Billing Plans v1.0)
+ALTER TABLE billing_plans ADD COLUMN IF NOT EXISTS plan_type TEXT DEFAULT 'brand';
+COMMENT ON COLUMN billing_plans.plan_type IS 'Plan type: citizen (individual users), brand (organizations), foundation (NGOs/partners)';
+
+-- Seed default billing plans (idempotent) - Billing Plans v1.0
 -- Plan limits are enforced by the Workers API billing context middleware
-INSERT INTO billing_plans (code, name, description, price_amount, price_currency, billing_interval, features)
+-- Legacy plans (free, starter, pro) are marked as inactive
+INSERT INTO billing_plans (code, name, description, price_amount, price_currency, billing_interval, is_active, plan_type, features)
 VALUES 
-    ('free', 'Free', 'Basic access to ZORA CORE for solo users testing the product', 0, 'DKK', 'month', 
+    ('free', 'Free (Legacy)', 'Legacy plan - use CLIMATE_ASPECT instead', 0, 'DKK', 'month', FALSE, 'citizen',
      '{"max_users": 1, "max_organizations": 1, "max_climate_profiles": 1, "max_zora_shop_projects": 1, "max_goes_green_profiles": 1, "max_academy_paths": 1, "max_autonomy_tasks_per_day": 20}'),
-    ('starter', 'Starter', 'For small brands and individuals with reasonable small-team limits', 99, 'DKK', 'month', 
+    ('starter', 'Starter (Legacy)', 'Legacy plan - use BRAND_STARTER instead', 99, 'DKK', 'month', FALSE, 'brand',
      '{"max_users": 5, "max_organizations": 3, "max_climate_profiles": 10, "max_zora_shop_projects": 5, "max_goes_green_profiles": 5, "max_academy_paths": 5, "max_autonomy_tasks_per_day": 100}'),
-    ('pro', 'Pro', 'For growing organizations with high or unlimited limits', 499, 'DKK', 'month', 
-     '{"max_users": null, "max_organizations": null, "max_climate_profiles": null, "max_zora_shop_projects": null, "max_goes_green_profiles": null, "max_academy_paths": null, "max_autonomy_tasks_per_day": null}')
+    ('pro', 'Pro (Legacy)', 'Legacy plan - use BRAND_PRO instead', 499, 'DKK', 'month', FALSE, 'brand',
+     '{"max_users": null, "max_organizations": null, "max_climate_profiles": null, "max_zora_shop_projects": null, "max_goes_green_profiles": null, "max_academy_paths": null, "max_autonomy_tasks_per_day": null}'),
+    ('CLIMATE_ASPECT', 'Climate Aspect', 'ZORA for everyone - basic personal climate OS for individuals', 0, 'DKK', 'month', TRUE, 'citizen',
+     '{"max_users": 1, "max_organizations": 1, "max_climate_profiles": 1, "max_zora_shop_projects": 0, "max_goes_green_profiles": 1, "max_goes_green_assets": 3, "max_shop_products_live": 0, "max_academy_paths": 1, "max_autonomy_tasks_per_day": 10, "academy_level": 1, "can_access_simulation_studio": false, "can_access_quantum_climate_lab": false, "can_access_brand_mashups": false, "foundation_partner": false, "priority_support": false}'),
+    ('CLIMATE_HERO', 'Climate Hero', 'More powerful personal climate experience for engaged individuals', 59, 'DKK', 'month', TRUE, 'citizen',
+     '{"max_users": 1, "max_organizations": 1, "max_climate_profiles": 5, "max_zora_shop_projects": 1, "max_goes_green_profiles": 3, "max_goes_green_assets": 10, "max_shop_products_live": 0, "max_academy_paths": 3, "max_autonomy_tasks_per_day": 50, "academy_level": 2, "can_access_simulation_studio": true, "can_access_quantum_climate_lab": false, "can_access_brand_mashups": false, "foundation_partner": false, "priority_support": false}'),
+    ('BRAND_STARTER', 'Brand Starter', 'For small brands and early-stage teams starting their climate journey', 790, 'DKK', 'month', TRUE, 'brand',
+     '{"max_users": 5, "max_organizations": 3, "max_climate_profiles": 10, "max_zora_shop_projects": 3, "max_goes_green_profiles": 5, "max_goes_green_assets": 25, "max_shop_products_live": 10, "max_academy_paths": 5, "max_autonomy_tasks_per_day": 100, "academy_level": 2, "can_access_simulation_studio": true, "can_access_quantum_climate_lab": false, "can_access_brand_mashups": true, "foundation_partner": false, "priority_support": false}'),
+    ('BRAND_PRO', 'Brand Pro', 'For serious climate and brand teams with advanced needs', 1990, 'DKK', 'month', TRUE, 'brand',
+     '{"max_users": 25, "max_organizations": 10, "max_climate_profiles": 50, "max_zora_shop_projects": 10, "max_goes_green_profiles": 25, "max_goes_green_assets": 100, "max_shop_products_live": 50, "max_academy_paths": null, "max_autonomy_tasks_per_day": 500, "academy_level": 3, "can_access_simulation_studio": true, "can_access_quantum_climate_lab": false, "can_access_brand_mashups": true, "foundation_partner": false, "priority_support": true}'),
+    ('BRAND_INFINITY', 'Brand Infinity', 'Enterprise-level access with custom pricing and unlimited features', 4990, 'DKK', 'month', TRUE, 'brand',
+     '{"max_users": null, "max_organizations": null, "max_climate_profiles": null, "max_zora_shop_projects": null, "max_goes_green_profiles": null, "max_goes_green_assets": null, "max_shop_products_live": null, "max_academy_paths": null, "max_autonomy_tasks_per_day": null, "academy_level": 3, "can_access_simulation_studio": true, "can_access_quantum_climate_lab": true, "can_access_brand_mashups": true, "foundation_partner": false, "priority_support": true}'),
+    ('FOUNDATION_PARTNER', 'Foundation Partner', 'For NGOs and climate partners focused on impact and visibility', 0, 'DKK', 'month', TRUE, 'foundation',
+     '{"max_users": 10, "max_organizations": 5, "max_climate_profiles": 25, "max_zora_shop_projects": 5, "max_goes_green_profiles": 10, "max_goes_green_assets": 50, "max_shop_products_live": 0, "max_academy_paths": null, "max_autonomy_tasks_per_day": 200, "academy_level": 3, "can_access_simulation_studio": true, "can_access_quantum_climate_lab": false, "can_access_brand_mashups": false, "foundation_partner": true, "priority_support": true}')
 ON CONFLICT (code) DO UPDATE SET
     name = EXCLUDED.name,
     description = EXCLUDED.description,
     price_amount = EXCLUDED.price_amount,
+    is_active = EXCLUDED.is_active,
+    plan_type = EXCLUDED.plan_type,
     features = EXCLUDED.features,
     updated_at = NOW();
 
@@ -3023,6 +3042,13 @@ CREATE POLICY "Allow all for service role" ON tenant_subscriptions
 COMMENT ON TABLE tenant_subscriptions IS 'Tenant subscription records with payment provider info';
 COMMENT ON COLUMN tenant_subscriptions.status IS 'Subscription status: trial, active, past_due, canceled';
 COMMENT ON COLUMN tenant_subscriptions.provider IS 'Payment provider: stripe, paypal, manual';
+
+-- Add effective_price columns for custom pricing overrides (Billing Plans v1.0)
+-- Used for enterprise/BRAND_INFINITY plans with negotiated pricing
+ALTER TABLE tenant_subscriptions ADD COLUMN IF NOT EXISTS effective_price_amount NUMERIC(12,2);
+ALTER TABLE tenant_subscriptions ADD COLUMN IF NOT EXISTS effective_price_currency TEXT;
+COMMENT ON COLUMN tenant_subscriptions.effective_price_amount IS 'Custom price override for this subscription. If NULL, use plan base price.';
+COMMENT ON COLUMN tenant_subscriptions.effective_price_currency IS 'Currency for custom price. If NULL, use plan currency (DKK).';
 
 -- 14H.3: Create billing_events table
 -- Logs billing events for audit and debugging

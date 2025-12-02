@@ -27,8 +27,16 @@ export interface PlanFeatures {
   maxClimateProfiles?: number | null;
   maxZoraShopProjects?: number | null;
   maxGoesGreenProfiles?: number | null;
+  maxGoesGreenAssets?: number | null;
+  maxShopProductsLive?: number | null;
   maxAcademyPaths?: number | null;
   maxAutonomyTasksPerDay?: number | null;
+  academyLevel?: number | null;
+  canAccessSimulationStudio?: boolean;
+  canAccessQuantumClimateLab?: boolean;
+  canAccessBrandMashups?: boolean;
+  foundationPartner?: boolean;
+  prioritySupport?: boolean;
 }
 
 export interface BillingContext {
@@ -42,19 +50,27 @@ export interface BillingContext {
   currentPeriodEnd: string | null;
 }
 
-// Default billing context for tenants without a subscription (treated as free)
+// Default billing context for tenants without a subscription (treated as CLIMATE_ASPECT)
 const DEFAULT_BILLING_CONTEXT: BillingContext = {
-  planCode: 'free',
-  planName: 'Free (Default)',
+  planCode: 'CLIMATE_ASPECT',
+  planName: 'Climate Aspect (Default)',
   status: 'trial',
   features: {
     maxUsers: 1,
     maxOrganizations: 1,
     maxClimateProfiles: 1,
-    maxZoraShopProjects: 1,
+    maxZoraShopProjects: 0,
     maxGoesGreenProfiles: 1,
+    maxGoesGreenAssets: 3,
+    maxShopProductsLive: 0,
     maxAcademyPaths: 1,
-    maxAutonomyTasksPerDay: 20,
+    maxAutonomyTasksPerDay: 10,
+    academyLevel: 1,
+    canAccessSimulationStudio: false,
+    canAccessQuantumClimateLab: false,
+    canAccessBrandMashups: false,
+    foundationPartner: false,
+    prioritySupport: false,
   },
   subscriptionId: null,
   planId: null,
@@ -149,8 +165,16 @@ export async function billingContextMiddleware(c: Context<AuthAppEnv>, next: Nex
           maxClimateProfiles: parseLimit(planFeatures.max_climate_profiles),
           maxZoraShopProjects: parseLimit(planFeatures.max_zora_shop_projects),
           maxGoesGreenProfiles: parseLimit(planFeatures.max_goes_green_profiles),
+          maxGoesGreenAssets: parseLimit(planFeatures.max_goes_green_assets),
+          maxShopProductsLive: parseLimit(planFeatures.max_shop_products_live),
           maxAcademyPaths: parseLimit(planFeatures.max_academy_paths),
           maxAutonomyTasksPerDay: parseLimit(planFeatures.max_autonomy_tasks_per_day),
+          academyLevel: parseLimit(planFeatures.academy_level),
+          canAccessSimulationStudio: planFeatures.can_access_simulation_studio === true,
+          canAccessQuantumClimateLab: planFeatures.can_access_quantum_climate_lab === true,
+          canAccessBrandMashups: planFeatures.can_access_brand_mashups === true,
+          foundationPartner: planFeatures.foundation_partner === true,
+          prioritySupport: planFeatures.priority_support === true,
         },
         subscriptionId: subscription.id,
         planId: plan.id,
@@ -258,6 +282,19 @@ export function ensureWriteAllowed(ctx: BillingContext): void {
 // PLAN LIMIT HELPERS
 // ============================================================================
 
+// Only numeric limit keys (excludes boolean feature flags)
+export type NumericPlanLimitKey = 
+  | 'maxUsers'
+  | 'maxOrganizations'
+  | 'maxClimateProfiles'
+  | 'maxZoraShopProjects'
+  | 'maxGoesGreenProfiles'
+  | 'maxGoesGreenAssets'
+  | 'maxShopProductsLive'
+  | 'maxAcademyPaths'
+  | 'maxAutonomyTasksPerDay'
+  | 'academyLevel';
+
 export type PlanLimitKey = keyof PlanFeatures;
 
 export interface LimitCheckResult {
@@ -271,11 +308,12 @@ export interface LimitCheckResult {
  * Check if a plan limit allows the operation.
  * Returns { allowed: true } if within limits or unlimited.
  * Returns { allowed: false, reason: string } if limit exceeded.
+ * Note: Only works with numeric limit keys, not boolean feature flags.
  */
 export function checkPlanLimit(
   ctx: BillingContext,
   currentCount: number,
-  limitKey: PlanLimitKey
+  limitKey: NumericPlanLimitKey
 ): LimitCheckResult {
   const limit = ctx.features[limitKey];
 
@@ -300,11 +338,12 @@ export function checkPlanLimit(
 /**
  * Require that a plan limit is not exceeded.
  * Throws PlanLimitExceededError if limit is exceeded.
+ * Note: Only works with numeric limit keys, not boolean feature flags.
  */
 export function requirePlanLimit(
   ctx: BillingContext,
   currentCount: number,
-  limitKey: PlanLimitKey
+  limitKey: NumericPlanLimitKey
 ): void {
   const result = checkPlanLimit(ctx, currentCount, limitKey);
   if (!result.allowed && result.reason) {
@@ -322,8 +361,16 @@ function formatLimitName(limitKey: PlanLimitKey): string {
     maxClimateProfiles: 'climate profiles',
     maxZoraShopProjects: 'ZORA SHOP projects',
     maxGoesGreenProfiles: 'GOES GREEN profiles',
+    maxGoesGreenAssets: 'GOES GREEN assets',
+    maxShopProductsLive: 'live shop products',
     maxAcademyPaths: 'academy learning paths',
     maxAutonomyTasksPerDay: 'autonomy tasks per day',
+    academyLevel: 'academy level',
+    canAccessSimulationStudio: 'Simulation Studio access',
+    canAccessQuantumClimateLab: 'Quantum Climate Lab access',
+    canAccessBrandMashups: 'brand mashups access',
+    foundationPartner: 'foundation partner status',
+    prioritySupport: 'priority support',
   };
   return names[limitKey] || limitKey;
 }
@@ -338,14 +385,14 @@ function formatLimitName(limitKey: PlanLimitKey): string {
  * 
  * @param ctx - The billing context
  * @param currentCount - Current count of the resource
- * @param limitKey - The plan limit key to check
+ * @param limitKey - The plan limit key to check (must be a numeric limit key)
  * @throws SubscriptionInactiveError if subscription is not active
  * @throws PlanLimitExceededError if plan limit is exceeded
  */
 export function enforceCreateLimit(
   ctx: BillingContext,
   currentCount: number,
-  limitKey: PlanLimitKey
+  limitKey: NumericPlanLimitKey
 ): void {
   // First check subscription status
   ensureWriteAllowed(ctx);
