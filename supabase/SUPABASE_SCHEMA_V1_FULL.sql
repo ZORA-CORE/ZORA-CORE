@@ -1272,7 +1272,7 @@ END$$;
 CREATE TABLE IF NOT EXISTS agent_tasks (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-    agent_id VARCHAR(50) NOT NULL CHECK (agent_id IN ('CONNOR', 'LUMINA', 'EIVOR', 'ORACLE', 'AEGIS', 'SAM')),
+    agent_id VARCHAR(50) NOT NULL CHECK (agent_id IN ('ODIN', 'THOR', 'FREYA', 'BALDUR', 'HEIMDALL', 'TYR', 'EIVOR')),
     task_type VARCHAR(100) NOT NULL,
     status agent_task_status NOT NULL DEFAULT 'pending',
     priority INTEGER NOT NULL DEFAULT 0,
@@ -1439,7 +1439,7 @@ CREATE TABLE IF NOT EXISTS agent_insights (
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ,
-    agent_id VARCHAR(50) NOT NULL CHECK (agent_id IN ('CONNOR', 'LUMINA', 'EIVOR', 'ORACLE', 'AEGIS', 'SAM')),
+    agent_id VARCHAR(50) NOT NULL CHECK (agent_id IN ('ODIN', 'THOR', 'FREYA', 'BALDUR', 'HEIMDALL', 'TYR', 'EIVOR')),
     source_task_id UUID REFERENCES agent_tasks(id) ON DELETE SET NULL,
     category VARCHAR(100) NOT NULL,
     title VARCHAR(500) NOT NULL,
@@ -1483,7 +1483,7 @@ COMMENT ON TABLE agent_insights IS 'Agent insights - structured, actionable sugg
 -- ============================================================================
 -- STEP 17: CREATE AGENT_COMMANDS TABLE (Agent Command Console v1)
 -- ============================================================================
--- Agent commands store freeform prompts from the Founder that LUMINA
+-- Agent commands store freeform prompts from the Founder that TYR
 -- translates into structured agent_tasks
 
 -- Agent command status enum
@@ -1538,7 +1538,7 @@ CREATE POLICY "Allow all for service role" ON agent_commands
     USING (true)
     WITH CHECK (true);
 
-COMMENT ON TABLE agent_commands IS 'Agent commands - freeform prompts from Founder that LUMINA translates into agent_tasks';
+COMMENT ON TABLE agent_commands IS 'Agent commands - freeform prompts from Founder that TYR translates into agent_tasks';
 
 -- Add FK constraint from agent_tasks.command_id to agent_commands.id
 -- (Now that agent_commands table exists)
@@ -2212,7 +2212,7 @@ CREATE POLICY "Allow all for service role" ON playbook_steps
 
 COMMENT ON TABLE playbook_steps IS 'Step templates within a playbook workflow';
 COMMENT ON COLUMN playbook_steps.code IS 'Step code: CREATE_CLIMATE_PROFILE, SUGGEST_WEEKLY_PLAN, etc.';
-COMMENT ON COLUMN playbook_steps.agent_suggestion IS 'Primary agent: LUMINA, CONNOR, SAM, ORACLE, EIVOR, AEGIS';
+COMMENT ON COLUMN playbook_steps.agent_suggestion IS 'Primary agent: ODIN, THOR, FREYA, BALDUR, HEIMDALL, TYR, EIVOR';
 COMMENT ON COLUMN playbook_steps.task_type IS 'Optional mapping to agent_tasks.task_type for autonomy integration';
 
 -- Playbook runs table - instances of playbooks for a tenant/entity
@@ -2287,7 +2287,7 @@ CREATE POLICY "Allow all for service role" ON playbook_run_steps
 
 COMMENT ON TABLE playbook_run_steps IS 'Instances of steps within a playbook run';
 COMMENT ON COLUMN playbook_run_steps.status IS 'Status: not_started, pending, in_progress, completed, failed, skipped';
-COMMENT ON COLUMN playbook_run_steps.agent_id IS 'Agent assigned: LUMINA, CONNOR, EIVOR, ORACLE, AEGIS, SAM';
+COMMENT ON COLUMN playbook_run_steps.agent_id IS 'Agent assigned: ODIN, THOR, FREYA, BALDUR, HEIMDALL, TYR, EIVOR';
 COMMENT ON COLUMN playbook_run_steps.agent_task_id IS 'Optional FK to agent_tasks.id for autonomy integration';
 
 -- ============================================================================
@@ -3377,7 +3377,7 @@ CREATE POLICY "Allow all for service role" ON workflow_steps
 
 COMMENT ON TABLE workflow_steps IS 'Steps (nodes) in a workflow DAG';
 COMMENT ON COLUMN workflow_steps.step_type IS 'Step type: agent_task, api_call, noop, wait_for_approval';
-COMMENT ON COLUMN workflow_steps.agent_id IS 'Agent ID for agent_task steps: LUMINA, CONNOR, SAM, etc.';
+COMMENT ON COLUMN workflow_steps.agent_id IS 'Agent ID for agent_task steps: ODIN, THOR, FREYA, BALDUR, HEIMDALL, TYR, EIVOR';
 COMMENT ON COLUMN workflow_steps.task_type IS 'Task type for agent_task steps';
 COMMENT ON COLUMN workflow_steps.config IS 'Step-specific configuration (templates, payload hints)';
 COMMENT ON COLUMN workflow_steps.order_index IS 'Optional linear ordering for simple flows';
@@ -3592,6 +3592,93 @@ END$$;
 
 INSERT INTO schema_metadata (schema_version, notes)
 VALUES ('3.6.0', 'Outcome Feedback & Continual Learning v1.0');
+
+-- ============================================================================
+-- STEP 14J: NORDIC AGENT RENAME MIGRATION (Idempotent)
+-- ============================================================================
+-- This migration renames all agent IDs from the old names to the new Nordic names:
+--   CONNOR  → ODIN    (Chief Strategist & Research Lead)
+--   LUMINA  → TYR     (Ethics, Safety & Climate Integrity)
+--   SAM     → BALDUR  (Frontend, UX & Product Experience)
+--   ORACLE  → HEIMDALL (Observability & Monitoring)
+--   AEGIS   → TYR     (merged into TYR as internal safety module)
+--   EIVOR   → EIVOR   (stays the same - Memory & Knowledge Keeper)
+-- New agent added:
+--   THOR    (Backend & Infrastructure Engineer)
+--   FREYA   (Humans, Storytelling & Growth)
+
+-- Migrate agent_tasks.agent_id
+UPDATE agent_tasks SET agent_id = 'ODIN' WHERE agent_id = 'CONNOR';
+UPDATE agent_tasks SET agent_id = 'TYR' WHERE agent_id = 'LUMINA';
+UPDATE agent_tasks SET agent_id = 'BALDUR' WHERE agent_id = 'SAM';
+UPDATE agent_tasks SET agent_id = 'HEIMDALL' WHERE agent_id = 'ORACLE';
+UPDATE agent_tasks SET agent_id = 'TYR' WHERE agent_id = 'AEGIS';
+
+-- Migrate agent_insights.agent_id
+UPDATE agent_insights SET agent_id = 'ODIN' WHERE agent_id = 'CONNOR';
+UPDATE agent_insights SET agent_id = 'TYR' WHERE agent_id = 'LUMINA';
+UPDATE agent_insights SET agent_id = 'BALDUR' WHERE agent_id = 'SAM';
+UPDATE agent_insights SET agent_id = 'HEIMDALL' WHERE agent_id = 'ORACLE';
+UPDATE agent_insights SET agent_id = 'TYR' WHERE agent_id = 'AEGIS';
+
+-- Migrate agent_suggestions.agent_id
+UPDATE agent_suggestions SET agent_id = 'ODIN' WHERE agent_id = 'CONNOR';
+UPDATE agent_suggestions SET agent_id = 'TYR' WHERE agent_id = 'LUMINA';
+UPDATE agent_suggestions SET agent_id = 'BALDUR' WHERE agent_id = 'SAM';
+UPDATE agent_suggestions SET agent_id = 'HEIMDALL' WHERE agent_id = 'ORACLE';
+UPDATE agent_suggestions SET agent_id = 'TYR' WHERE agent_id = 'AEGIS';
+
+-- Migrate memory_events.agent
+UPDATE memory_events SET agent = 'ODIN' WHERE agent = 'CONNOR';
+UPDATE memory_events SET agent = 'TYR' WHERE agent = 'LUMINA';
+UPDATE memory_events SET agent = 'BALDUR' WHERE agent = 'SAM';
+UPDATE memory_events SET agent = 'HEIMDALL' WHERE agent = 'ORACLE';
+UPDATE memory_events SET agent = 'TYR' WHERE agent = 'AEGIS';
+
+-- Migrate journal_entries.author
+UPDATE journal_entries SET author = 'ODIN' WHERE author = 'CONNOR';
+UPDATE journal_entries SET author = 'TYR' WHERE author = 'LUMINA';
+UPDATE journal_entries SET author = 'BALDUR' WHERE author = 'SAM';
+UPDATE journal_entries SET author = 'HEIMDALL' WHERE author = 'ORACLE';
+UPDATE journal_entries SET author = 'TYR' WHERE author = 'AEGIS';
+
+-- Migrate playbook_run_steps.agent_id
+UPDATE playbook_run_steps SET agent_id = 'ODIN' WHERE agent_id = 'CONNOR';
+UPDATE playbook_run_steps SET agent_id = 'TYR' WHERE agent_id = 'LUMINA';
+UPDATE playbook_run_steps SET agent_id = 'BALDUR' WHERE agent_id = 'SAM';
+UPDATE playbook_run_steps SET agent_id = 'HEIMDALL' WHERE agent_id = 'ORACLE';
+UPDATE playbook_run_steps SET agent_id = 'TYR' WHERE agent_id = 'AEGIS';
+
+-- Migrate workflow_steps.agent_id
+UPDATE workflow_steps SET agent_id = 'ODIN' WHERE agent_id = 'CONNOR';
+UPDATE workflow_steps SET agent_id = 'TYR' WHERE agent_id = 'LUMINA';
+UPDATE workflow_steps SET agent_id = 'BALDUR' WHERE agent_id = 'SAM';
+UPDATE workflow_steps SET agent_id = 'HEIMDALL' WHERE agent_id = 'ORACLE';
+UPDATE workflow_steps SET agent_id = 'TYR' WHERE agent_id = 'AEGIS';
+
+-- Drop old CHECK constraints and add new ones for agent_tasks
+DO $$
+BEGIN
+    ALTER TABLE agent_tasks DROP CONSTRAINT IF EXISTS agent_tasks_agent_id_check;
+    ALTER TABLE agent_tasks ADD CONSTRAINT agent_tasks_agent_id_check 
+        CHECK (agent_id IN ('ODIN', 'THOR', 'FREYA', 'BALDUR', 'HEIMDALL', 'TYR', 'EIVOR'));
+EXCEPTION WHEN OTHERS THEN
+    NULL;
+END$$;
+
+-- Drop old CHECK constraints and add new ones for agent_insights
+DO $$
+BEGIN
+    ALTER TABLE agent_insights DROP CONSTRAINT IF EXISTS agent_insights_agent_id_check;
+    ALTER TABLE agent_insights ADD CONSTRAINT agent_insights_agent_id_check 
+        CHECK (agent_id IN ('ODIN', 'THOR', 'FREYA', 'BALDUR', 'HEIMDALL', 'TYR', 'EIVOR'));
+EXCEPTION WHEN OTHERS THEN
+    NULL;
+END$$;
+
+-- Record the Nordic agent rename migration
+INSERT INTO schema_metadata (schema_version, notes)
+VALUES ('3.7.0', 'Nordic Agent Rename - CONNOR→ODIN, LUMINA→TYR, SAM→BALDUR, ORACLE→HEIMDALL, AEGIS→TYR, added THOR and FREYA');
 
 -- ============================================================================
 -- DONE!

@@ -1,9 +1,11 @@
 """
-ORACLE Agent Implementation
+HEIMDALL Agent Implementation (formerly ORACLE)
 
-ORACLE (they/them) - Research & Foresight Engine
+HEIMDALL (he/him) - Observability & Monitoring
 Inspiration: Chris Hemsworth (Thor)
 Tone: Wise, commanding
+
+Note: Class is still named OracleAgent for backwards compatibility.
 """
 
 import logging
@@ -22,28 +24,29 @@ from ..base_agent import (
 )
 
 
-ORACLE_CONFIG = AgentConfig(
-    name="ORACLE",
-    role="Research & Foresight Engine",
-    pronouns="they/them",
+HEIMDALL_CONFIG = AgentConfig(
+    name="HEIMDALL",
+    role="Observability & Monitoring",
+    pronouns="he/him",
     description=(
-        "ORACLE is the research and strategy brain of ZORA CORE, "
-        "providing insights, predictions, and best practices to guide decision-making."
+        "HEIMDALL is the watchtower of ZORA CORE, responsible for logs, metrics, "
+        "anomaly detection, and system health monitoring. Ensures visibility into all operations."
     ),
     capabilities=[
+        "system_monitoring",
+        "log_analysis",
+        "anomaly_detection",
+        "metrics_collection",
+        "health_checks",
         "research",
         "documentation_analysis",
         "trend_prediction",
-        "best_practices",
-        "architecture_design",
-        "ethical_guidance",
-        "technology_comparison",
     ],
     tools=[
         "web_search",
         "documentation_reader",
         "api_explorer",
-        "trend_analyzer",
+        "metrics_dashboard",
     ],
     model_preferences={
         "research": "perplexity-sonar",
@@ -51,6 +54,8 @@ ORACLE_CONFIG = AgentConfig(
         "prediction": "gpt-4-turbo",
     },
 )
+
+ORACLE_CONFIG = HEIMDALL_CONFIG
 
 
 class OracleAgent(BaseAgent):

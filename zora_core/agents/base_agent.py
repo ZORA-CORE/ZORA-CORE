@@ -2,7 +2,7 @@
 ZORA CORE Base Agent
 
 Defines the common interface and functionality for all ZORA agents.
-All six agents (CONNOR, LUMINA, EIVOR, ORACLE, AEGIS, SAM) inherit from this base.
+All seven agents (ODIN, THOR, FREYA, BALDUR, HEIMDALL, TYR, EIVOR) inherit from this base.
 """
 
 import logging

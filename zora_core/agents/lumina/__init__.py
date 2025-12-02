@@ -1,8 +1,11 @@
 """
-LUMINA Agent - Planner / Orchestrator
+TYR Agent - Ethics, Safety & Climate Integrity (formerly LUMINA + AEGIS)
 
-LUMINA (she/her) is the project brain of ZORA CORE, responsible for
-planning, coordination, and task management across all agents.
+TYR (he/him) is the guardian of ZORA CORE, responsible for safety rules enforcement,
+anti-greenwashing validation, alignment oversight, policy management, and approval workflows.
+TYR combines the orchestration capabilities of LUMINA with the safety focus of AEGIS.
+
+Note: The implementation class is still named LuminaAgent for backwards compatibility.
 """
 
 from .agent import LuminaAgent

@@ -1021,10 +1021,10 @@ export default function ClimatePage() {
         setAskingOracle(true);
         setOracleMessage(null);
         await createAgentTask({
-          agent_id: "ORACLE",
+          agent_id: "HEIMDALL",
           task_type: "propose_new_climate_missions",
           title: `Suggest climate missions for ${selectedProfile.name}`,
-          description: `ORACLE should analyze the profile "${selectedProfile.name}" (scope: ${selectedProfile.scope}) and suggest new climate missions tailored to their situation.`,
+          description: `HEIMDALL should analyze the profile "${selectedProfile.name}" (scope: ${selectedProfile.scope}) and suggest new climate missions tailored to their situation.`,
           payload: {
             profile_id: selectedProfile.id,
             profile_name: selectedProfile.name,
@@ -1036,13 +1036,13 @@ export default function ClimatePage() {
         });
         setOracleMessage({
           type: "success",
-          text: "ORACLE task created! Check /admin/agents/insights soon for new mission suggestions.",
+          text: "HEIMDALL task created! Check /admin/agents/insights soon for new mission suggestions.",
         });
       } catch (err) {
-        console.error("Failed to ask ORACLE:", err);
+        console.error("Failed to ask HEIMDALL:", err);
         setOracleMessage({
           type: "error",
-          text: err instanceof Error ? err.message : "Failed to create ORACLE task",
+          text: err instanceof Error ? err.message : "Failed to create HEIMDALL task",
         });
       } finally {
         setAskingOracle(false);
@@ -1163,7 +1163,7 @@ export default function ClimatePage() {
                                       onClick={handleAskOracle}
                                       disabled={askingOracle}
                                       className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded text-white transition-colors flex items-center gap-2"
-                                      title="Ask ORACLE to suggest new climate missions"
+                                      title="Ask HEIMDALL to suggest new climate missions"
                                     >
                                       {askingOracle ? (
                                         <>
@@ -1173,7 +1173,7 @@ export default function ClimatePage() {
                                       ) : (
                                         <>
                                           <span>&#9733;</span>
-                                          Ask ORACLE
+                                          Ask HEIMDALL
                                         </>
                                       )}
                                     </button>

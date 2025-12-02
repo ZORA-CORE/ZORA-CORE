@@ -277,7 +277,7 @@ export interface StatusResponse {
   iteration: string;
 }
 
-export type AgentId = 'connor' | 'lumina' | 'eivor' | 'oracle' | 'aegis' | 'sam';
+export type AgentId = 'odin' | 'thor' | 'freya' | 'baldur' | 'heimdall' | 'tyr' | 'eivor';
 
 export interface Agent {
   id: AgentId;

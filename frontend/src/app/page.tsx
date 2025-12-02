@@ -12,12 +12,13 @@ import type { PublicProduct, PublicMashupStats } from '@/lib/types';
 import { getToken } from '@/lib/auth';
 
 const AGENTS = [
-  { id: 'connor', name: 'CONNOR', role: 'Systems & Backend', color: 'primary' },
-  { id: 'lumina', name: 'LUMINA', role: 'Orchestrator & Lead', color: 'secondary' },
-  { id: 'eivor', name: 'EIVOR', role: 'Memory & Knowledge', color: 'accent' },
-  { id: 'oracle', name: 'ORACLE', role: 'Research & Strategy', color: 'primary' },
-  { id: 'aegis', name: 'AEGIS', role: 'Safety & Ethics', color: 'secondary' },
-  { id: 'sam', name: 'SAM', role: 'Frontend & UX', color: 'accent' },
+  { id: 'odin', name: 'ODIN', role: 'Chief Strategist & Research Lead', color: 'primary' },
+  { id: 'thor', name: 'THOR', role: 'Backend & Infra Engineer', color: 'secondary' },
+  { id: 'freya', name: 'FREYA', role: 'Humans, Storytelling & Growth', color: 'accent' },
+  { id: 'baldur', name: 'BALDUR', role: 'Frontend, UX & Product', color: 'primary' },
+  { id: 'heimdall', name: 'HEIMDALL', role: 'Observability & Monitoring', color: 'secondary' },
+  { id: 'tyr', name: 'TYR', role: 'Ethics, Safety & Climate Integrity', color: 'accent' },
+  { id: 'eivor', name: 'EIVOR', role: 'Memory & Knowledge', color: 'primary' },
 ];
 
 const FAQ_ITEMS = [

@@ -262,10 +262,10 @@ export default function AutonomyPage() {
     try {
       setGenerating(true);
       setMessage(null);
-      const suggestion = await createSuggestion({ page, agent_id: "SAM" });
+      const suggestion = await createSuggestion({ page, agent_id: "BALDUR" });
       setMessage({
         type: "success",
-        text: `SAM generated a new suggestion for the ${page} page`,
+        text: `BALDUR generated a new suggestion for the ${page} page`,
       });
       await loadSuggestions();
       // Load full details
@@ -436,7 +436,7 @@ export default function AutonomyPage() {
               <div className="agent-card">
                 <h2 className="text-lg font-semibold mb-4">Generate Suggestions</h2>
                 <p className="text-sm text-gray-400 mb-4">
-                  Ask SAM to analyze a page and suggest improvements to the frontend config.
+                  Ask BALDUR to analyze a page and suggest improvements to the frontend config.
                 </p>
                 <div className="space-y-2">
                   {PAGES.map((page) => (

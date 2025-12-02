@@ -1,8 +1,10 @@
 """
-ORACLE Agent - Research & Foresight Engine
+HEIMDALL Agent - Observability & Monitoring (formerly ORACLE)
 
-ORACLE (they/them) is the research and strategy brain of ZORA CORE,
-providing insights, predictions, and best practices to guide decision-making.
+HEIMDALL (he/him) is the watchtower of ZORA CORE, responsible for logs, metrics,
+anomaly detection, and system health monitoring. Ensures visibility into all operations.
+
+Note: The implementation class is still named OracleAgent for backwards compatibility.
 """
 
 from .agent import OracleAgent

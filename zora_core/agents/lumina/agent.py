@@ -1,9 +1,12 @@
 """
-LUMINA Agent Implementation
+TYR Agent Implementation (formerly LUMINA + AEGIS)
 
-LUMINA (she/her) - Planner / Orchestrator
+TYR (he/him) - Ethics, Safety & Climate Integrity
 Inspiration: Emilia Clarke
 Tone: Creative, inspiring
+
+Note: Class is still named LuminaAgent for backwards compatibility.
+TYR combines orchestration capabilities with safety/ethics oversight.
 """
 
 import logging
@@ -22,28 +25,30 @@ from ..base_agent import (
 )
 
 
-LUMINA_CONFIG = AgentConfig(
-    name="LUMINA",
-    role="Planner / Orchestrator",
-    pronouns="she/her",
+TYR_CONFIG = AgentConfig(
+    name="TYR",
+    role="Ethics, Safety & Climate Integrity",
+    pronouns="he/him",
     description=(
-        "LUMINA is the project brain of ZORA CORE, responsible for "
-        "planning, coordination, and task management across all agents."
+        "TYR is the guardian of ZORA CORE, responsible for safety rules enforcement, "
+        "anti-greenwashing validation, alignment oversight, policy management, "
+        "and approval workflows. Combines orchestration with ethics oversight."
     ),
     capabilities=[
+        "safety_enforcement",
+        "ethics_review",
+        "policy_management",
+        "approval_workflows",
         "task_planning",
         "goal_decomposition",
         "agent_coordination",
-        "progress_tracking",
-        "dependency_management",
         "risk_assessment",
-        "workflow_optimization",
     ],
     tools=[
         "task_manager",
         "agent_router",
         "scheduler",
-        "notification_system",
+        "policy_engine",
     ],
     model_preferences={
         "planning": "gpt-4-turbo",
@@ -52,30 +57,32 @@ LUMINA_CONFIG = AgentConfig(
     },
 )
 
+LUMINA_CONFIG = TYR_CONFIG
 
-# Agent routing map
+
+# Agent routing map (using new Nordic names)
 AGENT_ROUTING = {
-    "backend": "CONNOR",
-    "system": "CONNOR",
-    "api": "CONNOR",
-    "infrastructure": "CONNOR",
-    "testing": "CONNOR",
-    "frontend": "SAM",
-    "ui": "SAM",
-    "ux": "SAM",
-    "design": "SAM",
-    "i18n": "SAM",
-    "localization": "SAM",
+    "backend": "THOR",
+    "system": "THOR",
+    "api": "THOR",
+    "infrastructure": "THOR",
+    "testing": "THOR",
+    "frontend": "BALDUR",
+    "ui": "BALDUR",
+    "ux": "BALDUR",
+    "design": "BALDUR",
+    "i18n": "BALDUR",
+    "localization": "BALDUR",
     "memory": "EIVOR",
     "knowledge": "EIVOR",
     "context": "EIVOR",
-    "research": "ORACLE",
-    "strategy": "ORACLE",
-    "prediction": "ORACLE",
-    "safety": "AEGIS",
-    "security": "AEGIS",
-    "ethics": "AEGIS",
-    "compliance": "AEGIS",
+    "research": "ODIN",
+    "strategy": "ODIN",
+    "prediction": "HEIMDALL",
+    "safety": "TYR",
+    "security": "TYR",
+    "ethics": "TYR",
+    "compliance": "TYR",
 }
 
 

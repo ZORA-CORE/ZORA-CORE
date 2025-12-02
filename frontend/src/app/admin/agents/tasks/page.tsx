@@ -13,20 +13,50 @@ import type {
   AgentTaskStatusCounts,
 } from "@/lib/types";
 
-// Agent task type definitions
+// Agent task type definitions (Nordic mythology names)
 const AGENT_TASK_TYPES: Record<string, { label: string; types: { value: string; label: string; description: string }[] }> = {
-  LUMINA: {
-    label: "LUMINA - Orchestrator & Project Lead",
+  ODIN: {
+    label: "ODIN - Chief Strategist & Research Lead",
     types: [
-      { value: "plan_frontend_improvements", label: "Plan Frontend Improvements", description: "Suggest improvements for frontend pages" },
-      { value: "plan_workflow", label: "Plan Workflow", description: "Create a workflow plan for a goal" },
+      { value: "research_topic", label: "Research Topic", description: "Research a specific topic" },
+      { value: "strategic_planning", label: "Strategic Planning", description: "Create strategic plans and recommendations" },
     ],
   },
-  SAM: {
-    label: "SAM - Frontend & Experience Architect",
+  THOR: {
+    label: "THOR - Backend & Infra Engineer",
+    types: [
+      { value: "review_system_health", label: "Review System Health", description: "Check status endpoints and summarize health" },
+      { value: "analyze_codebase", label: "Analyze Codebase", description: "Analyze code quality and patterns" },
+    ],
+  },
+  FREYA: {
+    label: "FREYA - Humans, Storytelling & Growth",
+    types: [
+      { value: "create_story", label: "Create Story", description: "Create compelling climate stories" },
+      { value: "growth_analysis", label: "Growth Analysis", description: "Analyze growth opportunities" },
+    ],
+  },
+  BALDUR: {
+    label: "BALDUR - Frontend, UX & Product",
     types: [
       { value: "review_climate_page", label: "Review Climate Page", description: "Review and suggest UX improvements for climate pages" },
       { value: "review_accessibility", label: "Review Accessibility", description: "Check accessibility compliance" },
+    ],
+  },
+  HEIMDALL: {
+    label: "HEIMDALL - Observability & Monitoring",
+    types: [
+      { value: "propose_new_climate_missions", label: "Propose Climate Missions", description: "Suggest new climate missions" },
+      { value: "system_monitoring", label: "System Monitoring", description: "Monitor system health and metrics" },
+    ],
+  },
+  TYR: {
+    label: "TYR - Ethics, Safety & Climate Integrity",
+    types: [
+      { value: "plan_frontend_improvements", label: "Plan Frontend Improvements", description: "Suggest improvements for frontend pages" },
+      { value: "plan_workflow", label: "Plan Workflow", description: "Create a workflow plan for a goal" },
+      { value: "review_recent_agent_tasks", label: "Review Recent Tasks", description: "Flag risky activities and produce safety review" },
+      { value: "check_climate_claims", label: "Check Climate Claims", description: "Verify climate claims for greenwashing" },
     ],
   },
   EIVOR: {
@@ -34,27 +64,6 @@ const AGENT_TASK_TYPES: Record<string, { label: string; types: { value: string; 
     types: [
       { value: "summarize_recent_events", label: "Summarize Recent Events", description: "Summarize recent journal/memory events" },
       { value: "memory_cleanup", label: "Memory Cleanup", description: "Clean up and consolidate old memories" },
-    ],
-  },
-  ORACLE: {
-    label: "ORACLE - Researcher & Strategy Engine",
-    types: [
-      { value: "propose_new_climate_missions", label: "Propose Climate Missions", description: "Suggest new climate missions" },
-      { value: "research_topic", label: "Research Topic", description: "Research a specific topic" },
-    ],
-  },
-  CONNOR: {
-    label: "CONNOR - Systems & Backend Engineer",
-    types: [
-      { value: "review_system_health", label: "Review System Health", description: "Check status endpoints and summarize health" },
-      { value: "analyze_codebase", label: "Analyze Codebase", description: "Analyze code quality and patterns" },
-    ],
-  },
-  AEGIS: {
-    label: "AEGIS - Safety & Ethics Guardian",
-    types: [
-      { value: "review_recent_agent_tasks", label: "Review Recent Tasks", description: "Flag risky activities and produce safety review" },
-      { value: "check_climate_claims", label: "Check Climate Claims", description: "Verify climate claims for greenwashing" },
     ],
   },
 };
@@ -69,12 +78,13 @@ const STATUS_COLORS: Record<AgentTaskStatus, string> = {
 };
 
 const AGENT_COLORS: Record<string, string> = {
-  CONNOR: "text-blue-400",
-  LUMINA: "text-purple-400",
+  ODIN: "text-blue-400",
+  THOR: "text-orange-400",
+  FREYA: "text-pink-400",
+  BALDUR: "text-cyan-400",
+  HEIMDALL: "text-yellow-400",
+  TYR: "text-red-400",
   EIVOR: "text-green-400",
-  ORACLE: "text-yellow-400",
-  AEGIS: "text-red-400",
-  SAM: "text-pink-400",
 };
 
 function formatDate(dateString: string | null): string {
