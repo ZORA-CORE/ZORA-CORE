@@ -38,6 +38,7 @@ import adminImpactHandler from './handlers/admin-impact';
 import workflowsHandler from './handlers/workflows';
 import workflowRunsHandler from './handlers/workflow-runs';
 import outcomesHandler from './handlers/outcomes';
+import worldModelHandler from './handlers/world-model';
 
 const app = new Hono<AuthAppEnv>();
 
@@ -352,6 +353,9 @@ app.route('/api/workflow-runs', workflowRunsHandler);
 
 // Outcome Feedback & Continual Learning v1 routes (Iteration 00D6)
 app.route('/api/outcomes', outcomesHandler);
+
+// World Model / Knowledge Graph v1 routes
+app.route('/api/admin/world-model', worldModelHandler);
 
 app.notFound((c) => {
   const requestId = c.get('requestId') || 'unknown';
