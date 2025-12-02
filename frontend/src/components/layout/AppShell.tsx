@@ -225,7 +225,7 @@ export function AppShell({ children }: AppShellProps) {
           <div className="flex items-center gap-4">
             {user && (
               <div className="hidden sm:flex items-center gap-2 text-sm text-[var(--foreground)]/60">
-                <span>{user.email}</span>
+                <span>{user.role}</span>
               </div>
             )}
             
@@ -238,8 +238,8 @@ export function AppShell({ children }: AppShellProps) {
                 {user && (
                   <>
                     <div className="px-4 py-2 border-b border-[var(--card-border)]">
-                      <p className="text-sm font-medium text-[var(--foreground)]">{user.display_name || user.email}</p>
-                      <p className="text-xs text-[var(--foreground)]/60">{user.role}</p>
+                      <p className="text-sm font-medium text-[var(--foreground)]">{user.role}</p>
+                      <p className="text-xs text-[var(--foreground)]/60">User ID: {user.userId.slice(0, 8)}...</p>
                     </div>
                     <button
                       onClick={logout}
