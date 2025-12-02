@@ -13,14 +13,15 @@ import type {
   AgentTaskListItem,
 } from "@/lib/types";
 
-// Available agents for targeting
+// Available agents for targeting (Nordic mythology names)
 const AVAILABLE_AGENTS = [
-  { id: "ORACLE", name: "ORACLE", description: "Researcher & Strategy Engine" },
-  { id: "SAM", name: "SAM", description: "Frontend & Experience Architect" },
-  { id: "LUMINA", name: "LUMINA", description: "Orchestrator & Project Lead" },
+  { id: "ODIN", name: "ODIN", description: "Chief Strategist & Research Lead" },
+  { id: "THOR", name: "THOR", description: "Backend & Infra Engineer" },
+  { id: "FREYA", name: "FREYA", description: "Humans, Storytelling & Growth" },
+  { id: "BALDUR", name: "BALDUR", description: "Frontend, UX & Product" },
+  { id: "HEIMDALL", name: "HEIMDALL", description: "Observability & Monitoring" },
+  { id: "TYR", name: "TYR", description: "Ethics, Safety & Climate Integrity" },
   { id: "EIVOR", name: "EIVOR", description: "Memory & Knowledge Keeper" },
-  { id: "CONNOR", name: "CONNOR", description: "Systems & Backend Engineer" },
-  { id: "AEGIS", name: "AEGIS", description: "Safety & Ethics Guardian" },
 ];
 
 const STATUS_COLORS: Record<AgentCommandStatus, string> = {
@@ -31,12 +32,13 @@ const STATUS_COLORS: Record<AgentCommandStatus, string> = {
 };
 
 const AGENT_COLORS: Record<string, string> = {
-  CONNOR: "text-blue-400",
-  LUMINA: "text-purple-400",
+  ODIN: "text-blue-400",
+  THOR: "text-orange-400",
+  FREYA: "text-pink-400",
+  BALDUR: "text-cyan-400",
+  HEIMDALL: "text-yellow-400",
+  TYR: "text-red-400",
   EIVOR: "text-green-400",
-  ORACLE: "text-yellow-400",
-  AEGIS: "text-red-400",
-  SAM: "text-pink-400",
 };
 
 function formatDate(dateString: string | null): string {
@@ -114,7 +116,7 @@ function CommandDetailPanel({
 
           {command.parsed_summary && (
             <div>
-              <span className="text-gray-500 text-sm">LUMINA&apos;s Summary:</span>
+              <span className="text-gray-500 text-sm">TYR&apos;s Summary:</span>
               <div className="mt-1 p-3 bg-purple-900/20 border border-purple-800 rounded text-sm text-purple-300">
                 {command.parsed_summary}
               </div>
@@ -258,7 +260,7 @@ Example: 'Analyze our climate page and suggest 3 new missions for reducing house
                 className="w-4 h-4 rounded border-zinc-600 bg-zinc-800 text-emerald-500 focus:ring-emerald-500"
               />
               <span className="text-sm text-gray-300">
-                Auto (let LUMINA choose the best agents)
+                Auto (let TYR choose the best agents)
               </span>
             </label>
           </div>
@@ -303,7 +305,7 @@ Example: 'Analyze our climate page and suggest 3 new missions for reducing house
             disabled={sending || !rawPrompt.trim()}
             className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded-lg text-white font-medium transition-colors"
           >
-            {sending ? "Sending to LUMINA..." : "Send Command"}
+            {sending ? "Sending to TYR..." : "Send Command"}
           </button>
         </div>
       </form>
@@ -341,7 +343,7 @@ function CommandResultPanel({
 
       {summary && (
         <div className="mb-4">
-          <span className="text-sm text-gray-400">LUMINA&apos;s Plan:</span>
+          <span className="text-sm text-gray-400">TYR&apos;s Plan:</span>
           <div className="mt-1 p-3 bg-zinc-800/50 rounded text-gray-300">
             {summary}
           </div>
@@ -540,7 +542,7 @@ export default function AgentConsolePage() {
           <div className="mb-6">
             <h1 className="text-3xl font-bold mb-2">Agent Command Console</h1>
             <p className="text-gray-400">
-              Write natural language commands and let LUMINA translate them into agent tasks.
+              Write natural language commands and let TYR translate them into agent tasks.
             </p>
           </div>
 

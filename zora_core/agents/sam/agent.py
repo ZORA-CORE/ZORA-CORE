@@ -1,8 +1,10 @@
 """
-SAM Agent Implementation
+BALDUR Agent Implementation (formerly SAM)
 
-SAM (he/him) - Frontend & Experience Architect
+BALDUR (he/him) - Frontend, UX & Product Experience
 Tone: Friendly, professional
+
+Note: Class is still named SamAgent for backwards compatibility.
 """
 
 import logging
@@ -21,14 +23,14 @@ from ..base_agent import (
 )
 
 
-SAM_CONFIG = AgentConfig(
-    name="SAM",
-    role="Frontend & Experience Architect",
+BALDUR_CONFIG = AgentConfig(
+    name="BALDUR",
+    role="Frontend, UX & Product Experience",
     pronouns="he/him",
     description=(
-        "SAM owns the entire frontend experience of ZORA CORE across "
-        "all domains, countries, and brands, creating consistent, high-quality, "
-        "culturally adapted interfaces."
+        "BALDUR owns the entire frontend experience of ZORA CORE across "
+        "all domains, countries, and brands. Responsible for Next.js/UI components, "
+        "layouts, visual design, OS feel, and excellent user experience."
     ),
     capabilities=[
         "frontend_development",
@@ -53,6 +55,8 @@ SAM_CONFIG = AgentConfig(
         "accessibility": "claude-3-opus",
     },
 )
+
+SAM_CONFIG = BALDUR_CONFIG
 
 
 # Design system configuration

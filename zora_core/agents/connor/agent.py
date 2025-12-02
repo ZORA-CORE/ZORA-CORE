@@ -1,9 +1,11 @@
 """
-CONNOR Agent Implementation
+ODIN Agent Implementation (formerly CONNOR)
 
-CONNOR (he/him) - Developer / System Problem Solver
+ODIN (he/him) - Chief Strategist & Research Lead
 Inspiration: Paul Bettany
 Tone: Strategic, commanding
+
+Note: Class is still named ConnorAgent for backwards compatibility.
 """
 
 import logging
@@ -22,23 +24,24 @@ from ..base_agent import (
 )
 
 
-CONNOR_CONFIG = AgentConfig(
-    name="CONNOR",
-    role="Developer / System Problem Solver",
+ODIN_CONFIG = AgentConfig(
+    name="ODIN",
+    role="Chief Strategist & Research Lead",
     pronouns="he/him",
     description=(
-        "CONNOR is the technical backbone of ZORA CORE, responsible for "
-        "all backend systems, APIs, infrastructure, and code quality."
+        "ODIN is the strategic brain of ZORA CORE, responsible for "
+        "system-level strategy, climate/AI research, ZORA Model development, "
+        "ODIN Labs, AGI/ASI research, and Quantum Climate Lab orchestration."
     ),
     capabilities=[
+        "strategic_planning",
+        "research_coordination",
+        "model_development",
+        "architecture_design",
         "code_analysis",
         "backend_development",
         "api_design",
         "infrastructure_management",
-        "testing",
-        "performance_optimization",
-        "security_review",
-        "refactoring",
     ],
     tools=[
         "github",
@@ -54,6 +57,8 @@ CONNOR_CONFIG = AgentConfig(
         "debugging": "claude-3-opus",
     },
 )
+
+CONNOR_CONFIG = ODIN_CONFIG
 
 
 class ConnorAgent(BaseAgent):

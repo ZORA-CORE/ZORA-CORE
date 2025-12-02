@@ -47,7 +47,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
   {
     iteration: '0013',
     title: 'Agent Autonomy Layer v0',
-    description: 'SAM/LUMINA can now propose frontend config changes for your review.',
+    description: 'BALDUR/TYR can now propose frontend config changes for your review.',
     date: '2025-01-25',
     highlights: [
       'Agents propose config changes instead of auto-applying',

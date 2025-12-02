@@ -13,7 +13,7 @@ import type {
   AgentInsightStatusCounts,
 } from "@/lib/types";
 
-const AGENTS = ["CONNOR", "LUMINA", "EIVOR", "ORACLE", "AEGIS", "SAM"];
+const AGENTS = ["ODIN", "THOR", "FREYA", "BALDUR", "HEIMDALL", "TYR", "EIVOR"];
 
 const CATEGORIES: { value: AgentInsightCategory; label: string }[] = [
   { value: "climate_mission_suggestion", label: "Climate Mission" },
@@ -41,12 +41,13 @@ const CATEGORY_COLORS: Record<AgentInsightCategory, string> = {
 };
 
 const AGENT_COLORS: Record<string, string> = {
-  CONNOR: "text-blue-400",
-  LUMINA: "text-purple-400",
+  ODIN: "text-blue-400",
+  THOR: "text-orange-400",
+  FREYA: "text-pink-400",
+  BALDUR: "text-cyan-400",
+  HEIMDALL: "text-yellow-400",
+  TYR: "text-red-400",
   EIVOR: "text-green-400",
-  ORACLE: "text-yellow-400",
-  AEGIS: "text-red-400",
-  SAM: "text-pink-400",
 };
 
 function formatDate(dateString: string | null): string {

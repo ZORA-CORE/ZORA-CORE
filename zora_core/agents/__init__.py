@@ -1,13 +1,14 @@
 """
-ZORA CORE Agents
+ZORA CORE Agents - The Nordic Pantheon
 
-The six core agents that form the heart of ZORA CORE:
-- CONNOR: Developer / System Problem Solver (he/him)
-- LUMINA: Planner / Orchestrator (she/her)
-- EIVOR: Memory / Knowledge Weaver (she/her)
-- ORACLE: Research & Foresight Engine (they/them)
-- AEGIS: Safety, Security & Alignment Guardian (they/them)
-- SAM: Frontend & Experience Architect (he/him)
+The seven core agents that form the heart of ZORA CORE:
+- ODIN: Chief Strategist & Research Lead (he/him) - formerly CONNOR
+- THOR: Backend & Infrastructure Engineer (he/him) - new agent
+- FREYA: Humans, Storytelling & Growth (she/her) - new agent
+- BALDUR: Frontend, UX & Product Experience (he/him) - formerly SAM
+- HEIMDALL: Observability & Monitoring (he/him) - formerly ORACLE
+- TYR: Ethics, Safety & Climate Integrity (he/him) - formerly LUMINA + AEGIS
+- EIVOR: Memory & Knowledge Keeper (she/her) - unchanged
 """
 
 from .base_agent import BaseAgent, Plan, Step, StepResult, Reflection, AgentConfig, RiskLevel, StepStatus

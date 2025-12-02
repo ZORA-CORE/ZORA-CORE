@@ -1,9 +1,11 @@
 """
-SAM Agent - Frontend & Experience Architect
+BALDUR Agent - Frontend, UX & Product Experience (formerly SAM)
 
-SAM (he/him) owns the entire frontend experience of ZORA CORE across
-all domains, countries, and brands, creating consistent, high-quality,
-culturally adapted interfaces.
+BALDUR (he/him) owns the entire frontend experience of ZORA CORE across
+all domains, countries, and brands. Responsible for Next.js/UI components,
+layouts, visual design, OS feel, usability, and ensuring excellent user experience.
+
+Note: The implementation class is still named SamAgent for backwards compatibility.
 """
 
 from .agent import SamAgent
