@@ -39,6 +39,7 @@ import workflowsHandler from './handlers/workflows';
 import workflowRunsHandler from './handlers/workflow-runs';
 import outcomesHandler from './handlers/outcomes';
 import worldModelHandler from './handlers/world-model';
+import hybridSearchHandler from './handlers/hybrid-search';
 
 const app = new Hono<AuthAppEnv>();
 
@@ -356,6 +357,9 @@ app.route('/api/outcomes', outcomesHandler);
 
 // World Model / Knowledge Graph v1 routes
 app.route('/api/admin/world-model', worldModelHandler);
+
+// Hybrid Search & Reasoner v1 routes
+app.route('/api/admin/hybrid-search', hybridSearchHandler);
 
 app.notFound((c) => {
   const requestId = c.get('requestId') || 'unknown';
