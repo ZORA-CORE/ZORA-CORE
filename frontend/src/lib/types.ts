@@ -567,6 +567,25 @@ export interface ProductsListResponse {
   count: number;
 }
 
+// Shop Materials types (Cockpit v1)
+export interface ShopMaterial {
+  id: string;
+  name: string;
+  category: string;
+  description: string | null;
+  sustainability_score: number | null;
+  carbon_footprint_per_kg: number | null;
+  is_renewable: boolean;
+  is_recyclable: boolean;
+  certifications: string[] | null;
+  created_at: string;
+}
+
+export interface ShopMaterialsResponse {
+  data: ShopMaterial[];
+  count: number;
+}
+
 // Public Mashup API types (v0.18)
 export interface PublicBrandInfo {
   id: string;
@@ -890,4 +909,287 @@ export interface AutonomyStatus {
     failed: number;
   };
   pending_approvals: number;
+}
+
+// Agent Panel types (Cockpit v1)
+export type AgentPanelContext = 'climate' | 'goes_green' | 'shop' | 'foundation' | 'academy';
+
+export type AgentPanelStrategyType = 'mission' | 'goes_green_action' | 'material_change' | 'foundation_project' | 'learning_path';
+
+export interface AgentPanelSuggestion {
+  id: string;
+  type: AgentPanelStrategyType;
+  title: string;
+  summary: string;
+  category: string | null;
+  score: number;
+  impact_kgco2: number | null;
+  reasons: string[];
+  metadata?: Record<string, unknown>;
+}
+
+export interface AgentPanelSuggestInput {
+  context: AgentPanelContext;
+  prompt: string;
+  profile_id?: string;
+  tags?: string[];
+}
+
+export interface AgentPanelSuggestResponse {
+  suggestions: AgentPanelSuggestion[];
+  context: AgentPanelContext;
+  similar_tenants_used: number;
+  algorithm: string;
+}
+
+// GOES GREEN types (Cockpit v1)
+export type GoesGreenProfileType = 'household' | 'organization';
+export type GoesGreenAssetStatus = 'existing' | 'planned' | 'under_evaluation' | 'retired';
+export type GoesGreenActionStatus = 'planned' | 'in_progress' | 'completed' | 'cancelled';
+
+export interface GoesGreenProfile {
+  id: string;
+  tenant_id: string;
+  profile_type: GoesGreenProfileType;
+  name: string;
+  organization_id: string | null;
+  climate_profile_id: string | null;
+  country: string | null;
+  city_or_region: string | null;
+  annual_energy_kwh: number | null;
+  primary_energy_source: string | null;
+  grid_renewable_share_percent: number | null;
+  target_green_share_percent: number | null;
+  notes: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface CreateGoesGreenProfileInput {
+  profile_type: GoesGreenProfileType;
+  name: string;
+  organization_id?: string;
+  climate_profile_id?: string;
+  country?: string;
+  city_or_region?: string;
+  annual_energy_kwh?: number;
+  primary_energy_source?: string;
+  grid_renewable_share_percent?: number;
+  target_green_share_percent?: number;
+  notes?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface GoesGreenAction {
+  id: string;
+  tenant_id: string;
+  goes_green_profile_id: string;
+  action_type: string;
+  title: string;
+  description: string | null;
+  status: GoesGreenActionStatus;
+  estimated_impact_kgco2: number | null;
+  target_date: string | null;
+  completed_at: string | null;
+  notes: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface CreateGoesGreenActionInput {
+  action_type: string;
+  title: string;
+  description?: string;
+  status?: GoesGreenActionStatus;
+  estimated_impact_kgco2?: number;
+  target_date?: string;
+  notes?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface GoesGreenProfilesResponse {
+  data: GoesGreenProfile[];
+  pagination: {
+    limit: number;
+    offset: number;
+    total: number;
+    has_more: boolean;
+  };
+}
+
+export interface GoesGreenActionsResponse {
+  data: GoesGreenAction[];
+  pagination: {
+    limit: number;
+    offset: number;
+    total: number;
+    has_more: boolean;
+  };
+}
+
+// Foundation types (Cockpit v1)
+export type FoundationProjectStatus = 'planned' | 'active' | 'completed' | 'paused' | 'cancelled';
+
+export interface FoundationProject {
+  id: string;
+  tenant_id: string | null;
+  title: string;
+  description: string | null;
+  category: string;
+  status: FoundationProjectStatus;
+  climate_focus_domain: string | null;
+  location_country: string | null;
+  location_region: string | null;
+  sdg_tags: string[] | null;
+  estimated_impact_kgco2: number | null;
+  verified_impact_kgco2: number | null;
+  impact_methodology: string | null;
+  external_url: string | null;
+  image_url: string | null;
+  min_contribution_amount_cents: number;
+  currency: string;
+  tags: string[] | null;
+  created_at: string;
+  updated_at: string | null;
+  contribution_count?: number;
+  total_contributions_cents?: number;
+}
+
+export interface CreateFoundationProjectInput {
+  title: string;
+  description?: string;
+  category: string;
+  climate_focus_domain?: string;
+  location_country?: string;
+  location_region?: string;
+  sdg_tags?: string[];
+  estimated_impact_kgco2?: number;
+  impact_methodology?: string;
+  external_url?: string;
+  image_url?: string;
+  min_contribution_amount_cents?: number;
+  currency?: string;
+  tags?: string[];
+}
+
+export interface FoundationContribution {
+  id: string;
+  tenant_id: string;
+  project_id: string;
+  amount_cents: number;
+  currency: string;
+  source_type: string;
+  source_reference: string | null;
+  contributor_label: string | null;
+  notes: string | null;
+  metadata: Record<string, unknown>;
+  contributed_at: string;
+  created_at: string;
+}
+
+export interface CreateFoundationContributionInput {
+  amount_cents: number;
+  currency?: string;
+  source_type: string;
+  source_reference?: string;
+  contributor_label?: string;
+  notes?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface FoundationProjectsResponse {
+  data: FoundationProject[];
+  pagination: {
+    limit: number;
+    offset: number;
+    total: number;
+    has_more: boolean;
+  };
+}
+
+// Academy types (Cockpit v1)
+export type AcademyContentType = 'video' | 'article' | 'quiz' | 'interactive' | 'podcast';
+export type AcademyDifficultyLevel = 'beginner' | 'intermediate' | 'advanced';
+
+export interface AcademyLesson {
+  id: string;
+  tenant_id: string | null;
+  title: string;
+  subtitle: string | null;
+  description: string | null;
+  content_type: AcademyContentType;
+  source_type: string;
+  source_url: string | null;
+  duration_minutes_estimated: number | null;
+  language_code: string | null;
+  difficulty_level: AcademyDifficultyLevel | null;
+  primary_topic_code: string | null;
+  tags: string[] | null;
+  is_active: boolean;
+  thumbnail_url: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface AcademyModule {
+  id: string;
+  tenant_id: string | null;
+  code: string;
+  title: string;
+  description: string | null;
+  primary_topic_code: string | null;
+  target_audience: string | null;
+  estimated_duration_minutes: number | null;
+  is_active: boolean;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface AcademyLearningPath {
+  id: string;
+  tenant_id: string | null;
+  code: string;
+  title: string;
+  description: string | null;
+  target_audience: string | null;
+  estimated_duration_minutes: number | null;
+  is_active: boolean;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface AcademyUserProgress {
+  id: string;
+  tenant_id: string;
+  user_id: string;
+  entity_type: 'lesson' | 'module' | 'learning_path';
+  entity_id: string;
+  status: 'not_started' | 'in_progress' | 'completed';
+  progress_percent: number;
+  started_at: string | null;
+  completed_at: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface AcademyLessonsResponse {
+  data: AcademyLesson[];
+}
+
+export interface AcademyModulesResponse {
+  data: AcademyModule[];
+}
+
+export interface AcademyLearningPathsResponse {
+  data: AcademyLearningPath[];
+}
+
+export interface AcademyProgressResponse {
+  data: AcademyUserProgress[];
 }
