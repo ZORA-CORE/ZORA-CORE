@@ -8,6 +8,8 @@ export interface AuthUser {
   tenantId: string;
   userId: string;
   role: 'founder' | 'brand_admin' | 'viewer';
+  display_name?: string | null;
+  email?: string | null;
 }
 
 export interface DecodedToken {
