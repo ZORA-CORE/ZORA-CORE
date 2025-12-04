@@ -17,6 +17,13 @@ const SUPPORTED_V1_TASK_TYPES = [
   'climate.create_single_mission',
   'zora_shop.create_project',
   'zora_shop.update_product_climate_meta',
+  // ODIN Web Ingestion v1 bootstrap jobs (Agent Web Access v1)
+  'odin.bootstrap_climate_policy_knowledge',
+  'odin.bootstrap_hemp_and_materials',
+  'odin.bootstrap_household_energy',
+  'odin.bootstrap_sustainable_branding',
+  'odin.bootstrap_foundation_and_impact',
+  'odin.ingest_url',
 ];
 
 /**

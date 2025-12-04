@@ -318,6 +318,189 @@ logMetricEvent('hybrid_search', 'find_similar_tenants', {
 });
 ```
 
+## WebTool & Knowledge Ingestion Metrics (Agent Web Access v1)
+
+Agent Web Access v1 adds metrics for WebTool usage and ODIN knowledge ingestion operations.
+
+### WebTool Usage Metrics
+
+WebTool operations are logged with the following event structure:
+
+```json
+{
+  "event_type": "webtool_usage",
+  "tenant_id": "uuid",
+  "user_id": "uuid",
+  "metadata": {
+    "url": "https://example.com/api/data",
+    "domain": "example.com",
+    "status": 200,
+    "duration_ms": 245,
+    "content_length": 4096,
+    "context": "agent_panel_ask"
+  }
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `url` | The URL that was fetched |
+| `domain` | Extracted domain from URL |
+| `status` | HTTP response status code |
+| `duration_ms` | Request duration in milliseconds |
+| `content_length` | Response body size in bytes |
+| `context` | Where the WebTool was called from |
+
+### Knowledge Ingestion Metrics
+
+ODIN ingestion operations are logged with the following event structure:
+
+```json
+{
+  "event_type": "odin_ingestion",
+  "tenant_id": "uuid",
+  "user_id": "uuid",
+  "metadata": {
+    "url": "https://example.com/article",
+    "domain": "climate_policy",
+    "document_id": "uuid",
+    "title": "Climate Policy Update 2025",
+    "quality_score": 0.85,
+    "word_count": 1250,
+    "duration_ms": 3200
+  }
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `url` | Source URL that was ingested |
+| `domain` | Knowledge domain classification |
+| `document_id` | ID of created knowledge document |
+| `title` | Extracted/generated document title |
+| `quality_score` | Computed quality score (0-1) |
+| `word_count` | Word count of extracted content |
+| `duration_ms` | Total ingestion duration |
+
+### Bootstrap Job Metrics
+
+Bootstrap job executions are logged with aggregated results:
+
+```json
+{
+  "event_type": "odin_bootstrap_job",
+  "tenant_id": null,
+  "user_id": "uuid",
+  "metadata": {
+    "job_name": "odin_bootstrap_climate_policy_knowledge",
+    "topic": "climate policy",
+    "domain": "climate_policy",
+    "urls_attempted": 5,
+    "urls_succeeded": 4,
+    "urls_failed": 1,
+    "documents_created": 4,
+    "duration_ms": 15000
+  }
+}
+```
+
+### Agent Panel Ask Metrics
+
+The `/api/agent-panel/ask` endpoint logs evidence attribution:
+
+```json
+{
+  "event_type": "agent_panel_ask",
+  "tenant_id": "uuid",
+  "user_id": "uuid",
+  "metadata": {
+    "question_length": 45,
+    "context": "climate",
+    "domain": "climate_policy",
+    "knowledge_hits": 3,
+    "internal_hits": 5,
+    "live_web_used": false,
+    "sources_used": ["zora_internal", "knowledge_documents"]
+  }
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `question_length` | Length of user's question |
+| `context` | Agent panel context (climate, shop, etc.) |
+| `domain` | Knowledge domain filter used |
+| `knowledge_hits` | Number of knowledge documents matched |
+| `internal_hits` | Number of internal ZORA strategies matched |
+| `live_web_used` | Whether live web fallback was used |
+| `sources_used` | Array of evidence sources used |
+
+### Knowledge Store Statistics
+
+The admin endpoint `GET /api/admin/odin/stats` returns knowledge store statistics:
+
+```json
+{
+  "total_documents": 150,
+  "by_domain": {
+    "climate_policy": 45,
+    "hemp_materials": 30,
+    "energy_efficiency": 25,
+    "sustainable_fashion": 20,
+    "impact_investing": 15,
+    "general": 15
+  },
+  "by_source_type": {
+    "web_page": 100,
+    "article": 30,
+    "report": 15,
+    "api": 5
+  },
+  "by_curation_status": {
+    "auto": 140,
+    "reviewed": 8,
+    "discarded": 2
+  }
+}
+```
+
+### Example Queries for Knowledge Growth
+
+Track knowledge store growth over time:
+
+```sql
+-- Documents ingested per day
+SELECT 
+  DATE(created_at) as date,
+  COUNT(*) as documents_ingested,
+  AVG(quality_score) as avg_quality
+FROM knowledge_documents
+WHERE tenant_id IS NULL OR tenant_id = 'your-tenant-id'
+GROUP BY DATE(created_at)
+ORDER BY date DESC
+LIMIT 30;
+
+-- Documents by domain
+SELECT 
+  domain,
+  COUNT(*) as count,
+  AVG(quality_score) as avg_quality
+FROM knowledge_documents
+GROUP BY domain
+ORDER BY count DESC;
+
+-- Top quality documents
+SELECT 
+  title,
+  domain,
+  quality_score,
+  source_url
+FROM knowledge_documents
+WHERE quality_score > 0.8
+ORDER BY quality_score DESC
+LIMIT 20;
+```
+
 ## Future Enhancements
 
 This is Observability v1. Future iterations may include:
@@ -328,3 +511,6 @@ This is Observability v1. Future iterations may include:
 - Alert thresholds and notifications
 - Performance metrics (response times, error rates)
 - Custom metric definitions per tenant
+- WebTool usage dashboards and rate limit monitoring
+- Knowledge ingestion pipeline health monitoring
+- Evidence attribution analytics

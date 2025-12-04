@@ -14,6 +14,10 @@ export type Bindings = {
   ZORA_ENV?: string; // 'development' | 'production'
   AUTH_MAX_FAILED_ATTEMPTS?: string; // Default: 5
   AUTH_LOCKOUT_DURATION_MINUTES?: string; // Default: 15
+  // WebTool v1.0 bindings (Agent Web Access v1)
+  ZORA_WEBTOOL_ALLOWED_DOMAINS?: string; // Comma-separated list of allowed domains
+  ZORA_WEBTOOL_TIMEOUT_MS?: string; // Default: 10000
+  ZORA_WEBTOOL_MAX_SIZE_BYTES?: string; // Default: 524288 (512KB)
 };
 
 export type UserRole = 'founder' | 'brand_admin' | 'member' | 'viewer';
@@ -2395,4 +2399,157 @@ export interface PayPalWebhookPayload {
   id: string;
   event_type: string;
   resource: Record<string, unknown>;
+}
+
+// ============================================================================
+// Knowledge Store v1.0 types (Agent Web Access v1)
+// ============================================================================
+
+export type KnowledgeSourceType = 'web_page' | 'api' | 'report' | 'standard' | 'article';
+export type KnowledgeCurationStatus = 'auto' | 'reviewed' | 'discarded';
+export type KnowledgeDomain = 
+  | 'climate_policy'
+  | 'hemp_materials'
+  | 'energy_efficiency'
+  | 'sustainable_fashion'
+  | 'carbon_markets'
+  | 'renewable_energy'
+  | 'circular_economy'
+  | 'biodiversity'
+  | 'sustainable_agriculture'
+  | 'green_building'
+  | 'sustainable_transport'
+  | 'climate_science'
+  | 'impact_investing'
+  | 'general';
+
+export interface KnowledgeDocument {
+  id: string;
+  tenant_id: string | null;
+  source_type: KnowledgeSourceType;
+  source_url: string | null;
+  domain: string;
+  language: string;
+  title: string;
+  raw_excerpt: string | null;
+  summary: string | null;
+  embedding?: number[];
+  quality_score: number | null;
+  curation_status: KnowledgeCurationStatus;
+  ingested_by_agent: string | null;
+  ingested_by_user_id: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface KnowledgeDocumentWithSimilarity extends KnowledgeDocument {
+  similarity: number;
+}
+
+export interface KnowledgeDocumentTag {
+  id: string;
+  document_id: string;
+  tag: string;
+  created_at: string;
+}
+
+export interface CreateKnowledgeDocumentInput {
+  tenant_id?: string | null;
+  source_type?: KnowledgeSourceType;
+  source_url?: string;
+  domain: string;
+  language?: string;
+  title: string;
+  raw_excerpt?: string;
+  summary?: string;
+  embedding?: number[];
+  quality_score?: number;
+  curation_status?: KnowledgeCurationStatus;
+  ingested_by_agent?: string;
+  ingested_by_user_id?: string;
+  tags?: string[];
+  metadata?: Record<string, unknown>;
+}
+
+export interface KnowledgeSearchInput {
+  query: string;
+  domain?: string;
+  tenant_id?: string;
+  include_global?: boolean;
+  limit?: number;
+  threshold?: number;
+}
+
+export interface KnowledgeSearchResult {
+  documents: KnowledgeDocumentWithSimilarity[];
+  query: string;
+  embedding_model: string;
+  total_hits: number;
+}
+
+export interface KnowledgeDocumentFilters {
+  domain?: string;
+  source_type?: KnowledgeSourceType;
+  curation_status?: KnowledgeCurationStatus;
+  ingested_by_agent?: string;
+  language?: string;
+}
+
+// ODIN Web Ingestion v1 types
+export interface IngestKnowledgeFromUrlInput {
+  url: string;
+  domain: string;
+  language?: string;
+  tenant_id?: string | null;
+  initiated_by_agent?: string;
+  initiated_by_user_id?: string;
+  tags?: string[];
+}
+
+export interface IngestKnowledgeResult {
+  success: boolean;
+  document_id?: string;
+  title?: string;
+  summary?: string;
+  error_code?: string;
+  error_message?: string;
+}
+
+export interface OdinIngestionJobInput {
+  topic: string;
+  domain: string;
+  language?: string;
+  tenant_id?: string | null;
+  max_documents?: number;
+  urls?: string[];
+}
+
+export interface OdinIngestionJobResult {
+  job_name: string;
+  topic: string;
+  domain: string;
+  documents_ingested: number;
+  documents_failed: number;
+  document_ids: string[];
+  errors: Array<{ url: string; error: string }>;
+  duration_ms: number;
+}
+
+// Evidence types for agent answer attribution
+export type EvidenceSource = 'zora_internal' | 'knowledge_documents' | 'live_web';
+
+export interface EvidenceItem {
+  source: EvidenceSource;
+  id?: string;
+  url?: string;
+  title?: string;
+  snippet?: string;
+  score?: number;
+}
+
+export interface AgentAnswerWithEvidence {
+  text: string;
+  evidences: EvidenceItem[];
+  used_sources: EvidenceSource[];
 }
