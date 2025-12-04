@@ -55,6 +55,11 @@ import type {
   AgentCommandResponse,
   AgentCommandDetailResponse,
   AgentCommandStatus,
+  ZoraShopProjectWithBrands,
+  ZoraShopProjectsResponse,
+  ZoraShopProjectStatus,
+  CreateZoraShopProjectInput,
+  ProductWithDetails,
 } from './types';
 import { getToken, clearToken } from './auth';
 
@@ -764,6 +769,43 @@ export async function updateAcademyProgress(
   });
 }
 
+// ZORA SHOP Projects API (Frontend v1)
+export async function getZoraShopProjects(params?: {
+  status?: ZoraShopProjectStatus;
+  primary_brand_id?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<ZoraShopProjectsResponse> {
+  const searchParams = new URLSearchParams();
+  if (params?.status) searchParams.set('status', params.status);
+  if (params?.primary_brand_id) searchParams.set('primary_brand_id', params.primary_brand_id);
+  if (params?.limit) searchParams.set('limit', params.limit.toString());
+  if (params?.offset) searchParams.set('offset', params.offset.toString());
+
+  const query = searchParams.toString();
+  return request<ZoraShopProjectsResponse>(
+    `/api/zora-shop/projects${query ? `?${query}` : ''}`
+  );
+}
+
+export async function getZoraShopProject(id: string): Promise<{ data: ZoraShopProjectWithBrands }> {
+  return request<{ data: ZoraShopProjectWithBrands }>(`/api/zora-shop/projects/${id}`);
+}
+
+export async function createZoraShopProject(
+  input: CreateZoraShopProjectInput
+): Promise<ZoraShopProjectWithBrands> {
+  return request<ZoraShopProjectWithBrands>('/api/zora-shop/projects', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+// Shop Product Details API (for product detail page with materials and climate meta)
+export async function getShopProductDetails(id: string): Promise<{ data: ProductWithDetails }> {
+  return request<{ data: ProductWithDetails }>(`/api/shop/products/${id}`);
+}
+
 export const api = {
   getStatus,
   getClimateProfiles,
@@ -845,6 +887,11 @@ export const api = {
   getAcademyLearningPath,
   getAcademyProgress,
   updateAcademyProgress,
+  // ZORA SHOP Projects API (Frontend v1)
+  getZoraShopProjects,
+  getZoraShopProject,
+  createZoraShopProject,
+  getShopProductDetails,
 };
 
 export default api;
