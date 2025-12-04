@@ -2,13 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { useAuth } from '@/lib/AuthContext';
 import { AppShell } from '@/components/layout';
-import { Card } from '@/components/ui/Card';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { getImpactSummary, getSystemMetrics } from '@/lib/api';
 import type { ImpactSummary, SystemMetrics } from '@/lib/types';
+import { useI18n } from '@/lib/I18nProvider';
 import {
   WelcomeCard,
   ClimateImpactCard,
@@ -18,30 +17,6 @@ import {
   AcademyCard,
   AgentsAutonomyCard,
 } from './components';
-
-const GlobeIcon = () => (
-  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-  </svg>
-);
-
-const ShoppingBagIcon = () => (
-  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-  </svg>
-);
-
-const CpuChipIcon = () => (
-  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
-  </svg>
-);
-
-const JournalIcon = () => (
-  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-  </svg>
-);
 
 export default function DeskPage() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
@@ -148,13 +123,15 @@ export default function DeskPage() {
     computed_at: '',
   };
 
+  const { t } = useI18n();
+
   return (
     <AppShell>
-      <div className="p-6 lg:p-8">
+      <div className="p-6 lg:p-8 space-y-8">
         <WelcomeCard user={user} />
 
         {error && (
-          <div className="mt-6 p-4 bg-amber-500/10 border border-amber-500/20 rounded-lg text-amber-600">
+          <div className="p-4 bg-[var(--z-amber-soft)] border border-[var(--z-amber-border)] rounded-[var(--z-radius-lg)] text-[var(--z-amber)]">
             {error}
           </div>
         )}
@@ -165,89 +142,137 @@ export default function DeskPage() {
           </div>
         ) : (
           <>
-            <div className="mt-8 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-              <ClimateImpactCard stats={climateStats} />
-              <GoesGreenCard stats={goesGreenStats} />
-              <ZoraShopCard stats={shopStats} />
-              <FoundationCard stats={foundationStats} />
-              <AcademyCard stats={academyStats} />
-              <AgentsAutonomyCard metrics={agentMetrics} />
-            </div>
+            <section>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-1 h-6 bg-[var(--z-emerald)] rounded-full" />
+                <h2 className="text-lg font-semibold text-[var(--z-text-primary)]">{t('desk.sections.climateEnergy', 'Climate & Energy')}</h2>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <ClimateImpactCard stats={climateStats} />
+                <GoesGreenCard stats={goesGreenStats} />
+              </div>
+            </section>
 
-            <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card variant="default" padding="md">
-                <h3 className="text-lg font-semibold text-[var(--foreground)] mb-4">Quick Actions</h3>
-                <div className="grid grid-cols-2 gap-3">
-                  <Link
-                    href="/climate"
-                    className="flex flex-col items-center p-4 rounded-lg bg-[var(--background)] hover:bg-emerald-500/5 transition-colors text-center group"
-                  >
-                    <span className="text-emerald-500"><GlobeIcon /></span>
-                    <span className="block mt-2 text-sm text-[var(--foreground)]/70 group-hover:text-[var(--foreground)]">New Mission</span>
-                  </Link>
-                  <Link
-                    href="/admin/agents/console"
-                    className="flex flex-col items-center p-4 rounded-lg bg-[var(--background)] hover:bg-violet-500/5 transition-colors text-center group"
-                  >
-                    <span className="text-violet-500"><CpuChipIcon /></span>
-                    <span className="block mt-2 text-sm text-[var(--foreground)]/70 group-hover:text-[var(--foreground)]">Agent Console</span>
-                  </Link>
-                  <Link
-                    href="/mashups"
-                    className="flex flex-col items-center p-4 rounded-lg bg-[var(--background)] hover:bg-indigo-500/5 transition-colors text-center group"
-                  >
-                    <span className="text-indigo-500"><ShoppingBagIcon /></span>
-                    <span className="block mt-2 text-sm text-[var(--foreground)]/70 group-hover:text-[var(--foreground)]">Browse Mashups</span>
-                  </Link>
-                  <Link
-                    href="/journal"
-                    className="flex flex-col items-center p-4 rounded-lg bg-[var(--background)] hover:bg-amber-500/5 transition-colors text-center group"
-                  >
-                    <span className="text-amber-500"><JournalIcon /></span>
-                    <span className="block mt-2 text-sm text-[var(--foreground)]/70 group-hover:text-[var(--foreground)]">View Journal</span>
-                  </Link>
-                </div>
-              </Card>
+            <section>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-1 h-6 bg-[var(--z-violet)] rounded-full" />
+                <h2 className="text-lg font-semibold text-[var(--z-text-primary)]">{t('desk.sections.brandsImpact', 'Brands & Impact')}</h2>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <ZoraShopCard stats={shopStats} />
+                <FoundationCard stats={foundationStats} />
+              </div>
+            </section>
 
-              <Card variant="default" padding="md">
-                <h3 className="text-lg font-semibold text-[var(--foreground)] mb-4">System Status</h3>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-[var(--foreground)]/60">Active Schedules</span>
-                    <span className="text-sm font-medium text-[var(--foreground)]">
-                      {agentMetrics.schedules.active} / {agentMetrics.schedules.total}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-[var(--foreground)]/60">Due Now</span>
-                    <span className={`text-sm font-medium ${agentMetrics.schedules.due_now > 0 ? 'text-amber-500' : 'text-[var(--foreground)]'}`}>
-                      {agentMetrics.schedules.due_now}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-[var(--foreground)]/60">Safety Policies</span>
-                    <span className="text-sm font-medium text-[var(--foreground)]">
-                      {agentMetrics.safety_policies.active} active
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-[var(--foreground)]/60">Tasks In Progress</span>
-                    <span className="text-sm font-medium text-[var(--foreground)]">
-                      {agentMetrics.agent_tasks.in_progress}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-[var(--foreground)]/60">Failed Tasks</span>
-                    <span className={`text-sm font-medium ${agentMetrics.agent_tasks.failed > 0 ? 'text-rose-500' : 'text-[var(--foreground)]'}`}>
-                      {agentMetrics.agent_tasks.failed}
-                    </span>
-                  </div>
-                </div>
-              </Card>
-            </div>
+            <section>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-1 h-6 bg-[var(--z-amber)] rounded-full" />
+                <h2 className="text-lg font-semibold text-[var(--z-text-primary)]">{t('desk.sections.learnExplore', 'Learn & Explore')}</h2>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <AcademyCard stats={academyStats} />
+                <SimulationCard />
+              </div>
+            </section>
+
+            <section>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-1 h-6 bg-[var(--z-sky)] rounded-full" />
+                <h2 className="text-lg font-semibold text-[var(--z-text-primary)]">{t('desk.sections.brainSystem', 'Brain & System')}</h2>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <AgentsAutonomyCard metrics={agentMetrics} />
+                <SystemStatusCard metrics={agentMetrics} />
+              </div>
+            </section>
           </>
         )}
       </div>
     </AppShell>
+  );
+}
+
+function SimulationCard() {
+  const { t } = useI18n();
+  return (
+    <div className="bg-[var(--z-bg-surface)] border border-[var(--z-border-default)] rounded-[var(--z-radius-xl)] p-6 flex flex-col h-full">
+      <div className="flex items-start gap-4 mb-4">
+        <div className="w-12 h-12 rounded-[var(--z-radius-lg)] flex items-center justify-center flex-shrink-0 bg-[var(--z-sky-soft)]">
+          <svg className="w-6 h-6 text-[var(--z-sky)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+          </svg>
+        </div>
+        <div className="flex-1 min-w-0">
+          <h3 className="text-lg font-semibold text-[var(--z-text-primary)]">{t('simulation.title', 'Simulation Studio')}</h3>
+          <p className="text-sm text-[var(--z-text-tertiary)]">{t('simulation.subtitle', 'Model climate scenarios')}</p>
+        </div>
+      </div>
+      <div className="flex-1 flex flex-col justify-center">
+        <div className="bg-[var(--z-sky-soft)] border border-[var(--z-sky-border)] rounded-[var(--z-radius-md)] p-4 text-center">
+          <p className="text-sm text-[var(--z-text-secondary)]">
+            Run what-if scenarios to explore climate impact pathways and optimize your sustainability strategy.
+          </p>
+        </div>
+      </div>
+      <div className="mt-4 pt-4 border-t border-[var(--z-border-subtle)]">
+        <a 
+          href="/simulation" 
+          className="block w-full text-center py-2 px-4 bg-[var(--z-sky)] text-white rounded-[var(--z-radius-md)] text-sm font-medium hover:bg-[var(--z-sky)]/90 transition-colors"
+        >
+          Open Studio
+        </a>
+      </div>
+    </div>
+  );
+}
+
+function SystemStatusCard({ metrics }: { metrics: SystemMetrics }) {
+  const { t } = useI18n();
+  return (
+    <div className="bg-[var(--z-bg-surface)] border border-[var(--z-border-default)] rounded-[var(--z-radius-xl)] p-6 flex flex-col h-full">
+      <div className="flex items-start gap-4 mb-4">
+        <div className="w-12 h-12 rounded-[var(--z-radius-lg)] flex items-center justify-center flex-shrink-0 bg-[var(--z-bg-elevated)]">
+          <svg className="w-6 h-6 text-[var(--z-text-secondary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
+        </div>
+        <div className="flex-1 min-w-0">
+          <h3 className="text-lg font-semibold text-[var(--z-text-primary)]">{t('system.title', 'System Status')}</h3>
+          <p className="text-sm text-[var(--z-text-tertiary)]">{t('system.subtitle', 'ZORA OS health overview')}</p>
+        </div>
+      </div>
+      <div className="space-y-3 flex-1">
+        <div className="flex items-center justify-between py-2 border-b border-[var(--z-border-subtle)]">
+          <span className="text-sm text-[var(--z-text-tertiary)]">Active Schedules</span>
+          <span className="text-sm font-medium text-[var(--z-text-primary)]">
+            {metrics.schedules.active} / {metrics.schedules.total}
+          </span>
+        </div>
+        <div className="flex items-center justify-between py-2 border-b border-[var(--z-border-subtle)]">
+          <span className="text-sm text-[var(--z-text-tertiary)]">Due Now</span>
+          <span className={`text-sm font-medium ${metrics.schedules.due_now > 0 ? 'text-[var(--z-amber)]' : 'text-[var(--z-text-primary)]'}`}>
+            {metrics.schedules.due_now}
+          </span>
+        </div>
+        <div className="flex items-center justify-between py-2 border-b border-[var(--z-border-subtle)]">
+          <span className="text-sm text-[var(--z-text-tertiary)]">Safety Policies</span>
+          <span className="text-sm font-medium text-[var(--z-emerald)]">
+            {metrics.safety_policies.active} active
+          </span>
+        </div>
+        <div className="flex items-center justify-between py-2 border-b border-[var(--z-border-subtle)]">
+          <span className="text-sm text-[var(--z-text-tertiary)]">Tasks In Progress</span>
+          <span className="text-sm font-medium text-[var(--z-text-primary)]">
+            {metrics.agent_tasks.in_progress}
+          </span>
+        </div>
+        <div className="flex items-center justify-between py-2">
+          <span className="text-sm text-[var(--z-text-tertiary)]">Failed Tasks</span>
+          <span className={`text-sm font-medium ${metrics.agent_tasks.failed > 0 ? 'text-[var(--z-rose)]' : 'text-[var(--z-text-primary)]'}`}>
+            {metrics.agent_tasks.failed}
+          </span>
+        </div>
+      </div>
+    </div>
   );
 }

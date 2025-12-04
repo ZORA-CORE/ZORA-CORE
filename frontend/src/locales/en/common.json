@@ -33,7 +33,13 @@
     "quickActions": "Quick Actions",
     "systemStatus": "System Status",
     "getStarted": "Get Started",
-    "getStartedDesc": "Set up your climate profile and start making an impact"
+    "getStartedDesc": "Set up your climate profile and start making an impact",
+    "sections": {
+      "climateEnergy": "Climate & Energy",
+      "brandsImpact": "Brands & Impact",
+      "learnExplore": "Learn & Explore",
+      "brainSystem": "Brain & System"
+    }
   },
   "climate": {
     "title": "Climate OS",

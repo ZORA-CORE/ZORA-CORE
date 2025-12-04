@@ -33,7 +33,13 @@
     "quickActions": "Hurtige Handlinger",
     "systemStatus": "Systemstatus",
     "getStarted": "Kom i gang",
-    "getStartedDesc": "Opsæt din klimaprofil og begynd at gøre en forskel"
+    "getStartedDesc": "Opsæt din klimaprofil og begynd at gøre en forskel",
+    "sections": {
+      "climateEnergy": "Klima & Energi",
+      "brandsImpact": "Brands & Påvirkning",
+      "learnExplore": "Lær & Udforsk",
+      "brainSystem": "Hjerne & System"
+    }
   },
   "climate": {
     "title": "Klima OS",

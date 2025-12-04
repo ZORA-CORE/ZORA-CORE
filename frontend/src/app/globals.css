@@ -1,78 +1,169 @@
 @import "tailwindcss";
 
 :root {
-  /* ===== ZORA Design System v1 - Nordic Climate OS ===== */
+  /* ===== ZORA CORE ULTIMATE INFINITY - Nordic Climate OS Design System v2 ===== */
   
-  /* Core Palette */
-  --background: #0a0a0a;
-  --foreground: #ededed;
+  /* Core Palette (Legacy compatibility) */
+  --background: #0a0a0c;
+  --foreground: #f0f0f2;
   --primary: #10b981;
   --primary-dark: #059669;
   --secondary: #6366f1;
   --accent: #f59e0b;
   --danger: #ef4444;
-  --card-bg: #1a1a1a;
-  --card-border: #2a2a2a;
+  --card-bg: #14141a;
+  --card-border: #1e1e26;
+  
+  /* ===== ULTIMATE INFINITY BACKGROUNDS ===== */
+  --zora-bg: #08080a;
+  --zora-bg-soft: #0c0c10;
+  --zora-surface: #12121a;
+  --zora-surface-elevated: #18182a;
+  --zora-border: rgba(255, 255, 255, 0.08);
+  --zora-border-strong: rgba(255, 255, 255, 0.14);
   
   /* Nordic Extended Palette */
   --z-bg-deep: #050508;
-  --z-bg-base: #0a0a0a;
-  --z-bg-surface: #111114;
-  --z-bg-elevated: #18181c;
-  --z-bg-overlay: #1f1f24;
+  --z-bg-base: #0a0a0c;
+  --z-bg-surface: #12121a;
+  --z-bg-elevated: #18182a;
+  --z-bg-overlay: #1f1f2e;
+  --z-bg-card: #14141a;
   
   /* Border & Divider */
-  --z-border-subtle: rgba(255, 255, 255, 0.06);
-  --z-border-default: rgba(255, 255, 255, 0.10);
-  --z-border-strong: rgba(255, 255, 255, 0.16);
+  --z-border-subtle: rgba(255, 255, 255, 0.05);
+  --z-border-default: rgba(255, 255, 255, 0.08);
+  --z-border-strong: rgba(255, 255, 255, 0.14);
+  --z-border-accent: rgba(16, 185, 129, 0.3);
   
-  /* Text Hierarchy */
-  --z-text-primary: #ededed;
-  --z-text-secondary: rgba(237, 237, 237, 0.70);
-  --z-text-tertiary: rgba(237, 237, 237, 0.50);
-  --z-text-muted: rgba(237, 237, 237, 0.35);
+  /* Text Hierarchy - High Contrast */
+  --z-text-primary: #f0f0f2;
+  --z-text-secondary: rgba(240, 240, 242, 0.75);
+  --z-text-tertiary: rgba(240, 240, 242, 0.55);
+  --z-text-muted: rgba(240, 240, 242, 0.38);
+  --z-text-inverse: #0a0a0c;
+  
+  /* ===== SEMANTIC MODULE COLORS ===== */
+  /* Climate (Primary) */
+  --zora-primary: #10b981;
+  --zora-primary-soft: rgba(16, 185, 129, 0.12);
+  --zora-primary-border: rgba(16, 185, 129, 0.25);
+  
+  /* Climate Accent */
+  --zora-accent-climate: #10b981;
+  --zora-accent-climate-soft: rgba(16, 185, 129, 0.10);
+  
+  /* Energy (GOES GREEN) */
+  --zora-accent-energy: #22c55e;
+  --zora-accent-energy-soft: rgba(34, 197, 94, 0.10);
+  
+  /* Shop */
+  --zora-accent-shop: #8b5cf6;
+  --zora-accent-shop-soft: rgba(139, 92, 246, 0.10);
+  
+  /* Foundation */
+  --zora-accent-foundation: #f43f5e;
+  --zora-accent-foundation-soft: rgba(244, 63, 94, 0.10);
+  
+  /* Simulation */
+  --zora-accent-simulation: #0ea5e9;
+  --zora-accent-simulation-soft: rgba(14, 165, 233, 0.10);
+  
+  /* Academy */
+  --zora-accent-academy: #f59e0b;
+  --zora-accent-academy-soft: rgba(245, 158, 11, 0.10);
+  
+  /* Semantic Status */
+  --zora-success: #10b981;
+  --zora-warning: #f59e0b;
+  --zora-error: #ef4444;
+  --zora-info: #0ea5e9;
   
   /* Semantic Colors - Climate Theme */
   --z-emerald: #10b981;
   --z-emerald-soft: rgba(16, 185, 129, 0.12);
   --z-emerald-border: rgba(16, 185, 129, 0.30);
+  --z-emerald-glow: 0 0 20px rgba(16, 185, 129, 0.3);
   
   --z-rose: #f43f5e;
   --z-rose-soft: rgba(244, 63, 94, 0.12);
   --z-rose-border: rgba(244, 63, 94, 0.30);
+  --z-rose-glow: 0 0 20px rgba(244, 63, 94, 0.3);
   
   --z-amber: #f59e0b;
   --z-amber-soft: rgba(245, 158, 11, 0.12);
   --z-amber-border: rgba(245, 158, 11, 0.30);
+  --z-amber-glow: 0 0 20px rgba(245, 158, 11, 0.3);
   
   --z-violet: #8b5cf6;
   --z-violet-soft: rgba(139, 92, 246, 0.12);
   --z-violet-border: rgba(139, 92, 246, 0.30);
+  --z-violet-glow: 0 0 20px rgba(139, 92, 246, 0.3);
   
   --z-sky: #0ea5e9;
   --z-sky-soft: rgba(14, 165, 233, 0.12);
   --z-sky-border: rgba(14, 165, 233, 0.30);
+  --z-sky-glow: 0 0 20px rgba(14, 165, 233, 0.3);
   
-  /* Agent Colors (Nordic Mythology) */
-  --z-odin: #8b5cf6;      /* Violet - Wisdom */
-  --z-baldur: #f59e0b;    /* Amber - Light */
-  --z-tyr: #f43f5e;       /* Rose - Justice */
-  --z-freya: #ec4899;     /* Pink - Love/Beauty */
-  --z-heimdall: #0ea5e9;  /* Sky - Watchfulness */
-  --z-thor: #10b981;      /* Emerald - Strength */
+  --z-green: #22c55e;
+  --z-green-soft: rgba(34, 197, 94, 0.12);
+  --z-green-border: rgba(34, 197, 94, 0.30);
   
-  /* Typography Scale */
-  --z-font-sans: system-ui, -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
-  --z-font-mono: 'Geist Mono', 'SF Mono', 'Fira Code', monospace;
+  --z-pink: #ec4899;
+  --z-pink-soft: rgba(236, 72, 153, 0.12);
+  --z-pink-border: rgba(236, 72, 153, 0.30);
   
-  --z-text-xs: 0.75rem;    /* 12px */
-  --z-text-sm: 0.875rem;   /* 14px */
-  --z-text-base: 1rem;     /* 16px */
-  --z-text-lg: 1.125rem;   /* 18px */
-  --z-text-xl: 1.25rem;    /* 20px */
-  --z-text-2xl: 1.5rem;    /* 24px */
-  --z-text-3xl: 1.875rem;  /* 30px */
-  --z-text-4xl: 2.25rem;   /* 36px */
+  /* ===== NORDIC AGENT COLORS (Mythology) ===== */
+  --z-odin: #8b5cf6;           /* Violet - Wisdom, Research */
+  --z-odin-soft: rgba(139, 92, 246, 0.12);
+  --z-odin-glow: 0 0 16px rgba(139, 92, 246, 0.4);
+  
+  --z-thor: #10b981;           /* Emerald - Strength, Climate */
+  --z-thor-soft: rgba(16, 185, 129, 0.12);
+  --z-thor-glow: 0 0 16px rgba(16, 185, 129, 0.4);
+  
+  --z-freya: #ec4899;          /* Pink - Beauty, Brand */
+  --z-freya-soft: rgba(236, 72, 153, 0.12);
+  --z-freya-glow: 0 0 16px rgba(236, 72, 153, 0.4);
+  
+  --z-baldur: #f59e0b;         /* Amber - Light, Learning */
+  --z-baldur-soft: rgba(245, 158, 11, 0.12);
+  --z-baldur-glow: 0 0 16px rgba(245, 158, 11, 0.4);
+  
+  --z-heimdall: #0ea5e9;       /* Sky - Watchfulness, Analytics */
+  --z-heimdall-soft: rgba(14, 165, 233, 0.12);
+  --z-heimdall-glow: 0 0 16px rgba(14, 165, 233, 0.4);
+  
+  --z-tyr: #f43f5e;            /* Rose - Justice, Ethics */
+  --z-tyr-soft: rgba(244, 63, 94, 0.12);
+  --z-tyr-glow: 0 0 16px rgba(244, 63, 94, 0.4);
+  
+  --z-eivor: #6366f1;          /* Indigo - Memory, Knowledge */
+  --z-eivor-soft: rgba(99, 102, 241, 0.12);
+  --z-eivor-glow: 0 0 16px rgba(99, 102, 241, 0.4);
+  
+  /* ===== TYPOGRAPHY ===== */
+  --z-font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --z-font-mono: 'Geist Mono', 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  --z-font-display: 'Inter', system-ui, sans-serif;
+  
+  /* Type Scale - Refined */
+  --z-text-xs: 0.75rem;      /* 12px */
+  --z-text-sm: 0.8125rem;    /* 13px */
+  --z-text-base: 0.875rem;   /* 14px */
+  --z-text-md: 1rem;         /* 16px */
+  --z-text-lg: 1.125rem;     /* 18px */
+  --z-text-xl: 1.25rem;      /* 20px */
+  --z-text-2xl: 1.5rem;      /* 24px */
+  --z-text-3xl: 1.875rem;    /* 30px */
+  --z-text-4xl: 2.25rem;     /* 36px */
+  --z-text-5xl: 3rem;        /* 48px */
+  
+  /* Line Heights */
+  --z-leading-tight: 1.25;
+  --z-leading-snug: 1.375;
+  --z-leading-normal: 1.5;
+  --z-leading-relaxed: 1.625;
   
   /* Font Weights */
   --z-font-normal: 400;
@@ -80,40 +171,73 @@
   --z-font-semibold: 600;
   --z-font-bold: 700;
   
-  /* Spacing Scale */
-  --z-space-1: 0.25rem;   /* 4px */
-  --z-space-2: 0.5rem;    /* 8px */
-  --z-space-3: 0.75rem;   /* 12px */
-  --z-space-4: 1rem;      /* 16px */
-  --z-space-5: 1.25rem;   /* 20px */
-  --z-space-6: 1.5rem;    /* 24px */
-  --z-space-8: 2rem;      /* 32px */
-  --z-space-10: 2.5rem;   /* 40px */
-  --z-space-12: 3rem;     /* 48px */
-  --z-space-16: 4rem;     /* 64px */
+  /* ===== SPACING SCALE ===== */
+  --z-space-0: 0;
+  --z-space-1: 0.25rem;    /* 4px */
+  --z-space-2: 0.5rem;     /* 8px */
+  --z-space-3: 0.75rem;    /* 12px */
+  --z-space-4: 1rem;       /* 16px */
+  --z-space-5: 1.25rem;    /* 20px */
+  --z-space-6: 1.5rem;     /* 24px */
+  --z-space-8: 2rem;       /* 32px */
+  --z-space-10: 2.5rem;    /* 40px */
+  --z-space-12: 3rem;      /* 48px */
+  --z-space-16: 4rem;      /* 64px */
+  --z-space-20: 5rem;      /* 80px */
+  --z-space-24: 6rem;      /* 96px */
   
-  /* Border Radius */
-  --z-radius-sm: 0.375rem;  /* 6px */
-  --z-radius-md: 0.5rem;    /* 8px */
-  --z-radius-lg: 0.75rem;   /* 12px */
-  --z-radius-xl: 1rem;      /* 16px */
-  --z-radius-2xl: 1.5rem;   /* 24px */
+  /* ===== BORDER RADIUS ===== */
+  --z-radius-xs: 0.25rem;    /* 4px */
+  --z-radius-sm: 0.375rem;   /* 6px */
+  --z-radius-md: 0.5rem;     /* 8px */
+  --z-radius-lg: 0.75rem;    /* 12px */
+  --z-radius-xl: 1rem;       /* 16px */
+  --z-radius-2xl: 1.25rem;   /* 20px */
+  --z-radius-3xl: 1.5rem;    /* 24px */
   --z-radius-full: 9999px;
+  --zora-radius-card: 0.75rem;
+  --zora-radius-pill: 9999px;
   
-  /* Shadows - Nordic subtle */
-  --z-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  /* ===== SHADOWS - Nordic Depth ===== */
+  --z-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --z-shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.4);
   --z-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
   --z-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
   --z-shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.7);
+  --z-shadow-2xl: 0 24px 64px rgba(0, 0, 0, 0.8);
+  --zora-shadow-soft: 0 4px 20px rgba(0, 0, 0, 0.4);
+  --zora-shadow-card: 0 2px 8px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.2);
   
-  /* Transitions */
-  --z-transition-fast: 150ms ease;
-  --z-transition-base: 200ms ease;
-  --z-transition-slow: 300ms ease;
+  /* Glow Effects */
+  --z-glow-emerald: 0 0 24px rgba(16, 185, 129, 0.25);
+  --z-glow-violet: 0 0 24px rgba(139, 92, 246, 0.25);
+  --z-glow-amber: 0 0 24px rgba(245, 158, 11, 0.25);
+  --z-glow-rose: 0 0 24px rgba(244, 63, 94, 0.25);
+  --z-glow-sky: 0 0 24px rgba(14, 165, 233, 0.25);
   
-  /* Content Width */
+  /* ===== TRANSITIONS ===== */
+  --z-transition-fast: 100ms ease-out;
+  --z-transition-base: 200ms ease-out;
+  --z-transition-slow: 300ms ease-out;
+  --z-transition-slower: 500ms ease-out;
+  
+  /* ===== LAYOUT ===== */
   --z-content-max: 1400px;
+  --z-content-wide: 1200px;
   --z-content-narrow: 800px;
+  --z-sidebar-width: 260px;
+  --z-sidebar-collapsed: 72px;
+  --z-header-height: 56px;
+  
+  /* ===== Z-INDEX SCALE ===== */
+  --z-index-dropdown: 100;
+  --z-index-sticky: 200;
+  --z-index-fixed: 300;
+  --z-index-modal-backdrop: 400;
+  --z-index-modal: 500;
+  --z-index-popover: 600;
+  --z-index-tooltip: 700;
+  --z-index-toast: 800;
 }
 
 @theme inline {
