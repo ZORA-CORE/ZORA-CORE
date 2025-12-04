@@ -1,0 +1,156 @@
+{
+  "brand": {
+    "name": "ZORA CORE",
+    "tagline": "Nordisk Klima OS",
+    "description": "Et multi-agent, klima-first AI operativsystem. Vi bygger ærlige, gennemsigtige værktøjer til reel klimahandling."
+  },
+  "nav": {
+    "desk": "Skrivebord",
+    "climate": "Klima OS",
+    "goesGreen": "GOES GREEN",
+    "zoraShop": "ZORA SHOP",
+    "academy": "Akademi",
+    "foundation": "Fonden",
+    "agents": "Agenter",
+    "simulation": "Simulering",
+    "journal": "Journal",
+    "mashups": "Mashups",
+    "admin": "Admin",
+    "adminSetup": "Opsætning",
+    "adminFrontend": "Frontend Konfiguration",
+    "adminAutonomy": "Autonomi",
+    "adminConsole": "Agent Konsol",
+    "devConsole": "Udvikler Konsol",
+    "signIn": "Log ind",
+    "signOut": "Log ud",
+    "billing": "Abonnement & Priser"
+  },
+  "desk": {
+    "title": "ZORA Skrivebord",
+    "subtitle": "Dit klima-first kommandocenter",
+    "welcomeBack": "Velkommen tilbage",
+    "overview": "Oversigt",
+    "quickActions": "Hurtige Handlinger",
+    "systemStatus": "Systemstatus",
+    "getStarted": "Kom i gang",
+    "getStartedDesc": "Opsæt din klimaprofil og begynd at gøre en forskel"
+  },
+  "climate": {
+    "title": "Klima OS",
+    "subtitle": "Spor din klimapåvirkning og missioner",
+    "profiles": "Profiler",
+    "missions": "Missioner",
+    "inProgress": "I gang",
+    "completed": "Fuldført",
+    "co2Impact": "CO2 Påvirkning",
+    "createMission": "Opret Mission",
+    "viewAll": "Se Alle"
+  },
+  "goesGreen": {
+    "title": "GOES GREEN",
+    "subtitle": "Bæredygtig energi og grønne initiativer",
+    "profiles": "Grønne Profiler",
+    "actions": "Handlinger",
+    "energySavings": "Energibesparelser",
+    "greenShare": "Grøn Andel"
+  },
+  "shop": {
+    "title": "ZORA SHOP",
+    "subtitle": "Klimapositive produkter og mashups",
+    "brands": "Brands",
+    "products": "Produkter",
+    "capsules": "Kapsler",
+    "activeProjects": "Aktive Projekter",
+    "createCapsule": "Opret Kapsel"
+  },
+  "foundation": {
+    "title": "ZORA FONDEN",
+    "subtitle": "Klimaprojekter og bidrag",
+    "projects": "Projekter",
+    "contributions": "Bidrag",
+    "impact": "Total Påvirkning",
+    "contribute": "Bidrag"
+  },
+  "academy": {
+    "title": "Klima Akademi",
+    "subtitle": "Lær om klimahandling",
+    "topics": "Emner",
+    "lessons": "Lektioner",
+    "learningPaths": "Læringsstier"
+  },
+  "simulation": {
+    "title": "Simulerings Studio",
+    "subtitle": "Modeller klimascenarier og forudsig resultater",
+    "runSimulation": "Kør Simulering",
+    "before": "Før",
+    "after": "Efter",
+    "delta": "Ændring",
+    "scenarios": "Scenarier"
+  },
+  "agents": {
+    "title": "Agenter & Autonomi",
+    "subtitle": "AI agenter der arbejder for klimaet",
+    "commands": "Kommandoer",
+    "pendingTasks": "Ventende Opgaver",
+    "completedTasks": "Fuldført",
+    "failedTasks": "Fejlet",
+    "activeSchedules": "Aktive Tidsplaner",
+    "pendingApproval": "Afventer Godkendelse"
+  },
+  "billing": {
+    "title": "Planer & Priser",
+    "subtitle": "Vælg den rigtige plan til din klimarejse",
+    "currentPlan": "Nuværende Plan",
+    "upgrade": "Opgrader",
+    "free": "Gratis",
+    "starter": "Starter",
+    "professional": "Professionel",
+    "enterprise": "Enterprise"
+  },
+  "auth": {
+    "loginTitle": "Log ind på ZORA CORE",
+    "loginSubtitle": "Nordisk Klima OS for brands, borgere og projekter",
+    "signupTitle": "Opret din konto",
+    "signupSubtitle": "Bliv en del af klima-first bevægelsen",
+    "email": "Email",
+    "password": "Adgangskode",
+    "confirmPassword": "Bekræft Adgangskode",
+    "displayName": "Visningsnavn",
+    "signIn": "Log ind",
+    "signUp": "Opret konto",
+    "noAccount": "Har du ikke en konto?",
+    "hasAccount": "Har du allerede en konto?",
+    "forgotPassword": "Glemt adgangskode?"
+  },
+  "common": {
+    "loading": "Indlæser...",
+    "error": "Der opstod en fejl",
+    "retry": "Prøv igen",
+    "save": "Gem",
+    "cancel": "Annuller",
+    "close": "Luk",
+    "view": "Se",
+    "edit": "Rediger",
+    "delete": "Slet",
+    "create": "Opret",
+    "search": "Søg",
+    "filter": "Filtrer",
+    "noData": "Ingen data tilgængelig",
+    "total": "Total",
+    "kg": "kg",
+    "kgCO2": "kg CO2",
+    "viewAll": "Se Alle",
+    "learnMore": "Læs Mere"
+  },
+  "footer": {
+    "product": "Produkt",
+    "company": "Virksomhed",
+    "about": "Om os",
+    "copyright": "ZORA CORE. Klima-first, altid."
+  },
+  "language": {
+    "en": "English",
+    "da": "Dansk",
+    "select": "Sprog"
+  }
+}

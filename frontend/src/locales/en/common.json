@@ -1,0 +1,156 @@
+{
+  "brand": {
+    "name": "ZORA CORE",
+    "tagline": "Nordic Climate OS",
+    "description": "A multi-agent, climate-first AI Operating System. Building honest, transparent tools for real climate action."
+  },
+  "nav": {
+    "desk": "Desk",
+    "climate": "Climate OS",
+    "goesGreen": "GOES GREEN",
+    "zoraShop": "ZORA SHOP",
+    "academy": "Academy",
+    "foundation": "Foundation",
+    "agents": "Agents",
+    "simulation": "Simulation",
+    "journal": "Journal",
+    "mashups": "Mashups",
+    "admin": "Admin",
+    "adminSetup": "Setup",
+    "adminFrontend": "Frontend Config",
+    "adminAutonomy": "Autonomy",
+    "adminConsole": "Agent Console",
+    "devConsole": "Dev Console",
+    "signIn": "Sign In",
+    "signOut": "Sign Out",
+    "billing": "Billing & Plans"
+  },
+  "desk": {
+    "title": "ZORA Desk",
+    "subtitle": "Your climate-first command center",
+    "welcomeBack": "Welcome back",
+    "overview": "Overview",
+    "quickActions": "Quick Actions",
+    "systemStatus": "System Status",
+    "getStarted": "Get Started",
+    "getStartedDesc": "Set up your climate profile and start making an impact"
+  },
+  "climate": {
+    "title": "Climate OS",
+    "subtitle": "Track your climate impact and missions",
+    "profiles": "Profiles",
+    "missions": "Missions",
+    "inProgress": "In Progress",
+    "completed": "Completed",
+    "co2Impact": "CO2 Impact",
+    "createMission": "Create Mission",
+    "viewAll": "View All"
+  },
+  "goesGreen": {
+    "title": "GOES GREEN",
+    "subtitle": "Sustainable energy and green initiatives",
+    "profiles": "Green Profiles",
+    "actions": "Actions",
+    "energySavings": "Energy Savings",
+    "greenShare": "Green Share"
+  },
+  "shop": {
+    "title": "ZORA SHOP",
+    "subtitle": "Climate-positive products and mashups",
+    "brands": "Brands",
+    "products": "Products",
+    "capsules": "Capsules",
+    "activeProjects": "Active Projects",
+    "createCapsule": "Create Capsule"
+  },
+  "foundation": {
+    "title": "THE ZORA FOUNDATION",
+    "subtitle": "Climate projects and contributions",
+    "projects": "Projects",
+    "contributions": "Contributions",
+    "impact": "Total Impact",
+    "contribute": "Contribute"
+  },
+  "academy": {
+    "title": "Climate Academy",
+    "subtitle": "Learn about climate action",
+    "topics": "Topics",
+    "lessons": "Lessons",
+    "learningPaths": "Learning Paths"
+  },
+  "simulation": {
+    "title": "Simulation Studio",
+    "subtitle": "Model climate scenarios and predict outcomes",
+    "runSimulation": "Run Simulation",
+    "before": "Before",
+    "after": "After",
+    "delta": "Delta",
+    "scenarios": "Scenarios"
+  },
+  "agents": {
+    "title": "Agents & Autonomy",
+    "subtitle": "AI agents working for climate",
+    "commands": "Commands",
+    "pendingTasks": "Pending Tasks",
+    "completedTasks": "Completed",
+    "failedTasks": "Failed",
+    "activeSchedules": "Active Schedules",
+    "pendingApproval": "Pending Approval"
+  },
+  "billing": {
+    "title": "Plans & Pricing",
+    "subtitle": "Choose the right plan for your climate journey",
+    "currentPlan": "Current Plan",
+    "upgrade": "Upgrade",
+    "free": "Free",
+    "starter": "Starter",
+    "professional": "Professional",
+    "enterprise": "Enterprise"
+  },
+  "auth": {
+    "loginTitle": "Sign in to ZORA CORE",
+    "loginSubtitle": "Nordic Climate OS for brands, citizens and projects",
+    "signupTitle": "Create your account",
+    "signupSubtitle": "Join the climate-first movement",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "displayName": "Display Name",
+    "signIn": "Sign In",
+    "signUp": "Sign Up",
+    "noAccount": "Don't have an account?",
+    "hasAccount": "Already have an account?",
+    "forgotPassword": "Forgot password?"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "retry": "Retry",
+    "save": "Save",
+    "cancel": "Cancel",
+    "close": "Close",
+    "view": "View",
+    "edit": "Edit",
+    "delete": "Delete",
+    "create": "Create",
+    "search": "Search",
+    "filter": "Filter",
+    "noData": "No data available",
+    "total": "Total",
+    "kg": "kg",
+    "kgCO2": "kg CO2",
+    "viewAll": "View All",
+    "learnMore": "Learn More"
+  },
+  "footer": {
+    "product": "Product",
+    "company": "Company",
+    "about": "About",
+    "copyright": "ZORA CORE. Climate-first, always."
+  },
+  "language": {
+    "en": "English",
+    "da": "Dansk",
+    "select": "Language"
+  }
+}

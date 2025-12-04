@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/AuthContext';
 import { useBilling } from '@/lib/BillingContext';
+import { useI18n, LanguageSwitcher } from '@/lib/I18nProvider';
 import { t } from '@/lib/i18n';
 import { VersionInfo } from '../VersionInfo';
 
@@ -225,6 +226,8 @@ export function AppShell({ children }: AppShellProps) {
           </div>
 
           <div className="flex items-center gap-4">
+            <LanguageSwitcher className="hidden sm:flex" />
+            
             {user && (
               <div className="hidden sm:flex items-center gap-2 text-sm text-[var(--foreground)]/60">
                 <span>{user.email}</span>
