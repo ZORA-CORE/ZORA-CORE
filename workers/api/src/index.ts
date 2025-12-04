@@ -44,6 +44,7 @@ import hybridSearchHandler from './handlers/hybrid-search';
 import agentPanelHandler from './handlers/agent-panel';
 import healthHandler from './handlers/health';
 import adminOdinHandler from './handlers/admin-odin';
+import adminWebtoolHandler from './handlers/admin-webtool';
 
 const app = new Hono<AuthAppEnv>();
 
@@ -119,6 +120,8 @@ app.use('/api/admin/world-model/*', authMiddleware);
 app.use('/api/admin/hybrid-search/*', authMiddleware);
 // ODIN Web Ingestion endpoints require JWT auth (founder/brand_admin role) - Agent Web Access v1
 app.use('/api/admin/odin/*', authMiddleware);
+// WebTool Admin endpoints require JWT auth (founder/brand_admin role) - WebTool v2
+app.use('/api/admin/webtool/*', authMiddleware);
 // Workflow endpoints require JWT auth - Workflow / DAG Engine v1 (Iteration 00D5)
 app.use('/api/workflows/*', authMiddleware);
 app.use('/api/workflow-runs/*', authMiddleware);
@@ -203,6 +206,14 @@ app.use('/api/admin/odin/*', createRateLimiter({
   maxRequests: 30,
   windowMs: 60 * 1000, // 1 minute
   keyPrefix: 'odin_ingestion',
+  useUserId: true,
+}));
+
+// WebTool Admin - moderate limits for domain registry operations (WebTool v2)
+app.use('/api/admin/webtool/*', createRateLimiter({
+  maxRequests: 60,
+  windowMs: 60 * 1000, // 1 minute
+  keyPrefix: 'webtool_admin',
   useUserId: true,
 }));
 
@@ -436,6 +447,9 @@ app.route('/api/admin/health', healthHandler);
 
 // ODIN Web Ingestion v1 routes (Agent Web Access v1)
 app.route('/api/admin/odin', adminOdinHandler);
+
+// WebTool Admin v2 routes (WebTool v2 - Auto-Managed Domains)
+app.route('/api/admin/webtool', adminWebtoolHandler);
 
 // Agent Panel v1 routes (Cockpit v1 - Iteration 00F2)
 app.route('/api/agent-panel', agentPanelHandler);

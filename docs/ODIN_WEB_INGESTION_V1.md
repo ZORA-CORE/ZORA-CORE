@@ -1,8 +1,15 @@
-# ZORA CORE - ODIN Web Ingestion v1
+# ZORA CORE - ODIN Web Ingestion v1 & v2
 
-**Agent Web Access v1** | Backend Only
+**Agent Web Access v1 & v2** | Backend Only
 
-This document describes the ODIN Web Ingestion v1 pipeline for ZORA CORE. This iteration enables ODIN (the Knowledge & Academy agent) to ingest external web content into the knowledge store, building a curated knowledge base for climate and sustainability topics.
+This document describes the ODIN Web Ingestion pipeline for ZORA CORE. This enables ODIN (the Knowledge & Academy agent) to ingest external web content into the knowledge store, building a curated knowledge base for climate and sustainability topics.
+
+## Version History
+
+| Version | Description |
+|---------|-------------|
+| v1.0.0 | Initial release with manual bootstrap job triggering |
+| v2.0.0 | Auto-add domains from curated sources, auto-bootstrap when thresholds are low |
 
 ## Overview
 
@@ -456,9 +463,128 @@ Errors are collected and returned in the job result:
 - All ingestion is logged for audit
 - Documents can be reviewed and discarded via admin API
 
+## ODIN Web Ingestion v2.0 - Auto-Bootstrap
+
+ODIN Web Ingestion v2.0 introduces automatic domain registration and auto-bootstrap capabilities.
+
+### Key Changes in v2.0
+
+1. **Auto-Add Domains from Curated Sources**: Bootstrap jobs automatically register their domains in the WebTool registry
+2. **Auto-Bootstrap Scheduling**: Automatic triggering of bootstrap jobs when knowledge thresholds are low
+3. **Knowledge Threshold Checking**: Monitor document counts per domain and trigger jobs when needed
+
+### Auto-Add Domains
+
+When running a bootstrap job, ODIN automatically registers each URL's domain in the WebTool allowed domains registry:
+
+```typescript
+import { ensureCuratedDomainAllowed } from '../webtool';
+
+// Before fetching each URL in a bootstrap job
+for (const url of jobConfig.urls) {
+  await ensureCuratedDomainAllowed(supabase, env, url, 'bootstrap_job');
+  const result = await httpGet(url, env, { supabase });
+  // ... process content
+}
+```
+
+This ensures that curated bootstrap sources are always allowed without manual configuration.
+
+### Auto-Bootstrap Schedule Type
+
+A new autonomy schedule type `odin.auto_bootstrap_check` enables automatic knowledge bootstrapping:
+
+```typescript
+// Create an auto-bootstrap schedule
+await createAutonomySchedule({
+  schedule_type: 'odin.auto_bootstrap_check',
+  frequency: 'daily',
+  is_enabled: true,
+});
+```
+
+### Auto-Bootstrap Logic
+
+The auto-bootstrap handler checks knowledge thresholds and enqueues jobs:
+
+```typescript
+import { checkAndEnqueueAutoBootstrap } from '../odin';
+
+const result = await checkAndEnqueueAutoBootstrap(supabase, tenantId);
+// {
+//   domains_checked: ['climate_policy', 'hemp_materials', ...],
+//   domains_below_threshold: ['hemp_materials'],
+//   jobs_enqueued: ['hemp_materials'],
+//   skipped_cooldown: [],
+//   threshold: 10,
+//   cooldown_hours: 24
+// }
+```
+
+**Logic:**
+
+1. For each ODIN bootstrap domain, check `knowledge_documents` count
+2. If count < threshold (default: 10) AND no recent job in last 24 hours:
+   - Enqueue bootstrap task via `agent_tasks`
+3. Limit: at most once per day per domain
+
+### Configuration Constants
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `AUTO_BOOTSTRAP_THRESHOLD` | 10 | Minimum documents per domain |
+| `AUTO_BOOTSTRAP_COOLDOWN_HOURS` | 24 | Hours between auto-bootstrap jobs per domain |
+
+### Domain to Job Mapping
+
+| Domain | Bootstrap Job |
+|--------|---------------|
+| `climate_policy` | `odin.bootstrap_climate_policy_knowledge` |
+| `hemp_materials` | `odin.bootstrap_hemp_and_materials` |
+| `energy_efficiency` | `odin.bootstrap_household_energy` |
+| `sustainable_fashion` | `odin.bootstrap_sustainable_branding` |
+| `impact_investing` | `odin.bootstrap_foundation_and_impact` |
+
+### Observability
+
+Auto-bootstrap operations are logged:
+
+```json
+{
+  "event_type": "odin_auto_bootstrap_check",
+  "tenant_id": null,
+  "metadata": {
+    "domains_checked": 5,
+    "domains_below_threshold": 1,
+    "jobs_enqueued": 1,
+    "skipped_cooldown": 0
+  }
+}
+```
+
+### Journal Entries
+
+When auto-bootstrap triggers a job, a journal entry is created:
+
+```json
+{
+  "category": "odin_ingestion",
+  "title": "Auto-bootstrap triggered for hemp_materials",
+  "body": "Knowledge count (3) below threshold (10). Bootstrap job enqueued.",
+  "details": {
+    "event_type": "odin_auto_bootstrap_triggered",
+    "domain": "hemp_materials",
+    "job_name": "hemp_and_materials",
+    "current_count": 3,
+    "threshold": 10
+  },
+  "author": "ODIN"
+}
+```
+
 ## Future Enhancements
 
-This is ODIN Web Ingestion v1. Future iterations may include:
+Future iterations may include:
 
 - Scheduled re-ingestion of updated sources
 - RSS/Atom feed monitoring

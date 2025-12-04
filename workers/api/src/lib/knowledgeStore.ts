@@ -429,3 +429,55 @@ export async function isUrlAlreadyIngested(
 
   return (data?.length || 0) > 0;
 }
+
+/**
+ * Get count of knowledge documents by domain
+ * Used for auto-bootstrap threshold checking
+ */
+export async function getKnowledgeDocumentCountByDomain(
+  supabase: SupabaseClient,
+  domain: string,
+  globalOnly: boolean = true
+): Promise<number> {
+  let query = supabase
+    .from('knowledge_documents')
+    .select('*', { count: 'exact', head: true })
+    .eq('domain', domain);
+
+  if (globalOnly) {
+    query = query.is('tenant_id', null);
+  }
+
+  const { count, error } = await query;
+
+  if (error) {
+    console.error(`Failed to count documents for domain ${domain}:`, error);
+    return 0;
+  }
+
+  return count || 0;
+}
+
+/**
+ * Get counts for all ODIN bootstrap domains
+ * Used for auto-bootstrap decision making
+ */
+export async function getBootstrapDomainCounts(
+  supabase: SupabaseClient
+): Promise<Record<string, number>> {
+  const domains = [
+    'climate_policy',
+    'hemp_materials',
+    'energy_efficiency',
+    'sustainable_fashion',
+    'impact_investing',
+  ];
+
+  const counts: Record<string, number> = {};
+
+  for (const domain of domains) {
+    counts[domain] = await getKnowledgeDocumentCountByDomain(supabase, domain, true);
+  }
+
+  return counts;
+}

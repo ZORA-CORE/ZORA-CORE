@@ -1,5 +1,5 @@
 /**
- * ODIN Web Ingestion v1.0
+ * ODIN Web Ingestion v2.0
  * 
  * Service for ingesting web content into the ZORA Knowledge Store.
  * ODIN is the Nordic agent responsible for research and knowledge acquisition.
@@ -10,10 +10,17 @@
  * - Generate summaries via LLM
  * - Create embeddings for semantic search
  * - Store documents in knowledge_documents table
+ * - Auto-add domains from curated bootstrap jobs (v2.0)
+ * - Auto-bootstrap when knowledge is low (v2.0)
  * 
  * This module provides pure functions that can be called from:
  * - Admin API endpoints (manual ingestion)
  * - Autonomy task executor (scheduled bootstrap jobs)
+ * 
+ * v2.0 Changes:
+ * - Curated bootstrap jobs auto-register domains in webtool_allowed_domains
+ * - Auto-bootstrap logic checks knowledge thresholds and enqueues jobs
+ * - Uses DB registry for domain allowlisting
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -25,12 +32,15 @@ import type {
   OdinIngestionJobResult,
   CreateKnowledgeDocumentInput,
 } from '../types';
-import { httpGet, WebToolError, isWebToolConfigured } from '../webtool';
-import { insertKnowledgeDocument, isUrlAlreadyIngested } from '../lib/knowledgeStore';
+import { httpGet, WebToolError, isWebToolConfigured, ensureCuratedDomainAllowed } from '../webtool';
+import { insertKnowledgeDocument, isUrlAlreadyIngested, getKnowledgeDocumentCountByDomain } from '../lib/knowledgeStore';
 import { generateEmbedding } from '../lib/openai';
 import { logMetricEvent } from '../middleware/logging';
 
-export const ODIN_INGESTION_VERSION = '1.0.0';
+export const ODIN_INGESTION_VERSION = '2.0.0';
+
+export const AUTO_BOOTSTRAP_THRESHOLD = 10;
+export const AUTO_BOOTSTRAP_COOLDOWN_HOURS = 24;
 
 const MAX_CONTENT_LENGTH = 50000;
 const MAX_EXCERPT_LENGTH = 10000;
@@ -426,6 +436,12 @@ export async function runOdinIngestionJob(
   const urls = input.urls || [];
 
   for (const url of urls.slice(0, maxDocuments)) {
+    try {
+      await ensureCuratedDomainAllowed(supabase, env, url, 'bootstrap_job');
+    } catch (domainError) {
+      console.warn(`Failed to auto-register domain for ${url}:`, domainError);
+    }
+
     const ingestResult = await ingestKnowledgeFromUrl(supabase, env, {
       url,
       domain: input.domain,
@@ -489,4 +505,125 @@ export async function runBootstrapJob(
   }
 
   return runOdinIngestionJob(supabase, env, jobConfig);
+}
+
+export interface AutoBootstrapCheckResult {
+  domains_checked: string[];
+  domains_below_threshold: string[];
+  jobs_enqueued: string[];
+  skipped_cooldown: string[];
+  threshold: number;
+  cooldown_hours: number;
+}
+
+/**
+ * Check knowledge thresholds and enqueue bootstrap jobs if needed
+ * This is the handler for the 'odin.auto_bootstrap_check' schedule type
+ * 
+ * Logic:
+ * 1. For each ODIN bootstrap domain, check knowledge_documents count
+ * 2. If count < AUTO_BOOTSTRAP_THRESHOLD and no recent job in last 24h, enqueue bootstrap task
+ * 3. Limit: at most once per day per domain
+ */
+export async function checkAndEnqueueAutoBootstrap(
+  supabase: SupabaseClient,
+  tenantId: string | null
+): Promise<AutoBootstrapCheckResult> {
+  const result: AutoBootstrapCheckResult = {
+    domains_checked: [],
+    domains_below_threshold: [],
+    jobs_enqueued: [],
+    skipped_cooldown: [],
+    threshold: AUTO_BOOTSTRAP_THRESHOLD,
+    cooldown_hours: AUTO_BOOTSTRAP_COOLDOWN_HOURS,
+  };
+
+  const domainToJobMap: Record<string, string> = {
+    'climate_policy': 'climate_policy_knowledge',
+    'hemp_materials': 'hemp_and_materials',
+    'energy_efficiency': 'household_energy',
+    'sustainable_fashion': 'sustainable_branding',
+    'impact_investing': 'foundation_and_impact',
+  };
+
+  const cooldownTime = new Date(Date.now() - AUTO_BOOTSTRAP_COOLDOWN_HOURS * 60 * 60 * 1000).toISOString();
+
+  for (const [domain, jobName] of Object.entries(domainToJobMap)) {
+    result.domains_checked.push(domain);
+
+    const count = await getKnowledgeDocumentCountByDomain(supabase, domain, true);
+
+    if (count >= AUTO_BOOTSTRAP_THRESHOLD) {
+      continue;
+    }
+
+    result.domains_below_threshold.push(domain);
+
+    const { data: recentTasks } = await supabase
+      .from('agent_tasks')
+      .select('id, created_at')
+      .eq('task_type', `odin.bootstrap_${jobName}`)
+      .gte('created_at', cooldownTime)
+      .limit(1);
+
+    if (recentTasks && recentTasks.length > 0) {
+      result.skipped_cooldown.push(domain);
+      continue;
+    }
+
+    const taskData = {
+      tenant_id: tenantId,
+      agent_id: 'ODIN',
+      task_type: `odin.bootstrap_${jobName}`,
+      title: `Auto-bootstrap ${domain} knowledge`,
+      description: `Automatically triggered bootstrap job for ${domain} domain (count: ${count} < threshold: ${AUTO_BOOTSTRAP_THRESHOLD})`,
+      payload: {
+        job_name: jobName,
+        domain,
+        trigger: 'auto_bootstrap_check',
+        current_count: count,
+        threshold: AUTO_BOOTSTRAP_THRESHOLD,
+      },
+      priority: 1,
+      status: 'pending',
+    };
+
+    const { error } = await supabase
+      .from('agent_tasks')
+      .insert(taskData);
+
+    if (!error) {
+      result.jobs_enqueued.push(domain);
+
+      await supabase.from('journal_entries').insert({
+        tenant_id: tenantId,
+        category: 'odin_ingestion',
+        title: `Auto-bootstrap triggered for ${domain}`,
+        body: `Knowledge count (${count}) below threshold (${AUTO_BOOTSTRAP_THRESHOLD}). Bootstrap job enqueued.`,
+        details: {
+          event_type: 'odin_auto_bootstrap_triggered',
+          domain,
+          job_name: jobName,
+          current_count: count,
+          threshold: AUTO_BOOTSTRAP_THRESHOLD,
+        },
+        author: 'ODIN',
+      });
+    }
+  }
+
+  logMetricEvent({
+    category: 'odin_ingestion',
+    name: 'auto_bootstrap_check',
+    tenant_id: tenantId || undefined,
+    success: true,
+    metadata: {
+      domains_checked: result.domains_checked.length,
+      domains_below_threshold: result.domains_below_threshold.length,
+      jobs_enqueued: result.jobs_enqueued.length,
+      skipped_cooldown: result.skipped_cooldown.length,
+    },
+  });
+
+  return result;
 }
