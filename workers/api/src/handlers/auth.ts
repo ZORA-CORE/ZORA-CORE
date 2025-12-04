@@ -459,7 +459,7 @@ authHandler.post('/refresh', async (c) => {
   const supabase = getSupabaseClient(c.env);
   const isProd = isProduction(c.env);
   
-  const cookieHeader = c.req.header('Cookie');
+  const cookieHeader = c.req.header('Cookie') ?? null;
   const cookies = parseCookies(cookieHeader);
   const refreshToken = cookies[COOKIE_CONFIG.REFRESH_TOKEN_NAME];
   
@@ -535,7 +535,7 @@ authHandler.post('/logout', async (c) => {
   const supabase = getSupabaseClient(c.env);
   const isProd = isProduction(c.env);
   
-  const cookieHeader = c.req.header('Cookie');
+  const cookieHeader = c.req.header('Cookie') ?? null;
   const cookies = parseCookies(cookieHeader);
   const refreshToken = cookies[COOKIE_CONFIG.REFRESH_TOKEN_NAME];
   
