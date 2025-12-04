@@ -98,8 +98,11 @@ async function request<T>(
   log(`${options.method || 'GET'} ${url}`);
 
   try {
+    // Auth System v2: Use credentials: 'include' for cookie-based auth
+    // Also include Authorization header for backward compatibility with CLI/API clients
     const response = await fetch(url, {
       ...options,
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
         ...getAuthHeaders(),

@@ -3266,6 +3266,46 @@ COMMENT ON COLUMN auth_email_verification_tokens.expires_at IS 'Token expires af
 COMMENT ON COLUMN auth_email_verification_tokens.used_at IS 'Timestamp when token was used, NULL if not yet used';
 
 -- ============================================================================
+-- STEP 14K: AUTH SESSIONS v2.0 (Auth System v2)
+-- ============================================================================
+-- Secure session management with refresh tokens for persistent login
+
+CREATE TABLE IF NOT EXISTS auth_sessions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    refresh_token_hash TEXT NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    revoked_at TIMESTAMPTZ,
+    user_agent TEXT,
+    ip_address TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Indexes for auth sessions
+CREATE INDEX IF NOT EXISTS idx_auth_sessions_tenant_user ON auth_sessions(tenant_id, user_id);
+CREATE INDEX IF NOT EXISTS idx_auth_sessions_refresh_token_hash ON auth_sessions(refresh_token_hash);
+CREATE INDEX IF NOT EXISTS idx_auth_sessions_expires_at ON auth_sessions(expires_at);
+CREATE INDEX IF NOT EXISTS idx_auth_sessions_user_id_active ON auth_sessions(user_id) WHERE revoked_at IS NULL;
+
+-- Enable RLS
+ALTER TABLE auth_sessions ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policy - service role only (sensitive security table)
+DROP POLICY IF EXISTS "Allow all for service role" ON auth_sessions;
+CREATE POLICY "Allow all for service role" ON auth_sessions
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE auth_sessions IS 'Secure session storage for persistent login - stores hashed refresh tokens';
+COMMENT ON COLUMN auth_sessions.refresh_token_hash IS 'SHA-256 hash of the refresh token (never store raw token)';
+COMMENT ON COLUMN auth_sessions.expires_at IS 'Session expires after this timestamp (typically 30 days)';
+COMMENT ON COLUMN auth_sessions.revoked_at IS 'Timestamp when session was revoked/logged out, NULL if active';
+COMMENT ON COLUMN auth_sessions.user_agent IS 'Browser/client user agent for session identification';
+COMMENT ON COLUMN auth_sessions.ip_address IS 'Client IP address for security auditing';
+
+-- ============================================================================
 -- STEP 14L: SEED DATA & ONBOARDING v1.0 (Iteration 00D2)
 -- ============================================================================
 -- Track which seed sets have been applied per tenant to prevent duplicate seeding.

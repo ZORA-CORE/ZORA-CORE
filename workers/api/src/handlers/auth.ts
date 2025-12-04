@@ -1,10 +1,14 @@
 /**
  * Auth API handlers for ZORA CORE
  * 
+ * Auth System v2 - Email + Password authentication with secure cookies
+ * 
  * Provides password-based authentication endpoints:
- * - POST /api/auth/register - Create new tenant + founder user
- * - POST /api/auth/login - Login with display_name + password (with lockout)
- * - GET /api/auth/me - Get current user info from JWT
+ * - POST /api/auth/register - Create new tenant + founder user (email + password)
+ * - POST /api/auth/login - Login with email + password (with lockout)
+ * - POST /api/auth/refresh - Refresh access token using refresh token cookie
+ * - POST /api/auth/logout - Logout and clear session cookies
+ * - GET /api/auth/me - Get current user info from JWT/cookie
  * - POST /api/auth/password/forgot - Request password reset token
  * - POST /api/auth/password/reset - Reset password with token
  * - POST /api/auth/email/verify-request - Request email verification token
@@ -18,7 +22,16 @@ import { authMiddleware, getAuthContext } from '../middleware/auth';
 import { getSupabaseClient } from '../lib/supabase';
 import { jsonResponse, errorResponse } from '../lib/response';
 import { createToken } from '../lib/auth';
-import { generateTokenPair, hashToken, TOKEN_EXPIRY, getExpiryTimestamp } from '../lib/tokens';
+import { 
+  generateTokenPair, 
+  hashToken, 
+  TOKEN_EXPIRY, 
+  getExpiryTimestamp,
+  COOKIE_CONFIG,
+  buildCookieHeader,
+  buildClearCookieHeader,
+  parseCookies
+} from '../lib/tokens';
 import type { User, Tenant, UserRole } from '../types';
 
 const authHandler = new Hono<AuthAppEnv>();
@@ -51,20 +64,22 @@ const VALID_ROLES: UserRole[] = ['founder', 'brand_admin', 'member', 'viewer'];
 const VALID_ACCOUNT_TYPES = ['private', 'company'];
 
 interface RegisterInput {
-  display_name: string;
-  account_type?: string;
+  email: string;
   password: string;
+  display_name?: string;
+  account_type?: string;
 }
 
 interface LoginInput {
-  display_name: string;
+  email?: string;
+  display_name?: string;
   password: string;
 }
 
 interface AuthResponse {
-  token: string;
   user: {
     id: string;
+    email: string;
     display_name: string;
     account_type: string;
     role: UserRole;
@@ -72,9 +87,19 @@ interface AuthResponse {
   };
 }
 
+function isValidEmail(email: string): boolean {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
+
+function isProduction(env: AuthAppEnv['Bindings']): boolean {
+  return env.ZORA_ENV === 'production' || !env.ZORA_ENV;
+}
+
 /**
  * POST /api/auth/register
- * Create a new tenant and founder user with password
+ * Create a new tenant and founder user with email + password
+ * Auth System v2: Uses email as primary identifier, sets secure cookies
  */
 authHandler.post('/register', async (c) => {
   const jwtSecret = c.env.ZORA_JWT_SECRET;
@@ -84,8 +109,8 @@ authHandler.post('/register', async (c) => {
   }
   
   const supabase = getSupabaseClient(c.env);
+  const isProd = isProduction(c.env);
   
-  // Parse request body
   let input: RegisterInput;
   try {
     input = await c.req.json();
@@ -93,38 +118,34 @@ authHandler.post('/register', async (c) => {
     return errorResponse('INVALID_JSON', 'Request body must be valid JSON', 400);
   }
   
-  // Validate required fields
-  if (!input.display_name || typeof input.display_name !== 'string' || input.display_name.trim().length === 0) {
-    return errorResponse('MISSING_DISPLAY_NAME', 'display_name is required', 400);
+  if (!input.email || typeof input.email !== 'string' || !isValidEmail(input.email)) {
+    return errorResponse('INVALID_EMAIL', 'A valid email address is required', 400);
   }
   
   if (!input.password || typeof input.password !== 'string' || input.password.length < 8) {
-    return errorResponse('INVALID_PASSWORD', 'password must be at least 8 characters', 400);
+    return errorResponse('INVALID_PASSWORD', 'Password must be at least 8 characters', 400);
   }
   
-  // Validate account_type if provided
   const accountType = input.account_type || 'private';
   if (!VALID_ACCOUNT_TYPES.includes(accountType)) {
     return errorResponse('INVALID_ACCOUNT_TYPE', `account_type must be one of: ${VALID_ACCOUNT_TYPES.join(', ')}`, 400);
   }
   
-  const displayName = input.display_name.trim();
+  const email = input.email.trim().toLowerCase();
+  const displayName = input.display_name?.trim() || email.split('@')[0];
   
-  // Check if a user with this display_name already exists
   const { data: existingUser } = await supabase
     .from('users')
     .select('id')
-    .eq('display_name', displayName)
+    .eq('email', email)
     .single();
   
   if (existingUser) {
-    return errorResponse('USER_EXISTS', 'A user with this display name already exists', 409);
+    return errorResponse('USER_EXISTS', 'A user with this email already exists', 409);
   }
   
-  // Hash the password
   const passwordHash = await hashPassword(input.password);
   
-  // Create tenant
   const tenantName = accountType === 'private' ? displayName : `${displayName}'s Organization`;
   const tenantSlug = displayName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   
@@ -132,7 +153,7 @@ authHandler.post('/register', async (c) => {
     .from('tenants')
     .insert({
       name: tenantName,
-      slug: `${tenantSlug}-${Date.now()}`, // Add timestamp to ensure uniqueness
+      slug: `${tenantSlug}-${Date.now()}`,
       description: `Tenant for ${displayName}`,
       tenant_type: accountType,
       metadata: { registered_at: new Date().toISOString() },
@@ -144,12 +165,11 @@ authHandler.post('/register', async (c) => {
     return errorResponse('TENANT_CREATE_FAILED', `Failed to create tenant: ${tenantError?.message}`, 500);
   }
   
-  // Create founder user
   const { data: user, error: userError } = await supabase
     .from('users')
     .insert({
       tenant_id: tenant.id,
-      email: `${tenantSlug}@zora.local`, // Placeholder email
+      email: email,
       display_name: displayName,
       role: 'founder',
       account_type: accountType,
@@ -160,13 +180,11 @@ authHandler.post('/register', async (c) => {
     .single();
   
   if (userError || !user) {
-    // Rollback tenant creation
     await supabase.from('tenants').delete().eq('id', tenant.id);
     return errorResponse('USER_CREATE_FAILED', `Failed to create user: ${userError?.message}`, 500);
   }
   
-  // Create JWT token (includes account_type for Auth Backend v1.0)
-  const token = await createToken(
+  const accessToken = await createToken(
     {
       tenant_id: tenant.id,
       user_id: user.id,
@@ -174,27 +192,41 @@ authHandler.post('/register', async (c) => {
       account_type: accountType,
     },
     jwtSecret,
-    7 * 24 * 60 * 60 // 7 days
+    COOKIE_CONFIG.ACCESS_TOKEN_MAX_AGE
   );
   
-  // Create journal entry for registration
+  const { token: refreshToken, tokenHash: refreshTokenHash } = await generateTokenPair();
+  const refreshExpiresAt = getExpiryTimestamp(TOKEN_EXPIRY.REFRESH_TOKEN);
+  
+  const userAgent = c.req.header('User-Agent') || null;
+  const ipAddress = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || null;
+  
+  await supabase.from('auth_sessions').insert({
+    tenant_id: tenant.id,
+    user_id: user.id,
+    refresh_token_hash: refreshTokenHash,
+    expires_at: refreshExpiresAt,
+    user_agent: userAgent,
+    ip_address: ipAddress,
+  });
+  
   await supabase.from('journal_entries').insert({
     tenant_id: tenant.id,
     category: 'system_event',
-    event_type: 'user_registered',
     title: 'New User Registered',
-    body: `New founder user registered: ${displayName} (${accountType})`,
+    body: `New founder user registered: ${displayName} (${email})`,
     details: {
       user_id: user.id,
+      email: email,
       display_name: displayName,
       account_type: accountType,
     },
   });
   
   const response: AuthResponse = {
-    token,
     user: {
       id: user.id,
+      email: user.email,
       display_name: user.display_name,
       account_type: user.account_type || 'private',
       role: user.role as UserRole,
@@ -202,12 +234,35 @@ authHandler.post('/register', async (c) => {
     },
   };
   
-  return jsonResponse(response, 201);
+  const accessCookie = buildCookieHeader(
+    COOKIE_CONFIG.ACCESS_TOKEN_NAME,
+    accessToken,
+    COOKIE_CONFIG.ACCESS_TOKEN_MAX_AGE,
+    isProd
+  );
+  const refreshCookie = buildCookieHeader(
+    COOKIE_CONFIG.REFRESH_TOKEN_NAME,
+    refreshToken,
+    COOKIE_CONFIG.REFRESH_TOKEN_MAX_AGE,
+    isProd
+  );
+  
+  const headers = new Headers();
+  headers.set('Content-Type', 'application/json');
+  headers.append('Set-Cookie', accessCookie);
+  headers.append('Set-Cookie', refreshCookie);
+  
+  return new Response(JSON.stringify(response), {
+    status: 201,
+    headers,
+  });
 });
 
 /**
  * POST /api/auth/login
- * Login with display_name and password (with account lockout protection)
+ * Login with email + password (with account lockout protection)
+ * Auth System v2: Uses email as primary identifier, sets secure cookies
+ * Also supports display_name for backward compatibility
  */
 authHandler.post('/login', async (c) => {
   const jwtSecret = c.env.ZORA_JWT_SECRET;
@@ -216,13 +271,11 @@ authHandler.post('/login', async (c) => {
     return errorResponse('JWT_NOT_CONFIGURED', 'ZORA_JWT_SECRET is not configured', 500);
   }
   
-  // Get lockout configuration from env vars or use defaults
   const maxFailedAttempts = parseInt(c.env.AUTH_MAX_FAILED_ATTEMPTS || String(DEFAULT_MAX_FAILED_ATTEMPTS), 10);
   const lockoutDurationMinutes = parseInt(c.env.AUTH_LOCKOUT_DURATION_MINUTES || String(DEFAULT_LOCKOUT_DURATION_MINUTES), 10);
-  
   const supabase = getSupabaseClient(c.env);
+  const isProd = isProduction(c.env);
   
-  // Parse request body
   let input: LoginInput;
   try {
     input = await c.req.json();
@@ -230,29 +283,39 @@ authHandler.post('/login', async (c) => {
     return errorResponse('INVALID_JSON', 'Request body must be valid JSON', 400);
   }
   
-  // Validate required fields
-  if (!input.display_name || typeof input.display_name !== 'string') {
-    return errorResponse('MISSING_DISPLAY_NAME', 'display_name is required', 400);
+  if (!input.email && !input.display_name) {
+    return errorResponse('MISSING_IDENTIFIER', 'email or display_name is required', 400);
   }
   
   if (!input.password || typeof input.password !== 'string') {
     return errorResponse('MISSING_PASSWORD', 'password is required', 400);
   }
   
-  const displayName = input.display_name.trim();
-  
-  // Look up user by display_name
-  const { data: user, error: userError } = await supabase
-    .from('users')
-    .select('*')
-    .eq('display_name', displayName)
-    .single();
-  
-  if (userError || !user) {
-    return errorResponse('INVALID_CREDENTIALS', 'Invalid display name or password', 401);
+  let user;
+  if (input.email) {
+    const email = input.email.trim().toLowerCase();
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email)
+      .single();
+    user = data;
+    if (error || !user) {
+      return errorResponse('INVALID_CREDENTIALS', 'Invalid email or password', 401);
+    }
+  } else {
+    const displayName = input.display_name!.trim();
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('display_name', displayName)
+      .single();
+    user = data;
+    if (error || !user) {
+      return errorResponse('INVALID_CREDENTIALS', 'Invalid display name or password', 401);
+    }
   }
   
-  // Check if account is locked
   if (user.locked_until) {
     const lockedUntil = new Date(user.locked_until);
     const now = new Date();
@@ -266,27 +329,22 @@ authHandler.post('/login', async (c) => {
       );
     }
     
-    // Lock has expired, reset the lockout fields
     await supabase
       .from('users')
       .update({ locked_until: null, failed_login_attempts: 0 })
       .eq('id', user.id);
   }
   
-  // Check if user has a password set
   if (!user.password_hash) {
-    return errorResponse('PASSWORD_NOT_SET', 'This account does not have password authentication enabled. Please use the admin token flow.', 401);
+    return errorResponse('PASSWORD_NOT_SET', 'This account does not have password authentication enabled.', 401);
   }
   
-  // Verify password
   const isValid = await verifyPassword(input.password, user.password_hash);
   
   if (!isValid) {
-    // Increment failed login attempts
     const newFailedAttempts = (user.failed_login_attempts || 0) + 1;
     
     if (newFailedAttempts >= maxFailedAttempts) {
-      // Lock the account
       const lockUntil = new Date(Date.now() + lockoutDurationMinutes * 60 * 1000).toISOString();
       await supabase
         .from('users')
@@ -302,7 +360,6 @@ authHandler.post('/login', async (c) => {
         423
       );
     } else {
-      // Just increment the counter
       await supabase
         .from('users')
         .update({ failed_login_attempts: newFailedAttempts })
@@ -311,13 +368,12 @@ authHandler.post('/login', async (c) => {
       const attemptsRemaining = maxFailedAttempts - newFailedAttempts;
       return errorResponse(
         'INVALID_CREDENTIALS',
-        `Invalid display name or password. ${attemptsRemaining} attempt(s) remaining before account lockout.`,
+        `Invalid credentials. ${attemptsRemaining} attempt(s) remaining before account lockout.`,
         401
       );
     }
   }
   
-  // Successful login - reset failed attempts and update last_login_at
   await supabase
     .from('users')
     .update({ 
@@ -327,8 +383,7 @@ authHandler.post('/login', async (c) => {
     })
     .eq('id', user.id);
   
-  // Create JWT token (includes account_type for Auth Backend v1.0)
-  const token = await createToken(
+  const accessToken = await createToken(
     {
       tenant_id: user.tenant_id,
       user_id: user.id,
@@ -336,13 +391,28 @@ authHandler.post('/login', async (c) => {
       account_type: user.account_type || 'private',
     },
     jwtSecret,
-    7 * 24 * 60 * 60 // 7 days
+    COOKIE_CONFIG.ACCESS_TOKEN_MAX_AGE
   );
   
+  const { token: refreshToken, tokenHash: refreshTokenHash } = await generateTokenPair();
+  const refreshExpiresAt = getExpiryTimestamp(TOKEN_EXPIRY.REFRESH_TOKEN);
+  
+  const userAgent = c.req.header('User-Agent') || null;
+  const ipAddress = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || null;
+  
+  await supabase.from('auth_sessions').insert({
+    tenant_id: user.tenant_id,
+    user_id: user.id,
+    refresh_token_hash: refreshTokenHash,
+    expires_at: refreshExpiresAt,
+    user_agent: userAgent,
+    ip_address: ipAddress,
+  });
+  
   const response: AuthResponse = {
-    token,
     user: {
       id: user.id,
+      email: user.email,
       display_name: user.display_name,
       account_type: user.account_type || 'private',
       role: user.role as UserRole,
@@ -350,12 +420,151 @@ authHandler.post('/login', async (c) => {
     },
   };
   
-  return jsonResponse(response);
+  const accessCookie = buildCookieHeader(
+    COOKIE_CONFIG.ACCESS_TOKEN_NAME,
+    accessToken,
+    COOKIE_CONFIG.ACCESS_TOKEN_MAX_AGE,
+    isProd
+  );
+  const refreshCookie = buildCookieHeader(
+    COOKIE_CONFIG.REFRESH_TOKEN_NAME,
+    refreshToken,
+    COOKIE_CONFIG.REFRESH_TOKEN_MAX_AGE,
+    isProd
+  );
+  
+  const headers = new Headers();
+  headers.set('Content-Type', 'application/json');
+  headers.append('Set-Cookie', accessCookie);
+  headers.append('Set-Cookie', refreshCookie);
+  
+  return new Response(JSON.stringify(response), {
+    status: 200,
+    headers,
+  });
+});
+
+/**
+ * POST /api/auth/refresh
+ * Refresh access token using refresh token cookie
+ * Auth System v2: Issues new access token if refresh token is valid
+ */
+authHandler.post('/refresh', async (c) => {
+  const jwtSecret = c.env.ZORA_JWT_SECRET;
+  
+  if (!jwtSecret) {
+    return errorResponse('JWT_NOT_CONFIGURED', 'ZORA_JWT_SECRET is not configured', 500);
+  }
+  
+  const supabase = getSupabaseClient(c.env);
+  const isProd = isProduction(c.env);
+  
+  const cookieHeader = c.req.header('Cookie');
+  const cookies = parseCookies(cookieHeader);
+  const refreshToken = cookies[COOKIE_CONFIG.REFRESH_TOKEN_NAME];
+  
+  if (!refreshToken) {
+    return errorResponse('NO_REFRESH_TOKEN', 'No refresh token provided', 401);
+  }
+  
+  const refreshTokenHash = await hashToken(refreshToken);
+  
+  const { data: session, error: sessionError } = await supabase
+    .from('auth_sessions')
+    .select('id, tenant_id, user_id, expires_at, revoked_at')
+    .eq('refresh_token_hash', refreshTokenHash)
+    .single();
+  
+  if (sessionError || !session) {
+    return errorResponse('INVALID_REFRESH_TOKEN', 'Invalid refresh token', 401);
+  }
+  
+  if (session.revoked_at) {
+    return errorResponse('SESSION_REVOKED', 'Session has been revoked', 401);
+  }
+  
+  const expiresAt = new Date(session.expires_at);
+  if (expiresAt < new Date()) {
+    return errorResponse('SESSION_EXPIRED', 'Session has expired', 401);
+  }
+  
+  const { data: user, error: userError } = await supabase
+    .from('users')
+    .select('id, tenant_id, email, display_name, role, account_type')
+    .eq('id', session.user_id)
+    .single();
+  
+  if (userError || !user) {
+    return errorResponse('USER_NOT_FOUND', 'User not found', 404);
+  }
+  
+  const accessToken = await createToken(
+    {
+      tenant_id: user.tenant_id,
+      user_id: user.id,
+      role: user.role as 'founder' | 'brand_admin' | 'member' | 'viewer',
+      account_type: user.account_type || 'private',
+    },
+    jwtSecret,
+    COOKIE_CONFIG.ACCESS_TOKEN_MAX_AGE
+  );
+  
+  const accessCookie = buildCookieHeader(
+    COOKIE_CONFIG.ACCESS_TOKEN_NAME,
+    accessToken,
+    COOKIE_CONFIG.ACCESS_TOKEN_MAX_AGE,
+    isProd
+  );
+  
+  const headers = new Headers();
+  headers.set('Content-Type', 'application/json');
+  headers.append('Set-Cookie', accessCookie);
+  
+  return new Response(JSON.stringify({ success: true }), {
+    status: 200,
+    headers,
+  });
+});
+
+/**
+ * POST /api/auth/logout
+ * Logout and clear session cookies
+ * Auth System v2: Revokes refresh token and clears cookies
+ */
+authHandler.post('/logout', async (c) => {
+  const supabase = getSupabaseClient(c.env);
+  const isProd = isProduction(c.env);
+  
+  const cookieHeader = c.req.header('Cookie');
+  const cookies = parseCookies(cookieHeader);
+  const refreshToken = cookies[COOKIE_CONFIG.REFRESH_TOKEN_NAME];
+  
+  if (refreshToken) {
+    const refreshTokenHash = await hashToken(refreshToken);
+    
+    await supabase
+      .from('auth_sessions')
+      .update({ revoked_at: new Date().toISOString() })
+      .eq('refresh_token_hash', refreshTokenHash);
+  }
+  
+  const clearAccessCookie = buildClearCookieHeader(COOKIE_CONFIG.ACCESS_TOKEN_NAME, isProd);
+  const clearRefreshCookie = buildClearCookieHeader(COOKIE_CONFIG.REFRESH_TOKEN_NAME, isProd);
+  
+  const headers = new Headers();
+  headers.set('Content-Type', 'application/json');
+  headers.append('Set-Cookie', clearAccessCookie);
+  headers.append('Set-Cookie', clearRefreshCookie);
+  
+  return new Response(JSON.stringify({ success: true, message: 'Logged out successfully' }), {
+    status: 200,
+    headers,
+  });
 });
 
 /**
  * GET /api/auth/me
- * Get current user and tenant info from JWT
+ * Get current user and tenant info from JWT/cookie
  */
 authHandler.get('/me', authMiddleware, async (c) => {
   const auth = getAuthContext(c);

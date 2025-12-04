@@ -53,10 +53,28 @@ app.use('*', async (c, next) => {
   c.res.headers.set('X-Request-ID', requestId);
 });
 
+// Auth System v2: CORS configuration with credentials support for cookie-based auth
+// When credentials are used, origin cannot be '*' - must be specific origins
 app.use('*', cors({
-  origin: '*',
+  origin: (origin) => {
+    // Allow requests from these origins (add production domains as needed)
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://localhost:8787',
+      'https://zora-core.vercel.app',
+      'https://zoracore.com',
+      'https://www.zoracore.com',
+    ];
+    // Also allow any *.vercel.app preview deployments
+    if (origin && (allowedOrigins.includes(origin) || origin.endsWith('.vercel.app'))) {
+      return origin;
+    }
+    // For non-browser requests (no origin header), allow the request
+    return origin || '*';
+  },
   allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization', 'X-ZORA-ADMIN-SECRET', 'X-Request-ID'],
+  credentials: true,
 }));
 
 // Apply auth middleware to protected routes
