@@ -45,6 +45,7 @@ import agentPanelHandler from './handlers/agent-panel';
 import healthHandler from './handlers/health';
 import adminOdinHandler from './handlers/admin-odin';
 import adminWebtoolHandler from './handlers/admin-webtool';
+import simulationHandler from './handlers/simulation';
 
 const app = new Hono<AuthAppEnv>();
 
@@ -122,6 +123,8 @@ app.use('/api/admin/hybrid-search/*', authMiddleware);
 app.use('/api/admin/odin/*', authMiddleware);
 // WebTool Admin endpoints require JWT auth (founder/brand_admin role) - WebTool v2
 app.use('/api/admin/webtool/*', authMiddleware);
+// Simulation Engine endpoints require JWT auth (founder/brand_admin role) - Simulation Studio v1
+app.use('/api/admin/simulation/*', authMiddleware);
 // Workflow endpoints require JWT auth - Workflow / DAG Engine v1 (Iteration 00D5)
 app.use('/api/workflows/*', authMiddleware);
 app.use('/api/workflow-runs/*', authMiddleware);
@@ -214,6 +217,14 @@ app.use('/api/admin/webtool/*', createRateLimiter({
   maxRequests: 60,
   windowMs: 60 * 1000, // 1 minute
   keyPrefix: 'webtool_admin',
+  useUserId: true,
+}));
+
+// Simulation Engine - moderate limits for simulation operations (Simulation Studio v1)
+app.use('/api/admin/simulation/*', createRateLimiter({
+  maxRequests: 30,
+  windowMs: 60 * 1000, // 1 minute
+  keyPrefix: 'simulation',
   useUserId: true,
 }));
 
@@ -450,6 +461,9 @@ app.route('/api/admin/odin', adminOdinHandler);
 
 // WebTool Admin v2 routes (WebTool v2 - Auto-Managed Domains)
 app.route('/api/admin/webtool', adminWebtoolHandler);
+
+// Simulation Engine v1 routes (Simulation Studio v1)
+app.route('/api/admin/simulation', simulationHandler);
 
 // Agent Panel v1 routes (Cockpit v1 - Iteration 00F2)
 app.route('/api/agent-panel', agentPanelHandler);

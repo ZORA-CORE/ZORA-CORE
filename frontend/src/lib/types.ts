@@ -912,7 +912,7 @@ export interface AutonomyStatus {
 }
 
 // Agent Panel types (Cockpit v1)
-export type AgentPanelContext = 'climate' | 'goes_green' | 'shop' | 'foundation' | 'academy';
+export type AgentPanelContext = 'climate' | 'goes_green' | 'shop' | 'foundation' | 'academy' | 'simulation';
 
 export type AgentPanelStrategyType = 'mission' | 'goes_green_action' | 'material_change' | 'foundation_project' | 'learning_path';
 

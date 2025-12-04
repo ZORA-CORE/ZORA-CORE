@@ -49,6 +49,12 @@ const CONTEXT_CONFIG: Record<AgentPanelContext, {
     defaultPrompt: 'Build a climate learning path for me',
     color: 'purple',
   },
+  simulation: {
+    agent: 'ODIN',
+    placeholder: 'Ask ODIN for scenario recommendations...',
+    defaultPrompt: 'Suggest a scenario for maximum CO2 reduction in 12 months',
+    color: 'indigo',
+  },
 };
 
 function SuggestionCard({ 
