@@ -3,6 +3,7 @@ import { cors } from 'hono/cors';
 import type { AppEnv } from './types';
 import { authMiddleware, type AuthAppEnv } from './middleware/auth';
 import { createRateLimiter } from './middleware/rateLimit';
+import { createLoggingMiddleware } from './middleware/logging';
 import statusHandler from './handlers/status';
 import profilesHandler from './handlers/profiles';
 import missionsHandler from './handlers/missions';
@@ -41,6 +42,7 @@ import outcomesHandler from './handlers/outcomes';
 import worldModelHandler from './handlers/world-model';
 import hybridSearchHandler from './handlers/hybrid-search';
 import agentPanelHandler from './handlers/agent-panel';
+import healthHandler from './handlers/health';
 
 const app = new Hono<AuthAppEnv>();
 
@@ -52,6 +54,14 @@ app.use('*', async (c, next) => {
   // Add request ID to response headers
   c.res.headers.set('X-Request-ID', requestId);
 });
+
+// Request logging middleware (Backend Hardening v1)
+// Logs structured request/response data for observability
+app.use('*', createLoggingMiddleware({
+  enabled: true,
+  slowThresholdMs: 1000,
+  skipPaths: ['/api/admin/health/basic'], // Don't log health checks
+}));
 
 // Auth System v2: CORS configuration with credentials support for cookie-based auth
 // When credentials are used, origin cannot be '*' - must be specific origins
@@ -102,6 +112,10 @@ app.use('/api/admin/system-metrics', authMiddleware);
 app.use('/api/admin/autonomy-status', authMiddleware);
 // Admin impact endpoints require JWT auth (founder/brand_admin role) - Global Impact v1 (Iteration 00D4)
 app.use('/api/admin/impact/*', authMiddleware);
+// World Model endpoints require JWT auth (founder/brand_admin role) - Backend Hardening v1
+app.use('/api/admin/world-model/*', authMiddleware);
+// Hybrid Search endpoints require JWT auth (founder/brand_admin role) - Backend Hardening v1
+app.use('/api/admin/hybrid-search/*', authMiddleware);
 // Workflow endpoints require JWT auth - Workflow / DAG Engine v1 (Iteration 00D5)
 app.use('/api/workflows/*', authMiddleware);
 app.use('/api/workflow-runs/*', authMiddleware);
@@ -155,6 +169,30 @@ app.use('/api/billing/webhooks/*', createRateLimiter({
   maxRequests: 100,
   windowMs: 60 * 1000, // 1 minute
   keyPrefix: 'billing_webhooks',
+}));
+
+// Hybrid search - moderate limits for complex queries (Backend Hardening v1)
+app.use('/api/admin/hybrid-search/*', createRateLimiter({
+  maxRequests: 30,
+  windowMs: 60 * 1000, // 1 minute
+  keyPrefix: 'hybrid_search',
+  useUserId: true,
+}));
+
+// World model - moderate limits for graph queries (Backend Hardening v1)
+app.use('/api/admin/world-model/*', createRateLimiter({
+  maxRequests: 60,
+  windowMs: 60 * 1000, // 1 minute
+  keyPrefix: 'world_model',
+  useUserId: true,
+}));
+
+// Agent panel - moderate limits for dashboard data (Backend Hardening v1)
+app.use('/api/agent-panel/*', createRateLimiter({
+  maxRequests: 60,
+  windowMs: 60 * 1000, // 1 minute
+  keyPrefix: 'agent_panel',
+  useUserId: true,
 }));
 
 // Public routes (no auth required) - mounted before auth middleware check
@@ -381,6 +419,9 @@ app.route('/api/admin/world-model', worldModelHandler);
 
 // Hybrid Search & Reasoner v1 routes
 app.route('/api/admin/hybrid-search', hybridSearchHandler);
+
+// Health & Diagnostics routes (Backend Hardening v1)
+app.route('/api/admin/health', healthHandler);
 
 // Agent Panel v1 routes (Cockpit v1 - Iteration 00F2)
 app.route('/api/agent-panel', agentPanelHandler);

@@ -138,7 +138,7 @@ export function buildClearCookieHeader(name: string, isProduction: boolean): str
 /**
  * Parse cookies from Cookie header string
  */
-export function parseCookies(cookieHeader: string | null): Record<string, string> {
+export function parseCookies(cookieHeader: string | null | undefined): Record<string, string> {
   if (!cookieHeader) {
     return {};
   }

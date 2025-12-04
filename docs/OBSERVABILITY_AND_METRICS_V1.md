@@ -256,6 +256,68 @@ For real-time dashboards, consider:
 - **Autonomy Status**: Poll every 10-30 seconds for active monitoring
 - **Use WebSockets**: For future iterations, consider WebSocket connections for real-time updates
 
+## Request Logging Middleware (Backend Hardening v1)
+
+Backend Hardening v1 adds a centralized request logging middleware that captures structured data for every API request.
+
+### Logged Fields
+
+| Field | Description |
+|-------|-------------|
+| `request_id` | Unique request identifier (from X-Request-ID or generated) |
+| `method` | HTTP method (GET, POST, etc.) |
+| `path` | Request path |
+| `status` | HTTP response status code |
+| `duration_ms` | Request duration in milliseconds |
+| `tenant_id` | Authenticated user's tenant ID (if available) |
+| `user_id` | Authenticated user's ID (if available) |
+| `error_code` | Error code from response (if error) |
+| `is_slow` | Boolean flag for slow requests (>1000ms) |
+
+### Configuration
+
+The logging middleware is configured in `workers/api/src/index.ts`:
+
+```typescript
+app.use('*', createLoggingMiddleware({
+  enabled: true,
+  slowThresholdMs: 1000,
+  skipPaths: ['/api/admin/health/basic'],
+}));
+```
+
+### Log Output
+
+Logs are written to Cloudflare Workers logs in JSON format:
+
+```json
+{
+  "type": "request",
+  "request_id": "uuid",
+  "method": "POST",
+  "path": "/api/climate/missions",
+  "status": 200,
+  "duration_ms": 45,
+  "tenant_id": "uuid",
+  "user_id": "uuid",
+  "is_slow": false
+}
+```
+
+### Metric Events
+
+The logging middleware also supports metric event logging for specific operations:
+
+```typescript
+import { logMetricEvent } from '../middleware/logging';
+
+logMetricEvent('hybrid_search', 'find_similar_tenants', {
+  tenant_id: auth.tenantId,
+  result_count: results.length,
+  duration_ms: endTime - startTime,
+});
+```
+
 ## Future Enhancements
 
 This is Observability v1. Future iterations may include:
