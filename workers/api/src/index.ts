@@ -43,6 +43,7 @@ import worldModelHandler from './handlers/world-model';
 import hybridSearchHandler from './handlers/hybrid-search';
 import agentPanelHandler from './handlers/agent-panel';
 import healthHandler from './handlers/health';
+import adminOdinHandler from './handlers/admin-odin';
 
 const app = new Hono<AuthAppEnv>();
 
@@ -116,6 +117,8 @@ app.use('/api/admin/impact/*', authMiddleware);
 app.use('/api/admin/world-model/*', authMiddleware);
 // Hybrid Search endpoints require JWT auth (founder/brand_admin role) - Backend Hardening v1
 app.use('/api/admin/hybrid-search/*', authMiddleware);
+// ODIN Web Ingestion endpoints require JWT auth (founder/brand_admin role) - Agent Web Access v1
+app.use('/api/admin/odin/*', authMiddleware);
 // Workflow endpoints require JWT auth - Workflow / DAG Engine v1 (Iteration 00D5)
 app.use('/api/workflows/*', authMiddleware);
 app.use('/api/workflow-runs/*', authMiddleware);
@@ -192,6 +195,14 @@ app.use('/api/agent-panel/*', createRateLimiter({
   maxRequests: 60,
   windowMs: 60 * 1000, // 1 minute
   keyPrefix: 'agent_panel',
+  useUserId: true,
+}));
+
+// ODIN Web Ingestion - moderate limits for ingestion operations (Agent Web Access v1)
+app.use('/api/admin/odin/*', createRateLimiter({
+  maxRequests: 30,
+  windowMs: 60 * 1000, // 1 minute
+  keyPrefix: 'odin_ingestion',
   useUserId: true,
 }));
 
@@ -422,6 +433,9 @@ app.route('/api/admin/hybrid-search', hybridSearchHandler);
 
 // Health & Diagnostics routes (Backend Hardening v1)
 app.route('/api/admin/health', healthHandler);
+
+// ODIN Web Ingestion v1 routes (Agent Web Access v1)
+app.route('/api/admin/odin', adminOdinHandler);
 
 // Agent Panel v1 routes (Cockpit v1 - Iteration 00F2)
 app.route('/api/agent-panel', agentPanelHandler);

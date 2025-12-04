@@ -3835,6 +3835,187 @@ INSERT INTO schema_metadata (schema_version, notes)
 VALUES ('3.8.0', 'World Model / Knowledge Graph v1.0 - world_nodes and world_edges tables');
 
 -- ============================================================================
+-- STEP 16: KNOWLEDGE STORE v1.0 (Agent Web Access v1)
+-- Schema version: 3.9.0
+-- ============================================================================
+-- The Knowledge Store provides persistent storage for web-ingested knowledge
+-- that Nordic agents (especially ODIN) can use to answer questions.
+-- 
+-- Documents can be:
+-- - Tenant-scoped (tenant_id = UUID): private to a specific tenant
+-- - Global/shared (tenant_id = NULL): curated knowledge available to all tenants
+--
+-- Embeddings use the same 1536-dimension vectors as memory_events for
+-- compatibility with EIVOR's semantic search.
+
+-- knowledge_documents: Web-ingested knowledge for Nordic agents
+CREATE TABLE IF NOT EXISTS knowledge_documents (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE,
+    source_type TEXT NOT NULL DEFAULT 'web_page',
+    source_url TEXT NULL,
+    domain TEXT NOT NULL,
+    language TEXT NOT NULL DEFAULT 'en',
+    title TEXT NOT NULL,
+    raw_excerpt TEXT NULL,
+    summary TEXT NULL,
+    embedding VECTOR(1536) NULL,
+    quality_score NUMERIC(3,2) NULL CHECK (quality_score IS NULL OR (quality_score >= 0 AND quality_score <= 1)),
+    curation_status TEXT NOT NULL DEFAULT 'auto',
+    ingested_by_agent TEXT NULL,
+    ingested_by_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    metadata JSONB NOT NULL DEFAULT '{}'::JSONB,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Indexes for knowledge_documents
+CREATE INDEX IF NOT EXISTS idx_knowledge_documents_tenant ON knowledge_documents(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_knowledge_documents_domain ON knowledge_documents(domain);
+CREATE INDEX IF NOT EXISTS idx_knowledge_documents_source_type ON knowledge_documents(source_type);
+CREATE INDEX IF NOT EXISTS idx_knowledge_documents_language ON knowledge_documents(language);
+CREATE INDEX IF NOT EXISTS idx_knowledge_documents_curation_status ON knowledge_documents(curation_status);
+CREATE INDEX IF NOT EXISTS idx_knowledge_documents_ingested_by_agent ON knowledge_documents(ingested_by_agent);
+CREATE INDEX IF NOT EXISTS idx_knowledge_documents_created_at ON knowledge_documents(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_knowledge_documents_quality_score ON knowledge_documents(quality_score DESC NULLS LAST);
+
+-- HNSW index for vector search (same config as memory_events)
+DO $$
+BEGIN
+    CREATE INDEX idx_knowledge_documents_embedding_hnsw ON knowledge_documents USING hnsw (embedding vector_cosine_ops) WITH (m = 16, ef_construction = 64);
+EXCEPTION WHEN duplicate_table THEN
+    -- Index already exists
+END$$;
+
+-- Text search index for title
+DO $$
+BEGIN
+    CREATE INDEX idx_knowledge_documents_title_trgm ON knowledge_documents USING GIN(title gin_trgm_ops);
+EXCEPTION WHEN duplicate_table THEN
+    -- Index already exists
+END$$;
+
+-- Trigger for updated_at
+DROP TRIGGER IF EXISTS update_knowledge_documents_updated_at ON knowledge_documents;
+CREATE TRIGGER update_knowledge_documents_updated_at
+    BEFORE UPDATE ON knowledge_documents
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Enable RLS for knowledge_documents
+ALTER TABLE knowledge_documents ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow all for service role" ON knowledge_documents;
+CREATE POLICY "Allow all for service role" ON knowledge_documents
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE knowledge_documents IS 'Web-ingested knowledge documents for Nordic agents (ODIN Web Ingestion v1)';
+COMMENT ON COLUMN knowledge_documents.tenant_id IS 'Tenant ID (NULL for global/shared knowledge available to all tenants)';
+COMMENT ON COLUMN knowledge_documents.source_type IS 'Source type: web_page, api, report, standard, article';
+COMMENT ON COLUMN knowledge_documents.source_url IS 'Original URL of the source (if applicable)';
+COMMENT ON COLUMN knowledge_documents.domain IS 'Knowledge domain: climate_policy, hemp_materials, energy_efficiency, sustainable_fashion, carbon_markets, etc.';
+COMMENT ON COLUMN knowledge_documents.language IS 'ISO language code (e.g., en, da)';
+COMMENT ON COLUMN knowledge_documents.title IS 'Document title (generated or extracted)';
+COMMENT ON COLUMN knowledge_documents.raw_excerpt IS 'Raw excerpt or truncated content from source';
+COMMENT ON COLUMN knowledge_documents.summary IS 'LLM-generated summary of the document';
+COMMENT ON COLUMN knowledge_documents.embedding IS 'Vector embedding for semantic search (1536 dimensions, same as memory_events)';
+COMMENT ON COLUMN knowledge_documents.quality_score IS 'Quality score from 0.0 to 1.0 (NULL if not assessed)';
+COMMENT ON COLUMN knowledge_documents.curation_status IS 'Curation status: auto (auto-ingested), reviewed (human-reviewed), discarded (marked as low quality)';
+COMMENT ON COLUMN knowledge_documents.ingested_by_agent IS 'Agent that ingested this document (e.g., ODIN)';
+COMMENT ON COLUMN knowledge_documents.ingested_by_user_id IS 'User who triggered the ingestion (if manual)';
+COMMENT ON COLUMN knowledge_documents.metadata IS 'Additional metadata (e.g., ingestion job name, source tags)';
+
+-- knowledge_document_tags: Tags for knowledge documents (optional, for filtering)
+CREATE TABLE IF NOT EXISTS knowledge_document_tags (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    document_id UUID NOT NULL REFERENCES knowledge_documents(id) ON DELETE CASCADE,
+    tag TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(document_id, tag)
+);
+
+CREATE INDEX IF NOT EXISTS idx_knowledge_document_tags_document ON knowledge_document_tags(document_id);
+CREATE INDEX IF NOT EXISTS idx_knowledge_document_tags_tag ON knowledge_document_tags(tag);
+
+-- Enable RLS for knowledge_document_tags
+ALTER TABLE knowledge_document_tags ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow all for service role" ON knowledge_document_tags;
+CREATE POLICY "Allow all for service role" ON knowledge_document_tags
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE knowledge_document_tags IS 'Tags for knowledge documents (for filtering and categorization)';
+
+-- Function to search knowledge documents by embedding (similar to search_memories_by_embedding)
+CREATE OR REPLACE FUNCTION search_knowledge_by_embedding(
+    query_embedding VECTOR(1536),
+    match_threshold FLOAT DEFAULT 0.0,
+    match_count INT DEFAULT 20,
+    filter_domain TEXT DEFAULT NULL,
+    filter_tenant_id UUID DEFAULT NULL,
+    include_global BOOLEAN DEFAULT TRUE
+)
+RETURNS TABLE (
+    id UUID,
+    tenant_id UUID,
+    source_type TEXT,
+    source_url TEXT,
+    domain TEXT,
+    language TEXT,
+    title TEXT,
+    raw_excerpt TEXT,
+    summary TEXT,
+    quality_score NUMERIC,
+    curation_status TEXT,
+    ingested_by_agent TEXT,
+    metadata JSONB,
+    created_at TIMESTAMPTZ,
+    similarity FLOAT
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        kd.id,
+        kd.tenant_id,
+        kd.source_type,
+        kd.source_url,
+        kd.domain,
+        kd.language,
+        kd.title,
+        kd.raw_excerpt,
+        kd.summary,
+        kd.quality_score,
+        kd.curation_status,
+        kd.ingested_by_agent,
+        kd.metadata,
+        kd.created_at,
+        1 - (kd.embedding <=> query_embedding) AS similarity
+    FROM knowledge_documents kd
+    WHERE kd.embedding IS NOT NULL
+      AND (filter_domain IS NULL OR kd.domain = filter_domain)
+      AND (
+          (filter_tenant_id IS NOT NULL AND kd.tenant_id = filter_tenant_id)
+          OR (include_global AND kd.tenant_id IS NULL)
+      )
+      AND 1 - (kd.embedding <=> query_embedding) > match_threshold
+    ORDER BY kd.embedding <=> query_embedding
+    LIMIT match_count;
+END;
+$$;
+
+COMMENT ON FUNCTION search_knowledge_by_embedding IS 'Search knowledge documents by vector similarity (for EIVOR/ODIN semantic search)';
+
+-- Record the Knowledge Store v1 schema version
+INSERT INTO schema_metadata (schema_version, notes)
+VALUES ('3.9.0', 'Knowledge Store v1.0 - knowledge_documents and knowledge_document_tags tables for Agent Web Access v1');
+
+-- ============================================================================
 -- DONE!
 -- ============================================================================
 -- 
