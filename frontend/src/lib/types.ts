@@ -1276,3 +1276,102 @@ export interface ProductWithDetails extends Product {
   materials?: ProductMaterial[];
   climate_meta?: ProductClimateMeta | null;
 }
+
+// ============================================================================
+// Billing & Plans Types (Billing & Plans UI v1)
+// ============================================================================
+
+export type PlanType = 'citizen' | 'brand' | 'foundation';
+export type BillingInterval = 'month' | 'year';
+export type SubscriptionStatus = 'trial' | 'active' | 'past_due' | 'canceled';
+export type BillingProvider = 'stripe' | 'paypal' | 'manual';
+
+export interface BillingPlan {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  price_amount: number;
+  price_currency: string;
+  billing_interval: BillingInterval;
+  is_active: boolean;
+  plan_type: PlanType;
+  features: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BillingPlansResponse {
+  data: BillingPlan[];
+  pagination: {
+    limit: number;
+    offset: number;
+    total: number;
+    has_more: boolean;
+  };
+}
+
+export interface CurrentPlanFeatures {
+  max_users: number | null;
+  max_organizations: number | null;
+  max_climate_profiles: number | null;
+  max_zora_shop_projects: number | null;
+  max_goes_green_profiles: number | null;
+  max_goes_green_assets: number | null;
+  max_shop_products_live: number | null;
+  max_academy_paths: number | null;
+  max_autonomy_tasks_per_day: number | null;
+  academy_level: number | null;
+  can_access_simulation_studio: boolean;
+  can_access_quantum_climate_lab: boolean;
+  can_access_brand_mashups: boolean;
+  foundation_partner: boolean;
+  priority_support: boolean;
+}
+
+export interface CurrentPlan {
+  plan_code: string;
+  name: string;
+  plan_type: PlanType;
+  description: string | null;
+  currency: string;
+  billing_interval: BillingInterval;
+  base_price_monthly: number;
+  effective_price_monthly: number;
+  effective_price_currency: string | null;
+  subscription_status: SubscriptionStatus;
+  subscription_id: string | null;
+  trial_ends_at: string | null;
+  current_period_start: string | null;
+  current_period_end: string | null;
+  features: CurrentPlanFeatures;
+}
+
+export interface TenantSubscription {
+  id: string;
+  tenant_id: string;
+  plan_id: string;
+  status: SubscriptionStatus;
+  current_period_start: string | null;
+  current_period_end: string | null;
+  provider: BillingProvider;
+  provider_customer_id: string | null;
+  provider_subscription_id: string | null;
+  trial_ends_at: string | null;
+  effective_price_amount: number | null;
+  effective_price_currency: string | null;
+  created_at: string;
+  updated_at: string;
+  plan?: BillingPlan;
+}
+
+export interface UpsertSubscriptionInput {
+  plan_id: string;
+  status: SubscriptionStatus;
+  provider: BillingProvider;
+  current_period_start?: string;
+  current_period_end?: string;
+  provider_customer_id?: string;
+  provider_subscription_id?: string;
+  trial_ends_at?: string;
+}
