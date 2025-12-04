@@ -4,15 +4,15 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/AuthContext';
-import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
+import { ZCard, ZButton, ZTag } from '@/components/z';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { AuthError } from '@/lib/auth';
+import { useI18n } from '@/lib/I18nProvider';
 
 export default function SignupPage() {
   const router = useRouter();
   const { register, isAuthenticated, isLoading, user } = useAuth();
+  const { t } = useI18n();
   
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -86,55 +86,55 @@ export default function SignupPage() {
 
   if (showSuccess && user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[var(--background)] py-12 px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[var(--z-bg-deep)] via-[var(--z-bg-base)] to-[var(--z-bg-surface)] py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-md w-full space-y-8">
           <div className="text-center">
             <Link href="/" className="inline-block">
               <h1 className="text-3xl font-bold">
-                <span className="text-[var(--primary)]">ZORA</span>{" "}
-                <span className="text-[var(--foreground)]">CORE</span>
+                <span className="text-[var(--z-emerald)]">ZORA</span>{" "}
+                <span className="text-[var(--z-text-primary)]">CORE</span>
               </h1>
             </Link>
-            <h2 className="mt-4 text-xl text-[var(--primary)]">
-              Account Created Successfully
+            <h2 className="mt-4 text-xl text-[var(--z-emerald)]">
+              {t('auth.accountCreated', 'Account Created Successfully')}
             </h2>
           </div>
 
-          <Card variant="default" padding="lg">
-            <h3 className="text-sm font-medium text-[var(--foreground)] mb-4">Welcome to ZORA CORE!</h3>
+          <ZCard variant="elevated" padding="lg">
+            <h3 className="text-sm font-medium text-[var(--z-text-primary)] mb-4">{t('auth.welcomeToZora', 'Welcome to ZORA CORE!')}</h3>
             <div className="space-y-3 text-sm">
               {user.email && (
                 <div className="flex justify-between items-center">
-                  <span className="text-[var(--foreground)]/60">Email:</span>
-                  <span className="text-[var(--foreground)]">{user.email}</span>
+                  <span className="text-[var(--z-text-tertiary)]">{t('auth.email', 'Email')}:</span>
+                  <span className="text-[var(--z-text-primary)]">{user.email}</span>
                 </div>
               )}
               {user.display_name && (
                 <div className="flex justify-between items-center">
-                  <span className="text-[var(--foreground)]/60">Name:</span>
-                  <span className="text-[var(--foreground)]">{user.display_name}</span>
+                  <span className="text-[var(--z-text-tertiary)]">{t('auth.name', 'Name')}:</span>
+                  <span className="text-[var(--z-text-primary)]">{user.display_name}</span>
                 </div>
               )}
               <div className="flex justify-between items-center">
-                <span className="text-[var(--foreground)]/60">Role:</span>
-                <Badge variant={
-                  user.role === "founder" ? "secondary" :
-                  user.role === "brand_admin" ? "primary" : "default"
+                <span className="text-[var(--z-text-tertiary)]">{t('auth.role', 'Role')}:</span>
+                <ZTag variant={
+                  user.role === "founder" ? "violet" :
+                  user.role === "brand_admin" ? "emerald" : "default"
                 }>
                   {user.role}
-                </Badge>
+                </ZTag>
               </div>
             </div>
-          </Card>
+          </ZCard>
 
           <div className="space-y-3">
-            <Button onClick={handleContinue} variant="primary" className="w-full">
-              Continue to Dashboard
-            </Button>
+            <ZButton onClick={handleContinue} variant="primary" fullWidth>
+              {t('auth.continueToDashboard', 'Continue to Dashboard')}
+            </ZButton>
           </div>
 
-          <div className="text-center text-xs text-[var(--foreground)]/40">
-            <p>ZORA CORE - Multi-agent, climate-first AI operating system</p>
+          <div className="text-center text-xs text-[var(--z-text-muted)]">
+            <p>{t('brand.tagline', 'ZORA CORE - Multi-agent, climate-first AI operating system')}</p>
           </div>
         </div>
       </div>
@@ -142,28 +142,31 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[var(--background)] py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[var(--z-bg-deep)] via-[var(--z-bg-base)] to-[var(--z-bg-surface)] py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
           <Link href="/" className="inline-block">
             <h1 className="text-3xl font-bold">
-              <span className="text-[var(--primary)]">ZORA</span>{" "}
-              <span className="text-[var(--foreground)]">CORE</span>
+              <span className="text-[var(--z-emerald)]">ZORA</span>{" "}
+              <span className="text-[var(--z-text-primary)]">CORE</span>
             </h1>
           </Link>
-          <h2 className="mt-4 text-xl text-[var(--foreground)]">
-            Create your account
+          <p className="mt-2 text-sm text-[var(--z-text-tertiary)]">
+            {t('brand.tagline', 'Multi-agent, climate-first AI operating system')}
+          </p>
+          <h2 className="mt-6 text-xl text-[var(--z-text-primary)]">
+            {t('auth.createAccount', 'Create your account')}
           </h2>
-          <p className="mt-2 text-sm text-[var(--foreground)]/60">
-            Join ZORA CORE to access climate-first AI tools
+          <p className="mt-2 text-sm text-[var(--z-text-tertiary)]">
+            {t('auth.joinZora', 'Join ZORA CORE to access climate-first AI tools')}
           </p>
         </div>
 
-        <Card variant="default" padding="lg">
-          <form className="space-y-6" onSubmit={handleSignup}>
+        <ZCard variant="elevated" padding="lg">
+          <form className="space-y-5" onSubmit={handleSignup}>
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-[var(--foreground)]">
-                Email
+              <label htmlFor="email" className="block text-sm font-medium text-[var(--z-text-primary)]">
+                {t('auth.email', 'Email')}
               </label>
               <div className="mt-2">
                 <input
@@ -172,7 +175,7 @@ export default function SignupPage() {
                   type="email"
                   autoComplete="email"
                   required
-                  className="w-full px-3 py-2 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-[var(--foreground)] placeholder-[var(--foreground)]/40 focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent"
+                  className="w-full px-3 py-2.5 bg-[var(--z-bg-base)] border border-[var(--z-border-default)] rounded-[var(--z-radius-md)] text-[var(--z-text-primary)] placeholder-[var(--z-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--z-emerald)] focus:border-transparent transition-all"
                   placeholder="you@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -182,8 +185,8 @@ export default function SignupPage() {
             </div>
 
             <div>
-              <label htmlFor="displayName" className="block text-sm font-medium text-[var(--foreground)]">
-                Display Name <span className="text-[var(--foreground)]/40">(optional)</span>
+              <label htmlFor="displayName" className="block text-sm font-medium text-[var(--z-text-primary)]">
+                {t('auth.displayName', 'Display Name')} <span className="text-[var(--z-text-muted)]">({t('common.optional', 'optional')})</span>
               </label>
               <div className="mt-2">
                 <input
@@ -191,8 +194,8 @@ export default function SignupPage() {
                   name="displayName"
                   type="text"
                   autoComplete="name"
-                  className="w-full px-3 py-2 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-[var(--foreground)] placeholder-[var(--foreground)]/40 focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent"
-                  placeholder="Your name"
+                  className="w-full px-3 py-2.5 bg-[var(--z-bg-base)] border border-[var(--z-border-default)] rounded-[var(--z-radius-md)] text-[var(--z-text-primary)] placeholder-[var(--z-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--z-emerald)] focus:border-transparent transition-all"
+                  placeholder={t('auth.yourName', 'Your name')}
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
                   disabled={isSubmitting}
@@ -201,8 +204,8 @@ export default function SignupPage() {
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-[var(--foreground)]">
-                Password
+              <label htmlFor="password" className="block text-sm font-medium text-[var(--z-text-primary)]">
+                {t('auth.password', 'Password')}
               </label>
               <div className="mt-2">
                 <input
@@ -211,8 +214,8 @@ export default function SignupPage() {
                   type="password"
                   autoComplete="new-password"
                   required
-                  className="w-full px-3 py-2 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-[var(--foreground)] placeholder-[var(--foreground)]/40 focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent"
-                  placeholder="At least 8 characters"
+                  className="w-full px-3 py-2.5 bg-[var(--z-bg-base)] border border-[var(--z-border-default)] rounded-[var(--z-radius-md)] text-[var(--z-text-primary)] placeholder-[var(--z-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--z-emerald)] focus:border-transparent transition-all"
+                  placeholder={t('auth.atLeast8Chars', 'At least 8 characters')}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={isSubmitting}
@@ -221,8 +224,8 @@ export default function SignupPage() {
             </div>
 
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-[var(--foreground)]">
-                Confirm Password
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-[var(--z-text-primary)]">
+                {t('auth.confirmPassword', 'Confirm Password')}
               </label>
               <div className="mt-2">
                 <input
@@ -231,8 +234,8 @@ export default function SignupPage() {
                   type="password"
                   autoComplete="new-password"
                   required
-                  className="w-full px-3 py-2 bg-[var(--background)] border border-[var(--card-border)] rounded-lg text-[var(--foreground)] placeholder-[var(--foreground)]/40 focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent"
-                  placeholder="Confirm your password"
+                  className="w-full px-3 py-2.5 bg-[var(--z-bg-base)] border border-[var(--z-border-default)] rounded-[var(--z-radius-md)] text-[var(--z-text-primary)] placeholder-[var(--z-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--z-emerald)] focus:border-transparent transition-all"
+                  placeholder={t('auth.confirmYourPassword', 'Confirm your password')}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   disabled={isSubmitting}
@@ -241,33 +244,33 @@ export default function SignupPage() {
             </div>
 
             {error && (
-              <div className="rounded-lg bg-[var(--danger)]/10 border border-[var(--danger)]/30 p-4">
-                <p className="text-sm text-[var(--danger)]">{error}</p>
+              <div className="rounded-[var(--z-radius-md)] bg-[var(--z-rose-soft)] border border-[var(--z-rose-border)] p-4">
+                <p className="text-sm text-[var(--z-rose)]">{error}</p>
               </div>
             )}
 
-            <Button
+            <ZButton
               type="submit"
               disabled={isSubmitting}
               variant="primary"
-              className="w-full"
+              fullWidth
             >
-              {isSubmitting ? "Creating account..." : "Create account"}
-            </Button>
+              {isSubmitting ? t('auth.creatingAccount', 'Creating account...') : t('auth.createAccount', 'Create account')}
+            </ZButton>
           </form>
-        </Card>
+        </ZCard>
 
         <div className="text-center space-y-2">
-          <p className="text-sm text-[var(--foreground)]/60">
-            Already have an account?{" "}
-            <Link href="/login" className="text-[var(--primary)] hover:underline">
-              Sign in
+          <p className="text-sm text-[var(--z-text-tertiary)]">
+            {t('auth.haveAccount', 'Already have an account?')}{" "}
+            <Link href="/login" className="text-[var(--z-emerald)] hover:underline">
+              {t('auth.signIn', 'Sign in')}
             </Link>
           </p>
         </div>
 
-        <div className="text-center text-xs text-[var(--foreground)]/40">
-          <p>ZORA CORE - Multi-agent, climate-first AI operating system</p>
+        <div className="text-center text-xs text-[var(--z-text-muted)]">
+          <p>{t('brand.tagline', 'ZORA CORE - Multi-agent, climate-first AI operating system')}</p>
         </div>
       </div>
     </div>
