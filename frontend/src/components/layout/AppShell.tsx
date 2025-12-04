@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/AuthContext';
+import { useBilling } from '@/lib/BillingContext';
 import { t } from '@/lib/i18n';
 import { VersionInfo } from '../VersionInfo';
 
@@ -188,6 +189,7 @@ function NavSection({
 export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
   const { user, isAuthenticated, logout } = useAuth();
+  const { currentPlan, getPlanDisplayName, getStatusBadge } = useBilling();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
@@ -234,13 +236,33 @@ export function AppShell({ children }: AppShellProps) {
                 <UserIcon />
               </button>
               
-              <div className="absolute right-0 mt-2 w-48 py-2 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
+              <div className="absolute right-0 mt-2 w-56 py-2 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
                 {user && (
                   <>
                     <div className="px-4 py-2 border-b border-[var(--card-border)]">
                       <p className="text-sm font-medium text-[var(--foreground)]">{user.display_name || user.email}</p>
                       <p className="text-xs text-[var(--foreground)]/60">{user.role}</p>
                     </div>
+                    {currentPlan && (
+                      <Link
+                        href="/billing/plans"
+                        className="block px-4 py-2 border-b border-[var(--card-border)] hover:bg-[var(--card-border)]"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-[var(--foreground)]/60">Plan</span>
+                          <span className={`px-2 py-0.5 text-xs font-medium rounded ${getStatusBadge().color}`}>
+                            {getStatusBadge().label}
+                          </span>
+                        </div>
+                        <p className="text-sm font-medium text-[var(--foreground)] mt-1">{getPlanDisplayName()}</p>
+                      </Link>
+                    )}
+                    <Link
+                      href="/billing/plans"
+                      className="block px-4 py-2 text-sm text-[var(--foreground)]/70 hover:bg-[var(--card-border)] hover:text-[var(--foreground)]"
+                    >
+                      Plans & Pricing
+                    </Link>
                     <button
                       onClick={logout}
                       className="w-full text-left px-4 py-2 text-sm text-[var(--foreground)]/70 hover:bg-[var(--card-border)] hover:text-[var(--foreground)]"

@@ -60,6 +60,12 @@ import type {
   ZoraShopProjectStatus,
   CreateZoraShopProjectInput,
   ProductWithDetails,
+  BillingPlan,
+  BillingPlansResponse,
+  BillingInterval,
+  CurrentPlan,
+  TenantSubscription,
+  UpsertSubscriptionInput,
 } from './types';
 import { getToken, clearToken } from './auth';
 
@@ -806,6 +812,47 @@ export async function getShopProductDetails(id: string): Promise<{ data: Product
   return request<{ data: ProductWithDetails }>(`/api/shop/products/${id}`);
 }
 
+// ============================================================================
+// Billing & Plans API (Billing & Plans UI v1)
+// ============================================================================
+
+export async function getBillingPlans(params?: {
+  is_active?: boolean;
+  billing_interval?: BillingInterval;
+  limit?: number;
+  offset?: number;
+}): Promise<BillingPlansResponse> {
+  const searchParams = new URLSearchParams();
+  if (params?.is_active !== undefined) searchParams.set('is_active', params.is_active.toString());
+  if (params?.billing_interval) searchParams.set('billing_interval', params.billing_interval);
+  if (params?.limit) searchParams.set('limit', params.limit.toString());
+  if (params?.offset) searchParams.set('offset', params.offset.toString());
+
+  const query = searchParams.toString();
+  return request<BillingPlansResponse>(
+    `/api/billing/plans${query ? `?${query}` : ''}`
+  );
+}
+
+export async function getBillingPlan(id: string): Promise<BillingPlan> {
+  return request<BillingPlan>(`/api/billing/plans/${id}`);
+}
+
+export async function getCurrentPlan(): Promise<CurrentPlan> {
+  return request<CurrentPlan>('/api/billing/current-plan');
+}
+
+export async function getSubscription(): Promise<TenantSubscription | { subscription: null; message: string }> {
+  return request<TenantSubscription | { subscription: null; message: string }>('/api/billing/subscription');
+}
+
+export async function upsertSubscription(input: UpsertSubscriptionInput): Promise<TenantSubscription> {
+  return request<TenantSubscription>('/api/billing/subscription', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
 export const api = {
   getStatus,
   getClimateProfiles,
@@ -892,6 +939,12 @@ export const api = {
   getZoraShopProject,
   createZoraShopProject,
   getShopProductDetails,
+  // Billing & Plans API (Billing & Plans UI v1)
+  getBillingPlans,
+  getBillingPlan,
+  getCurrentPlan,
+  getSubscription,
+  upsertSubscription,
 };
 
 export default api;

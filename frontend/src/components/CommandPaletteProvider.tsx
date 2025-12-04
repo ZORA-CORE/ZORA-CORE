@@ -101,6 +101,12 @@ const BeakerIcon = () => (
   </svg>
 );
 
+const CreditCardIcon = () => (
+  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+  </svg>
+);
+
 interface CommandPaletteProviderProps {
   children: React.ReactNode;
 }
@@ -393,6 +399,30 @@ export function CommandPaletteProvider({ children }: CommandPaletteProviderProps
         description: 'Manage knowledge documents and web domains',
         icon: <BookOpenIcon />,
         action: () => navigateTo('/admin/odin'),
+      },
+      {
+        id: 'nav-billing-plans',
+        label: 'View Plans & Pricing',
+        category: 'navigation',
+        description: 'View available subscription plans and pricing',
+        icon: <CreditCardIcon />,
+        action: () => navigateTo('/billing/plans'),
+      },
+      {
+        id: 'action-upgrade-plan',
+        label: 'Upgrade subscription plan',
+        category: 'action',
+        description: 'Upgrade to a higher tier plan for more features',
+        icon: <CreditCardIcon />,
+        action: () => navigateTo('/billing/plans'),
+      },
+      {
+        id: 'action-view-subscription',
+        label: 'View my subscription',
+        category: 'action',
+        description: 'Check your current plan and subscription status',
+        icon: <CreditCardIcon />,
+        action: () => navigateTo('/billing/plans'),
       },
     ] : [];
 
