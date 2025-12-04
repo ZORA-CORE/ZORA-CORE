@@ -71,7 +71,13 @@ export async function authMiddleware(c: Context<AuthAppEnv>, next: Next) {
     const accessToken = cookies[COOKIE_CONFIG.ACCESS_TOKEN_NAME];
     
     if (accessToken) {
-      const authContext = await verifyToken(accessToken, jwtSecret);
+      const payload = await verifyToken(accessToken, jwtSecret);
+      const authContext: AuthContext = {
+        tenantId: payload.tenant_id,
+        userId: payload.user_id,
+        role: payload.role,
+        accountType: payload.account_type,
+      };
       c.set('auth', authContext);
       await next();
       return;

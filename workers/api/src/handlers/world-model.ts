@@ -3,11 +3,14 @@
  * 
  * Admin-protected endpoints for querying the ZORA World Model.
  * Used by Nordic agents (ODIN, HEIMDALL, EIVOR, TYR) and future Simulation Studio.
+ * 
+ * Backend Hardening v1: All endpoints require founder/brand_admin role.
  */
 
 import { Hono } from 'hono';
 import type { AuthAppEnv } from '../middleware/auth';
-import { jsonResponse, errorResponse } from '../lib/response';
+import { jsonResponse, standardError } from '../lib/response';
+import type { AuthContext } from '../lib/auth';
 import {
   buildWorldModelFromManifest,
   getWorldModelStats,
@@ -24,6 +27,20 @@ import {
 } from '../world-model/worldModel';
 
 const worldModelHandler = new Hono<AuthAppEnv>();
+
+worldModelHandler.use('*', async (c, next) => {
+  const auth = c.get('auth') as AuthContext | undefined;
+  
+  if (!auth) {
+    return standardError('UNAUTHORIZED', 'Authentication required', 401);
+  }
+  
+  if (auth.role !== 'founder' && auth.role !== 'brand_admin') {
+    return standardError('FORBIDDEN', 'Admin access required (founder or brand_admin role)', 403);
+  }
+  
+  await next();
+});
 
 let cachedWorldModel: { nodes: WorldNode[]; edges: WorldEdge[] } | null = null;
 let cacheTimestamp: number = 0;
@@ -89,19 +106,19 @@ worldModelHandler.get('/node', async (c) => {
   const key = c.req.query('key');
 
   if (!entityType || !key) {
-    return errorResponse('MISSING_PARAMS', 'entity_type and key are required', 400);
+    return standardError('MISSING_PARAMS', 'entity_type and key are required', 400);
   }
 
   const validTypes: EntityType[] = ['module', 'table', 'endpoint', 'workflow', 'domain_object'];
   if (!validTypes.includes(entityType)) {
-    return errorResponse('INVALID_ENTITY_TYPE', `entity_type must be one of: ${validTypes.join(', ')}`, 400);
+    return standardError('INVALID_ENTITY_TYPE', `entity_type must be one of: ${validTypes.join(', ')}`, 400);
   }
 
   const { nodes } = getWorldModel();
   const node = findNodeByKey(nodes, entityType, key);
 
   if (!node) {
-    return errorResponse('NOT_FOUND', `Node not found: ${entityType}:${key}`, 404);
+    return standardError('NOT_FOUND', `Node not found: ${entityType}:${key}`, 404);
   }
 
   return jsonResponse({
@@ -123,19 +140,19 @@ worldModelHandler.get('/neighbors', async (c) => {
   const key = c.req.query('key');
 
   if (!entityType || !key) {
-    return errorResponse('MISSING_PARAMS', 'entity_type and key are required', 400);
+    return standardError('MISSING_PARAMS', 'entity_type and key are required', 400);
   }
 
   const validTypes: EntityType[] = ['module', 'table', 'endpoint', 'workflow', 'domain_object'];
   if (!validTypes.includes(entityType)) {
-    return errorResponse('INVALID_ENTITY_TYPE', `entity_type must be one of: ${validTypes.join(', ')}`, 400);
+    return standardError('INVALID_ENTITY_TYPE', `entity_type must be one of: ${validTypes.join(', ')}`, 400);
   }
 
   const { nodes, edges } = getWorldModel();
   const node = findNodeByKey(nodes, entityType, key);
 
   if (!node) {
-    return errorResponse('NOT_FOUND', `Node not found: ${entityType}:${key}`, 404);
+    return standardError('NOT_FOUND', `Node not found: ${entityType}:${key}`, 404);
   }
 
   const neighbors = getNeighbors(nodes, edges, entityType, key);
@@ -161,16 +178,16 @@ worldModelHandler.post('/query', async (c) => {
   try {
     query = await c.req.json();
   } catch {
-    return errorResponse('INVALID_JSON', 'Request body must be valid JSON', 400);
+    return standardError('INVALID_JSON', 'Request body must be valid JSON', 400);
   }
 
   if (!query.start || !query.start.entity_type || !query.start.key) {
-    return errorResponse('MISSING_PARAMS', 'start.entity_type and start.key are required', 400);
+    return standardError('MISSING_PARAMS', 'start.entity_type and start.key are required', 400);
   }
 
   const validTypes: EntityType[] = ['module', 'table', 'endpoint', 'workflow', 'domain_object'];
   if (!validTypes.includes(query.start.entity_type)) {
-    return errorResponse('INVALID_ENTITY_TYPE', `entity_type must be one of: ${validTypes.join(', ')}`, 400);
+    return standardError('INVALID_ENTITY_TYPE', `entity_type must be one of: ${validTypes.join(', ')}`, 400);
   }
 
   const maxDepth = Math.min(query.max_depth || 2, 5);
@@ -186,7 +203,7 @@ worldModelHandler.post('/query', async (c) => {
   );
 
   if (result.nodes.length === 0) {
-    return errorResponse('NOT_FOUND', `Starting node not found: ${query.start.entity_type}:${query.start.key}`, 404);
+    return standardError('NOT_FOUND', `Starting node not found: ${query.start.entity_type}:${query.start.key}`, 404);
   }
 
   return jsonResponse({

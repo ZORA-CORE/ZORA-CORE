@@ -6,6 +6,8 @@
  * - POST /api/admin/hybrid-search/recommend-strategies
  * - POST /api/admin/hybrid-search/search-knowledge
  * - GET /api/admin/hybrid-search/info
+ * 
+ * Backend Hardening v1: All endpoints require founder/brand_admin role.
  */
 
 import { Hono } from 'hono';
@@ -21,9 +23,25 @@ import {
   type SearchKnowledgeInput,
   type EntityType,
 } from '../hybrid-search/hybridSearch';
-import { jsonResponse, errorResponse } from '../lib/response';
+import { jsonResponse, standardError } from '../lib/response';
+import type { AuthContext } from '../lib/auth';
+import { logMetricEvent } from '../middleware/logging';
 
 const hybridSearchHandler = new Hono<AuthAppEnv>();
+
+hybridSearchHandler.use('*', async (c, next) => {
+  const auth = c.get('auth') as AuthContext | undefined;
+  
+  if (!auth) {
+    return standardError('UNAUTHORIZED', 'Authentication required', 401);
+  }
+  
+  if (auth.role !== 'founder' && auth.role !== 'brand_admin') {
+    return standardError('FORBIDDEN', 'Admin access required (founder or brand_admin role)', 403);
+  }
+  
+  await next();
+});
 
 hybridSearchHandler.get('/info', async (c) => {
   const info = getHybridSearchInfo();
@@ -31,15 +49,18 @@ hybridSearchHandler.get('/info', async (c) => {
 });
 
 hybridSearchHandler.post('/find-similar-tenants', async (c) => {
+  const auth = c.get('auth') as AuthContext;
+  const startTime = Date.now();
+  
   let body: FindSimilarTenantsInput;
   try {
     body = await c.req.json();
   } catch {
-    return errorResponse('INVALID_JSON', 'Request body must be valid JSON', 400);
+    return standardError('INVALID_JSON', 'Request body must be valid JSON', 400);
   }
 
   if (!body.tenant_id && !body.profile) {
-    return errorResponse(
+    return standardError(
       'MISSING_PARAMS',
       'Either tenant_id or profile object is required',
       400
@@ -49,10 +70,31 @@ hybridSearchHandler.post('/find-similar-tenants', async (c) => {
   try {
     const supabase = getSupabaseClient(c.env);
     const result = await findSimilarTenants(supabase, body);
+    
+    logMetricEvent({
+      category: 'hybrid_search',
+      name: 'find_similar_tenants',
+      tenant_id: auth.tenantId,
+      user_id: auth.userId,
+      duration_ms: Date.now() - startTime,
+      success: true,
+    });
+    
     return jsonResponse(result);
   } catch (error) {
     console.error('findSimilarTenants error:', error);
-    return errorResponse(
+    
+    logMetricEvent({
+      category: 'hybrid_search',
+      name: 'find_similar_tenants',
+      tenant_id: auth.tenantId,
+      user_id: auth.userId,
+      duration_ms: Date.now() - startTime,
+      success: false,
+      error_code: 'SEARCH_ERROR',
+    });
+    
+    return standardError(
       'SEARCH_ERROR',
       'Failed to find similar tenants',
       500
@@ -61,15 +103,18 @@ hybridSearchHandler.post('/find-similar-tenants', async (c) => {
 });
 
 hybridSearchHandler.post('/recommend-strategies', async (c) => {
+  const auth = c.get('auth') as AuthContext;
+  const startTime = Date.now();
+  
   let body: RecommendStrategiesInput;
   try {
     body = await c.req.json();
   } catch {
-    return errorResponse('INVALID_JSON', 'Request body must be valid JSON', 400);
+    return standardError('INVALID_JSON', 'Request body must be valid JSON', 400);
   }
 
   if (!body.tenant_id && !body.climate_profile_id) {
-    return errorResponse(
+    return standardError(
       'MISSING_PARAMS',
       'Either tenant_id or climate_profile_id is required',
       400
@@ -79,10 +124,31 @@ hybridSearchHandler.post('/recommend-strategies', async (c) => {
   try {
     const supabase = getSupabaseClient(c.env);
     const result = await recommendStrategies(supabase, body);
+    
+    logMetricEvent({
+      category: 'hybrid_search',
+      name: 'recommend_strategies',
+      tenant_id: auth.tenantId,
+      user_id: auth.userId,
+      duration_ms: Date.now() - startTime,
+      success: true,
+    });
+    
     return jsonResponse(result);
   } catch (error) {
     console.error('recommendStrategies error:', error);
-    return errorResponse(
+    
+    logMetricEvent({
+      category: 'hybrid_search',
+      name: 'recommend_strategies',
+      tenant_id: auth.tenantId,
+      user_id: auth.userId,
+      duration_ms: Date.now() - startTime,
+      success: false,
+      error_code: 'SEARCH_ERROR',
+    });
+    
+    return standardError(
       'SEARCH_ERROR',
       'Failed to recommend strategies',
       500
@@ -91,15 +157,18 @@ hybridSearchHandler.post('/recommend-strategies', async (c) => {
 });
 
 hybridSearchHandler.post('/search-knowledge', async (c) => {
+  const auth = c.get('auth') as AuthContext;
+  const startTime = Date.now();
+  
   let body: SearchKnowledgeInput;
   try {
     body = await c.req.json();
   } catch {
-    return errorResponse('INVALID_JSON', 'Request body must be valid JSON', 400);
+    return standardError('INVALID_JSON', 'Request body must be valid JSON', 400);
   }
 
   if (!body.query || typeof body.query !== 'string' || body.query.trim().length === 0) {
-    return errorResponse(
+    return standardError(
       'MISSING_PARAMS',
       'query is required and must be a non-empty string',
       400
@@ -110,7 +179,7 @@ hybridSearchHandler.post('/search-knowledge', async (c) => {
     const validTypes: EntityType[] = ['module', 'table', 'endpoint', 'workflow', 'domain_object'];
     for (const t of body.filters.entity_types) {
       if (!validTypes.includes(t)) {
-        return errorResponse(
+        return standardError(
           'INVALID_PARAMS',
           `Invalid entity_type: ${t}. Valid types: ${validTypes.join(', ')}`,
           400
@@ -123,7 +192,7 @@ hybridSearchHandler.post('/search-knowledge', async (c) => {
     const validSources = ['memory', 'world_node', 'table'];
     for (const s of body.filters.sources) {
       if (!validSources.includes(s)) {
-        return errorResponse(
+        return standardError(
           'INVALID_PARAMS',
           `Invalid source: ${s}. Valid sources: ${validSources.join(', ')}`,
           400
@@ -135,10 +204,32 @@ hybridSearchHandler.post('/search-knowledge', async (c) => {
   try {
     const supabase = getSupabaseClient(c.env);
     const result = await searchKnowledge(supabase, c.env, body);
+    
+    logMetricEvent({
+      category: 'hybrid_search',
+      name: 'search_knowledge',
+      tenant_id: auth.tenantId,
+      user_id: auth.userId,
+      duration_ms: Date.now() - startTime,
+      success: true,
+      metadata: { query_length: body.query.length },
+    });
+    
     return jsonResponse(result);
   } catch (error) {
     console.error('searchKnowledge error:', error);
-    return errorResponse(
+    
+    logMetricEvent({
+      category: 'hybrid_search',
+      name: 'search_knowledge',
+      tenant_id: auth.tenantId,
+      user_id: auth.userId,
+      duration_ms: Date.now() - startTime,
+      success: false,
+      error_code: 'SEARCH_ERROR',
+    });
+    
+    return standardError(
       'SEARCH_ERROR',
       'Failed to search knowledge',
       500

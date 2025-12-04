@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import type { AuthAppEnv } from '../middleware/auth';
-import { getSupabaseClient } from '../supabase';
+import { getSupabaseClient } from '../lib/supabase';
 import { recommendStrategies } from '../hybrid-search/hybridSearch';
 
 const agentPanelHandler = new Hono<AuthAppEnv>();
