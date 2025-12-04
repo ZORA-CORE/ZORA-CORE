@@ -1,8 +1,15 @@
-# ZORA CORE - WebTool v1
+# ZORA CORE - WebTool v1 & v2
 
-**Agent Web Access v1** | Backend Only
+**Agent Web Access v1 & v2** | Backend Only
 
-This document describes the WebTool v1 layer for ZORA CORE. This iteration provides controlled internet access for Nordic agents (especially ODIN) with domain allowlists, timeouts, size limits, and rate limiting.
+This document describes the WebTool layer for ZORA CORE. This provides controlled internet access for Nordic agents (especially ODIN) with domain allowlists, timeouts, size limits, and rate limiting.
+
+## Version History
+
+| Version | Description |
+|---------|-------------|
+| v1.0.0 | Initial release with env-based domain allowlist |
+| v2.0.0 | DB-managed domain registry with auto-seeding and auto-add from curated sources |
 
 ## Overview
 
@@ -276,12 +283,115 @@ WebTool usage is logged via the centralized logging middleware:
 
 See `OBSERVABILITY_AND_METRICS_V1.md` for details on metrics and logging.
 
+## WebTool v2.0 - DB-Managed Domain Registry
+
+WebTool v2.0 introduces a database-managed domain registry that replaces the env-only configuration. This provides better manageability, audit trails, and auto-seeding capabilities.
+
+### Key Changes in v2.0
+
+1. **DB-Managed Domain Registry**: Primary source of truth is now the `webtool_allowed_domains` table
+2. **Auto-Seeding**: Registry is automatically seeded from env vars or code defaults when empty
+3. **Auto-Add from Curated Sources**: ODIN bootstrap jobs automatically register their domains
+4. **Admin API**: CRUD endpoints for managing allowed domains
+5. **Per-Isolate Caching**: 60-second TTL cache for domain lookups in Cloudflare Workers
+
+### Database Schema
+
+```sql
+CREATE TABLE webtool_allowed_domains (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    domain TEXT NOT NULL UNIQUE,
+    label TEXT,
+    description TEXT,
+    source TEXT NOT NULL DEFAULT 'manual_admin',
+    is_enabled BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+```
+
+**Source Types:**
+
+| Source | Description |
+|--------|-------------|
+| `hardcoded` | Default domains defined in code |
+| `env_seed` | Seeded from `ZORA_WEBTOOL_ALLOWED_DOMAINS` env var |
+| `bootstrap_job` | Auto-added from ODIN curated bootstrap jobs |
+| `manual_admin` | Manually added via admin API |
+
+### Admin API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/admin/webtool/allowed-domains` | GET | List allowed domains with pagination/filters |
+| `/api/admin/webtool/allowed-domains` | POST | Create a new allowed domain |
+| `/api/admin/webtool/allowed-domains/:id` | GET | Get a specific domain |
+| `/api/admin/webtool/allowed-domains/:id` | PATCH | Update a domain (toggle is_enabled, edit label) |
+| `/api/admin/webtool/allowed-domains/:id` | DELETE | Delete a domain |
+| `/api/admin/webtool/registry-stats` | GET | Get registry statistics |
+| `/api/admin/webtool/seed-registry` | POST | Manually trigger registry seeding |
+
+### Using v2 Registry Mode
+
+To use the DB registry mode, pass a Supabase client to the WebTool options:
+
+```typescript
+import { httpGet } from '../webtool';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_KEY);
+
+const result = await httpGet(url, env, {
+  supabase,  // Enable DB registry mode
+  timeout_ms: 5000,
+});
+```
+
+Without the `supabase` option, WebTool falls back to the legacy env-based mode.
+
+### Auto-Add Domains from Curated Sources
+
+ODIN bootstrap jobs automatically register their domains before fetching:
+
+```typescript
+import { ensureCuratedDomainAllowed } from '../webtool';
+
+// Before fetching from a curated URL
+await ensureCuratedDomainAllowed(supabase, env, url, 'bootstrap_job');
+```
+
+This only works for curated (code-defined) URLs, not arbitrary user URLs.
+
+### Registry Seeding
+
+On first use, the registry is automatically seeded with default domains:
+
+1. Code-defined defaults (Wikipedia, IPCC, UNFCCC, IEA, etc.)
+2. Domains from `ZORA_WEBTOOL_ALLOWED_DOMAINS` env var (if set)
+
+Seeding is idempotent - existing domains are not overwritten.
+
+### Caching Strategy
+
+Domain lookups use a per-isolate cache with 60-second TTL:
+
+- Cache is stored in module-level variables
+- Each Cloudflare Worker isolate has its own cache
+- Cache is invalidated after 60 seconds or on admin updates
+
+### Frontend Admin UI
+
+A simple admin UI is available at `/admin/odin` for:
+
+- Viewing all allowed domains with filters
+- Toggling domain enabled/disabled status
+- Viewing registry statistics
+
 ## Future Enhancements
 
-This is WebTool v1. Future iterations may include:
+Future iterations may include:
 
 - `searchWeb()` function for web search APIs
-- Caching layer for frequently accessed URLs
 - Per-tenant domain allowlists
 - Request queuing and prioritization
 - Retry logic with exponential backoff

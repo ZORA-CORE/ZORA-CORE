@@ -1,22 +1,37 @@
 /**
- * ZORA WebTool v1.0
+ * ZORA WebTool v2.0
  * 
  * Safe, controlled HTTP client for Nordic agents to access external web resources.
  * 
  * Features:
- * - Domain allowlist enforcement
+ * - Domain allowlist enforcement via DB registry (webtool_allowed_domains table)
+ * - Auto-seeding from env vars or code defaults when registry is empty
  * - Request timeouts
  * - Response size limits
  * - Structured error handling
  * - Metrics logging via HEIMDALL
  * 
  * This module provides the foundation for ODIN's web ingestion capabilities.
+ * 
+ * v2.0 Changes:
+ * - Primary source of truth is now webtool_allowed_domains table
+ * - ZORA_WEBTOOL_ALLOWED_DOMAINS env var is only used for initial seeding
+ * - In-memory caching with 60s TTL for performance
+ * - Auto-add domains from curated bootstrap jobs
  */
 
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Bindings } from '../types';
 import { logMetricEvent } from '../middleware/logging';
+import {
+  isDomainAllowed as checkDomainAllowed,
+  extractDomainFromUrl,
+  ensureRegistrySeeded,
+  loadAllowedDomains,
+  getRegistryStats,
+} from '../lib/webtoolRegistry';
 
-export const WEB_TOOL_VERSION = '1.0.0';
+export const WEB_TOOL_VERSION = '2.0.0';
 
 export interface WebToolConfig {
   timeoutMs: number;
@@ -41,6 +56,7 @@ export interface WebToolOptions {
   agent?: string;
   tenantId?: string;
   userId?: string;
+  supabase?: SupabaseClient;
 }
 
 export class WebToolError extends Error {
@@ -173,14 +189,22 @@ export async function httpGet(
   const config = getConfig(env);
   const timeoutMs = options.timeoutMs ?? config.timeoutMs;
   const maxSize = options.maxResponseSizeBytes ?? config.maxResponseSizeBytes;
-  const domain = extractDomain(url);
+  const domain = extractDomainFromUrl(url) || extractDomain(url);
 
-  if (!isDomainAllowed(url, config.allowedDomains)) {
+  let domainAllowed = false;
+  
+  if (options.supabase) {
+    domainAllowed = await checkDomainAllowed(options.supabase, env, url);
+  } else {
+    domainAllowed = isDomainAllowed(url, config.allowedDomains);
+  }
+
+  if (!domainAllowed) {
     const error = new WebToolError(
       'DOMAIN_NOT_ALLOWED',
       `Domain '${domain}' is not in the allowed list`,
       403,
-      { url, domain, allowed_domains_count: config.allowedDomains.length }
+      { url, domain, registry_mode: options.supabase ? 'db' : 'env' }
     );
 
     logMetricEvent({
@@ -191,7 +215,7 @@ export async function httpGet(
       duration_ms: Date.now() - startTime,
       success: false,
       error_code: error.code,
-      metadata: { url, domain, agent: options.agent, status: 403 },
+      metadata: { url, domain, agent: options.agent, status: 403, registry_mode: options.supabase ? 'db' : 'env' },
     });
 
     throw error;
@@ -331,14 +355,22 @@ export async function httpPost(
   const config = getConfig(env);
   const timeoutMs = options.timeoutMs ?? config.timeoutMs;
   const maxSize = options.maxResponseSizeBytes ?? config.maxResponseSizeBytes;
-  const domain = extractDomain(url);
+  const domain = extractDomainFromUrl(url) || extractDomain(url);
 
-  if (!isDomainAllowed(url, config.allowedDomains)) {
+  let domainAllowed = false;
+  
+  if (options.supabase) {
+    domainAllowed = await checkDomainAllowed(options.supabase, env, url);
+  } else {
+    domainAllowed = isDomainAllowed(url, config.allowedDomains);
+  }
+
+  if (!domainAllowed) {
     const error = new WebToolError(
       'DOMAIN_NOT_ALLOWED',
       `Domain '${domain}' is not in the allowed list`,
       403,
-      { url, domain, allowed_domains_count: config.allowedDomains.length }
+      { url, domain, registry_mode: options.supabase ? 'db' : 'env' }
     );
 
     logMetricEvent({
@@ -349,7 +381,7 @@ export async function httpPost(
       duration_ms: Date.now() - startTime,
       success: false,
       error_code: error.code,
-      metadata: { url, domain, agent: options.agent, status: 403 },
+      metadata: { url, domain, agent: options.agent, status: 403, registry_mode: options.supabase ? 'db' : 'env' },
     });
 
     throw error;
@@ -502,7 +534,45 @@ export function getWebToolInfo(env: Bindings): {
   };
 }
 
+export async function getWebToolInfoWithRegistry(
+  env: Bindings,
+  supabase: SupabaseClient
+): Promise<{
+  version: string;
+  config: {
+    timeout_ms: number;
+    max_response_size_bytes: number;
+  };
+  registry: {
+    total: number;
+    enabled: number;
+    disabled: number;
+    by_source: Record<string, number>;
+  };
+}> {
+  const config = getConfig(env);
+  const stats = await getRegistryStats(supabase);
+  
+  return {
+    version: WEB_TOOL_VERSION,
+    config: {
+      timeout_ms: config.timeoutMs,
+      max_response_size_bytes: config.maxResponseSizeBytes,
+    },
+    registry: stats,
+  };
+}
+
 export function isWebToolConfigured(env: Bindings): boolean {
   const config = getConfig(env);
   return config.allowedDomains.length > 0;
+}
+
+export async function isWebToolConfiguredWithRegistry(
+  env: Bindings,
+  supabase: SupabaseClient
+): Promise<boolean> {
+  await ensureRegistrySeeded(supabase, env);
+  const allowedDomains = await loadAllowedDomains(supabase, env);
+  return allowedDomains.size > 0;
 }

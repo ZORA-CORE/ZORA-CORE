@@ -4016,6 +4016,65 @@ INSERT INTO schema_metadata (schema_version, notes)
 VALUES ('3.9.0', 'Knowledge Store v1.0 - knowledge_documents and knowledge_document_tags tables for Agent Web Access v1');
 
 -- ============================================================================
+-- STEP 17: WEBTOOL ALLOWED DOMAINS v2.0 (WebTool v2 - Auto-Managed Domains)
+-- Schema version: 3.10.0
+-- ============================================================================
+-- The WebTool Allowed Domains registry provides DB-managed domain allowlisting
+-- for the WebTool HTTP client. This replaces env-only configuration with a
+-- persistent, manageable registry.
+--
+-- Features:
+-- - Primary source of truth for allowed domains (replaces ZORA_WEBTOOL_ALLOWED_DOMAINS env)
+-- - Auto-seeding from env var or code defaults when table is empty
+-- - Auto-add domains from ODIN curated bootstrap jobs
+-- - Admin API for CRUD operations
+-- - Audit trail via source field
+
+-- webtool_allowed_domains: Registry of allowed domains for WebTool HTTP client
+CREATE TABLE IF NOT EXISTS webtool_allowed_domains (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    domain TEXT NOT NULL UNIQUE,
+    label TEXT,
+    description TEXT,
+    source TEXT NOT NULL DEFAULT 'manual_admin',
+    is_enabled BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Indexes for webtool_allowed_domains
+CREATE INDEX IF NOT EXISTS idx_webtool_allowed_domains_domain ON webtool_allowed_domains(domain);
+CREATE INDEX IF NOT EXISTS idx_webtool_allowed_domains_is_enabled ON webtool_allowed_domains(is_enabled) WHERE is_enabled = true;
+CREATE INDEX IF NOT EXISTS idx_webtool_allowed_domains_source ON webtool_allowed_domains(source);
+
+-- Trigger for updated_at
+DROP TRIGGER IF EXISTS update_webtool_allowed_domains_updated_at ON webtool_allowed_domains;
+CREATE TRIGGER update_webtool_allowed_domains_updated_at
+    BEFORE UPDATE ON webtool_allowed_domains
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Enable RLS for webtool_allowed_domains
+ALTER TABLE webtool_allowed_domains ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow all for service role" ON webtool_allowed_domains;
+CREATE POLICY "Allow all for service role" ON webtool_allowed_domains
+    FOR ALL
+    USING (true)
+    WITH CHECK (true);
+
+COMMENT ON TABLE webtool_allowed_domains IS 'Registry of allowed domains for WebTool HTTP client (WebTool v2)';
+COMMENT ON COLUMN webtool_allowed_domains.domain IS 'Domain hostname (e.g., en.wikipedia.org) - normalized to lowercase';
+COMMENT ON COLUMN webtool_allowed_domains.label IS 'Human-readable label for the domain (optional)';
+COMMENT ON COLUMN webtool_allowed_domains.description IS 'Description of why this domain is allowed (optional)';
+COMMENT ON COLUMN webtool_allowed_domains.source IS 'Source of the domain: bootstrap_job, hardcoded, manual_admin, env_seed';
+COMMENT ON COLUMN webtool_allowed_domains.is_enabled IS 'Whether the domain is currently allowed (can be toggled without deleting)';
+
+-- Record the WebTool v2 schema version
+INSERT INTO schema_metadata (schema_version, notes)
+VALUES ('3.10.0', 'WebTool v2.0 - webtool_allowed_domains table for DB-managed domain allowlisting');
+
+-- ============================================================================
 -- DONE!
 -- ============================================================================
 -- 

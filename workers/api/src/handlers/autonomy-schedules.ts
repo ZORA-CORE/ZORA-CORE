@@ -12,6 +12,7 @@ const VALID_SCHEDULE_TYPES = [
   'climate.weekly_plan_suggest',
   'climate.mission_reminder',
   'zora_shop.project_status_check',
+  'odin.auto_bootstrap_check',
 ];
 
 /**
@@ -470,17 +471,18 @@ app.get('/types', async (c) => {
     );
   }
 
-  return jsonResponse({
-    data: {
-      schedule_types: VALID_SCHEDULE_TYPES,
-      frequencies: VALID_FREQUENCIES,
-      descriptions: {
-        'climate.weekly_plan_suggest': 'Suggest a weekly climate plan for a profile',
-        'climate.mission_reminder': 'Send reminders for upcoming or overdue missions',
-        'zora_shop.project_status_check': 'Check and update ZORA SHOP project statuses',
+    return jsonResponse({
+      data: {
+        schedule_types: VALID_SCHEDULE_TYPES,
+        frequencies: VALID_FREQUENCIES,
+        descriptions: {
+          'climate.weekly_plan_suggest': 'Suggest a weekly climate plan for a profile',
+          'climate.mission_reminder': 'Send reminders for upcoming or overdue missions',
+          'zora_shop.project_status_check': 'Check and update ZORA SHOP project statuses',
+          'odin.auto_bootstrap_check': 'Check knowledge thresholds and auto-bootstrap ODIN domains if needed',
+        },
       },
-    },
-  });
+    });
 });
 
 export default app;
