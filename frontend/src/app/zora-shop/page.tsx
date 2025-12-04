@@ -554,17 +554,29 @@ function OverviewPanel({
               </p>
             </div>
 
-            {foundationProjects.length > 0 && (
-              <div className="p-4 bg-purple-500/10 border border-purple-500/30 rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-[var(--foreground)]">Foundation Projects</span>
-                  <span className="text-lg font-bold text-purple-400">{foundationProjects.length}</span>
-                </div>
-                <p className="text-xs text-[var(--foreground)]/50">
-                  {foundationProjects.filter((p) => p.status === 'active').length} active projects linked to SHOP brands
-                </p>
-              </div>
-            )}
+                        <div className="p-4 bg-rose-500/10 border border-rose-500/30 rounded-lg">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <svg className="w-5 h-5 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                              </svg>
+                              <span className="text-sm font-medium text-[var(--foreground)]">THE ZORA FOUNDATION</span>
+                            </div>
+                            <span className="text-lg font-bold text-rose-400">{foundationProjects.length}</span>
+                          </div>
+                          <p className="text-xs text-[var(--foreground)]/50 mb-3">
+                            {foundationProjects.filter((p) => p.status === 'active').length} active climate projects supporting real impact
+                          </p>
+                          <Link
+                            href="/foundation"
+                            className="inline-flex items-center gap-1 text-xs text-rose-400 hover:text-rose-300 transition-colors"
+                          >
+                            Explore Foundation Projects
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                          </Link>
+                        </div>
           </div>
         </Card>
       </div>
