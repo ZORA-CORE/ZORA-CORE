@@ -1193,3 +1193,86 @@ export interface AcademyLearningPathsResponse {
 export interface AcademyProgressResponse {
   data: AcademyUserProgress[];
 }
+
+// ZORA SHOP Project types (Frontend v1)
+export type ZoraShopProjectStatus = 'idea' | 'brief' | 'concept' | 'review' | 'launched' | 'archived';
+
+export interface ZoraShopProject {
+  id: string;
+  tenant_id: string;
+  title: string;
+  description: string | null;
+  status: ZoraShopProjectStatus;
+  primary_brand_id: string;
+  secondary_brand_id: string | null;
+  theme: string | null;
+  target_launch_date: string | null;
+  launched_at: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface ZoraShopProjectWithBrands extends ZoraShopProject {
+  primary_brand?: Brand | null;
+  secondary_brand?: Brand | null;
+}
+
+export interface CreateZoraShopProjectInput {
+  title: string;
+  description?: string;
+  status?: ZoraShopProjectStatus;
+  primary_brand_id: string;
+  secondary_brand_id?: string;
+  theme?: string;
+  target_launch_date?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface UpdateZoraShopProjectInput {
+  title?: string;
+  description?: string;
+  status?: ZoraShopProjectStatus;
+  primary_brand_id?: string;
+  secondary_brand_id?: string;
+  theme?: string;
+  target_launch_date?: string;
+  launched_at?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface ZoraShopProjectsResponse {
+  data: ZoraShopProjectWithBrands[];
+  pagination: {
+    limit: number;
+    offset: number;
+    total: number;
+    has_more: boolean;
+  };
+}
+
+// Product with details types (for product detail page)
+export interface ProductMaterial {
+  id: string;
+  product_id: string;
+  material_id: string;
+  percentage: number | null;
+  notes: string | null;
+  material?: ShopMaterial;
+}
+
+export interface ProductClimateMeta {
+  id: string;
+  product_id: string;
+  climate_label: string | null;
+  estimated_impact_kgco2: number | null;
+  certifications: string | null;
+  notes: string | null;
+  metadata: Record<string, unknown>;
+}
+
+export interface ProductWithDetails extends Product {
+  brand?: Brand | null;
+  materials?: ProductMaterial[];
+  climate_meta?: ProductClimateMeta | null;
+}
