@@ -1,8 +1,15 @@
 /**
  * ZORA CORE Authentication Utilities
  * 
- * Client-side JWT token management for the frontend.
+ * Auth System v2: Cookie-based authentication with email+password
+ * 
+ * Client-side auth management for the frontend.
+ * - Cookies are managed by the browser (httpOnly, secure)
+ * - User info is fetched from /api/auth/me endpoint
+ * - localStorage token support retained for backward compatibility
  */
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_ZORA_API_BASE_URL || 'http://localhost:8787';
 
 export interface AuthUser {
   tenantId: string;
@@ -148,4 +155,156 @@ export function getRoleDisplayName(role: AuthUser['role']): string {
     default:
       return role;
   }
+}
+
+// ============================================================================
+// Auth System v2: Cookie-based authentication API functions
+// ============================================================================
+
+export interface LoginInput {
+  email: string;
+  password: string;
+}
+
+export interface RegisterInput {
+  email: string;
+  password: string;
+  display_name?: string;
+}
+
+export interface AuthResponse {
+  user: {
+    id: string;
+    email: string;
+    display_name: string;
+    account_type: string;
+    role: AuthUser['role'];
+    tenant_id: string;
+  };
+}
+
+export interface AuthError {
+  error: string;
+  message: string;
+  status: number;
+}
+
+/**
+ * Login with email and password (Auth System v2)
+ * Sets httpOnly cookies for session management
+ */
+export async function loginWithEmail(input: LoginInput): Promise<AuthResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(input),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw data as AuthError;
+  }
+
+  return data as AuthResponse;
+}
+
+/**
+ * Register with email and password (Auth System v2)
+ * Sets httpOnly cookies for session management
+ */
+export async function registerWithEmail(input: RegisterInput): Promise<AuthResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(input),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw data as AuthError;
+  }
+
+  return data as AuthResponse;
+}
+
+/**
+ * Fetch current user from /api/auth/me (Auth System v2)
+ * Uses cookies for authentication
+ */
+export async function fetchCurrentUser(): Promise<AuthUser | null> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
+      method: 'GET',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        return null;
+      }
+      return null;
+    }
+
+    const data = await response.json();
+    
+    return {
+      tenantId: data.user.tenant_id,
+      userId: data.user.id,
+      role: data.user.role,
+      display_name: data.user.display_name,
+      email: data.user.email,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Refresh access token using refresh token cookie (Auth System v2)
+ */
+export async function refreshAccessToken(): Promise<boolean> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Logout and clear session cookies (Auth System v2)
+ */
+export async function logoutSession(): Promise<void> {
+  try {
+    await fetch(`${API_BASE_URL}/api/auth/logout`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+  } catch {
+    // Ignore errors - we're logging out anyway
+  }
+  
+  // Also clear localStorage token for backward compatibility
+  clearToken();
 }

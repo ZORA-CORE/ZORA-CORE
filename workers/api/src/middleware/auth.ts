@@ -1,14 +1,17 @@
 /**
  * Authentication middleware for ZORA CORE API
  * 
+ * Auth System v2: Supports both cookie-based and header-based authentication
+ * 
  * Applies JWT authentication to protected routes and adds
  * auth context to the request for use by handlers.
  */
 
 import { Context, Next, Env } from 'hono';
 import type { Bindings } from '../types';
-import { verifyAuthHeader, AuthError, AuthContext } from '../lib/auth';
+import { verifyAuthHeader, verifyToken, AuthError, AuthContext } from '../lib/auth';
 import { jsonResponse } from '../lib/response';
+import { parseCookies, COOKIE_CONFIG } from '../lib/tokens';
 
 /**
  * Variables added to context by auth middleware
@@ -29,7 +32,13 @@ export interface AuthAppEnv extends Env {
 /**
  * Authentication middleware
  * 
- * Verifies JWT token from Authorization header and adds auth context to request.
+ * Auth System v2: Supports both cookie-based and header-based authentication
+ * 
+ * Priority:
+ * 1. Authorization header (Bearer token) - for backward compatibility and CLI/API clients
+ * 2. Cookie (zora_access_token) - for browser-based sessions
+ * 
+ * Verifies JWT token and adds auth context to request.
  * Returns 401 for missing/invalid tokens, 403 for insufficient permissions.
  */
 export async function authMiddleware(c: Context<AuthAppEnv>, next: Next) {
@@ -49,12 +58,26 @@ export async function authMiddleware(c: Context<AuthAppEnv>, next: Next) {
 
   try {
     const authHeader = c.req.header('Authorization') ?? null;
-    const authContext = await verifyAuthHeader(authHeader, jwtSecret);
     
-    // Add auth context to request variables
-    c.set('auth', authContext);
+    if (authHeader) {
+      const authContext = await verifyAuthHeader(authHeader, jwtSecret);
+      c.set('auth', authContext);
+      await next();
+      return;
+    }
     
-    await next();
+    const cookieHeader = c.req.header('Cookie');
+    const cookies = parseCookies(cookieHeader);
+    const accessToken = cookies[COOKIE_CONFIG.ACCESS_TOKEN_NAME];
+    
+    if (accessToken) {
+      const authContext = await verifyToken(accessToken, jwtSecret);
+      c.set('auth', authContext);
+      await next();
+      return;
+    }
+    
+    throw new AuthError('NO_TOKEN', 'No authentication token provided', 401);
   } catch (error) {
     if (error instanceof AuthError) {
       return jsonResponse(

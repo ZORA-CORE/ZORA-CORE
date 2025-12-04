@@ -62,6 +62,18 @@ function arrayBufferToBase64Url(bytes: Uint8Array): string {
 export const TOKEN_EXPIRY = {
   PASSWORD_RESET: 60 * 60 * 1000, // 1 hour
   EMAIL_VERIFICATION: 24 * 60 * 60 * 1000, // 24 hours
+  ACCESS_TOKEN: 15 * 60 * 1000, // 15 minutes
+  REFRESH_TOKEN: 30 * 24 * 60 * 60 * 1000, // 30 days
+} as const;
+
+/**
+ * Cookie configuration for auth tokens
+ */
+export const COOKIE_CONFIG = {
+  ACCESS_TOKEN_NAME: 'zora_access_token',
+  REFRESH_TOKEN_NAME: 'zora_refresh_token',
+  ACCESS_TOKEN_MAX_AGE: 15 * 60, // 15 minutes in seconds
+  REFRESH_TOKEN_MAX_AGE: 30 * 24 * 60 * 60, // 30 days in seconds
 } as const;
 
 /**
@@ -69,4 +81,77 @@ export const TOKEN_EXPIRY = {
  */
 export function getExpiryTimestamp(durationMs: number): string {
   return new Date(Date.now() + durationMs).toISOString();
+}
+
+/**
+ * Build a Set-Cookie header value for auth cookies
+ * @param name Cookie name
+ * @param value Cookie value
+ * @param maxAge Max age in seconds
+ * @param isProduction Whether running in production (affects Secure and SameSite)
+ */
+export function buildCookieHeader(
+  name: string,
+  value: string,
+  maxAge: number,
+  isProduction: boolean
+): string {
+  const parts = [
+    `${name}=${value}`,
+    `Path=/`,
+    `HttpOnly`,
+    `Max-Age=${maxAge}`,
+  ];
+
+  if (isProduction) {
+    parts.push('Secure');
+    parts.push('SameSite=None');
+  } else {
+    parts.push('SameSite=Lax');
+  }
+
+  return parts.join('; ');
+}
+
+/**
+ * Build a Set-Cookie header to clear/expire a cookie
+ */
+export function buildClearCookieHeader(name: string, isProduction: boolean): string {
+  const parts = [
+    `${name}=`,
+    `Path=/`,
+    `HttpOnly`,
+    `Max-Age=0`,
+    `Expires=Thu, 01 Jan 1970 00:00:00 GMT`,
+  ];
+
+  if (isProduction) {
+    parts.push('Secure');
+    parts.push('SameSite=None');
+  } else {
+    parts.push('SameSite=Lax');
+  }
+
+  return parts.join('; ');
+}
+
+/**
+ * Parse cookies from Cookie header string
+ */
+export function parseCookies(cookieHeader: string | null): Record<string, string> {
+  if (!cookieHeader) {
+    return {};
+  }
+
+  const cookies: Record<string, string> = {};
+  const pairs = cookieHeader.split(';');
+
+  for (const pair of pairs) {
+    const [name, ...valueParts] = pair.trim().split('=');
+    if (name) {
+      cookies[name.trim()] = valueParts.join('=').trim();
+    }
+  }
+
+  return cookies;
 }
