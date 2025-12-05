@@ -150,101 +150,167 @@ export default function DeskPage() {
 
   return (
     <AppShell>
-      <div className="p-6 lg:p-8">
+      <div className="p-6 lg:p-10 space-y-10">
+        {/* ===== HERO WELCOME SECTION ===== */}
         <WelcomeCard user={user} />
 
         {error && (
-          <div className="mt-6 p-4 bg-amber-500/10 border border-amber-500/20 rounded-lg text-amber-600">
+          <div className="p-4 bg-[var(--z-amber-soft)] border border-[var(--z-amber-border)] rounded-xl text-[var(--z-amber)]">
             {error}
           </div>
         )}
 
         {dataLoading ? (
-          <div className="flex items-center justify-center py-12">
+          <div className="flex items-center justify-center py-20">
             <LoadingSpinner size="lg" />
           </div>
         ) : (
           <>
-            <div className="mt-8 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-              <ClimateImpactCard stats={climateStats} />
-              <GoesGreenCard stats={goesGreenStats} />
-              <ZoraShopCard stats={shopStats} />
-              <FoundationCard stats={foundationStats} />
-              <AcademyCard stats={academyStats} />
-              <AgentsAutonomyCard metrics={agentMetrics} />
-            </div>
-
-            <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card variant="default" padding="md">
-                <h3 className="text-lg font-semibold text-[var(--foreground)] mb-4">Quick Actions</h3>
-                <div className="grid grid-cols-2 gap-3">
-                  <Link
-                    href="/climate"
-                    className="flex flex-col items-center p-4 rounded-lg bg-[var(--background)] hover:bg-emerald-500/5 transition-colors text-center group"
-                  >
-                    <span className="text-emerald-500"><GlobeIcon /></span>
-                    <span className="block mt-2 text-sm text-[var(--foreground)]/70 group-hover:text-[var(--foreground)]">New Mission</span>
-                  </Link>
-                  <Link
-                    href="/admin/agents/console"
-                    className="flex flex-col items-center p-4 rounded-lg bg-[var(--background)] hover:bg-violet-500/5 transition-colors text-center group"
-                  >
-                    <span className="text-violet-500"><CpuChipIcon /></span>
-                    <span className="block mt-2 text-sm text-[var(--foreground)]/70 group-hover:text-[var(--foreground)]">Agent Console</span>
-                  </Link>
-                  <Link
-                    href="/mashups"
-                    className="flex flex-col items-center p-4 rounded-lg bg-[var(--background)] hover:bg-indigo-500/5 transition-colors text-center group"
-                  >
-                    <span className="text-indigo-500"><ShoppingBagIcon /></span>
-                    <span className="block mt-2 text-sm text-[var(--foreground)]/70 group-hover:text-[var(--foreground)]">Browse Mashups</span>
-                  </Link>
-                  <Link
-                    href="/journal"
-                    className="flex flex-col items-center p-4 rounded-lg bg-[var(--background)] hover:bg-amber-500/5 transition-colors text-center group"
-                  >
-                    <span className="text-amber-500"><JournalIcon /></span>
-                    <span className="block mt-2 text-sm text-[var(--foreground)]/70 group-hover:text-[var(--foreground)]">View Journal</span>
-                  </Link>
+            {/* ===== KPI TILES SECTION ===== */}
+            <section className="relative">
+              {/* Section Header */}
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-1 h-8 rounded-full bg-gradient-to-b from-[var(--primary)] to-[var(--primary)]/30" />
+                <div>
+                  <h2 className="text-2xl font-bold text-[var(--z-text-primary)] tracking-tight">System Overview</h2>
+                  <p className="text-sm text-[var(--z-text-tertiary)]">Real-time metrics across all modules</p>
                 </div>
-              </Card>
+              </div>
+              
+              {/* KPI Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                <ClimateImpactCard stats={climateStats} />
+                <GoesGreenCard stats={goesGreenStats} />
+                <ZoraShopCard stats={shopStats} />
+                <FoundationCard stats={foundationStats} />
+                <AcademyCard stats={academyStats} />
+                <AgentsAutonomyCard metrics={agentMetrics} />
+              </div>
+            </section>
 
-              <Card variant="default" padding="md">
-                <h3 className="text-lg font-semibold text-[var(--foreground)] mb-4">System Status</h3>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-[var(--foreground)]/60">Active Schedules</span>
-                    <span className="text-sm font-medium text-[var(--foreground)]">
-                      {agentMetrics.schedules.active} / {agentMetrics.schedules.total}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-[var(--foreground)]/60">Due Now</span>
-                    <span className={`text-sm font-medium ${agentMetrics.schedules.due_now > 0 ? 'text-amber-500' : 'text-[var(--foreground)]'}`}>
-                      {agentMetrics.schedules.due_now}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-[var(--foreground)]/60">Safety Policies</span>
-                    <span className="text-sm font-medium text-[var(--foreground)]">
-                      {agentMetrics.safety_policies.active} active
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-[var(--foreground)]/60">Tasks In Progress</span>
-                    <span className="text-sm font-medium text-[var(--foreground)]">
-                      {agentMetrics.agent_tasks.in_progress}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-[var(--foreground)]/60">Failed Tasks</span>
-                    <span className={`text-sm font-medium ${agentMetrics.agent_tasks.failed > 0 ? 'text-rose-500' : 'text-[var(--foreground)]'}`}>
-                      {agentMetrics.agent_tasks.failed}
-                    </span>
+            {/* ===== QUICK ACTIONS & STATUS SECTION ===== */}
+            <section className="relative">
+              {/* Section Background */}
+              <div className="absolute inset-0 bg-[var(--z-bg-surface)] rounded-3xl -z-10" />
+              
+              <div className="p-8">
+                {/* Section Header */}
+                <div className="flex items-center gap-4 mb-8">
+                  <div className="w-1 h-8 rounded-full bg-gradient-to-b from-[var(--z-violet)] to-[var(--z-violet)]/30" />
+                  <div>
+                    <h2 className="text-2xl font-bold text-[var(--z-text-primary)] tracking-tight">Command Center</h2>
+                    <p className="text-sm text-[var(--z-text-tertiary)]">Quick actions and system status</p>
                   </div>
                 </div>
-              </Card>
-            </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  {/* Quick Actions */}
+                  <div className="space-y-5">
+                    <h3 className="text-sm font-bold text-[var(--z-text-muted)] uppercase tracking-wider">Quick Actions</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <Link
+                        href="/climate"
+                        className="group flex flex-col items-center justify-center p-6 rounded-2xl bg-[var(--z-bg-card)] border border-[var(--z-border-default)] hover:border-[var(--z-emerald-border)] hover:bg-[var(--z-emerald-soft)] transition-all duration-200 hover:-translate-y-1 hover:shadow-lg"
+                      >
+                        <div className="w-14 h-14 rounded-xl bg-[var(--z-emerald-soft)] flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                          <span className="text-[var(--z-emerald)]"><GlobeIcon /></span>
+                        </div>
+                        <span className="text-sm font-semibold text-[var(--z-text-secondary)] group-hover:text-[var(--z-text-primary)]">Start Climate Plan</span>
+                      </Link>
+                      <Link
+                        href="/simulation"
+                        className="group flex flex-col items-center justify-center p-6 rounded-2xl bg-[var(--z-bg-card)] border border-[var(--z-border-default)] hover:border-[var(--z-sky-border)] hover:bg-[var(--z-sky-soft)] transition-all duration-200 hover:-translate-y-1 hover:shadow-lg"
+                      >
+                        <div className="w-14 h-14 rounded-xl bg-[var(--z-sky-soft)] flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                          <svg className="w-6 h-6 text-[var(--z-sky)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                          </svg>
+                        </div>
+                        <span className="text-sm font-semibold text-[var(--z-text-secondary)] group-hover:text-[var(--z-text-primary)]">Simulation Studio</span>
+                      </Link>
+                      <Link
+                        href="/goes-green"
+                        className="group flex flex-col items-center justify-center p-6 rounded-2xl bg-[var(--z-bg-card)] border border-[var(--z-border-default)] hover:border-[var(--primary)]/40 hover:bg-[var(--primary)]/10 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg"
+                      >
+                        <div className="w-14 h-14 rounded-xl bg-[var(--primary)]/10 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                          <svg className="w-6 h-6 text-[var(--primary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                          </svg>
+                        </div>
+                        <span className="text-sm font-semibold text-[var(--z-text-secondary)] group-hover:text-[var(--z-text-primary)]">GOES GREEN</span>
+                      </Link>
+                      <Link
+                        href="/foundation"
+                        className="group flex flex-col items-center justify-center p-6 rounded-2xl bg-[var(--z-bg-card)] border border-[var(--z-border-default)] hover:border-[var(--z-rose-border)] hover:bg-[var(--z-rose-soft)] transition-all duration-200 hover:-translate-y-1 hover:shadow-lg"
+                      >
+                        <div className="w-14 h-14 rounded-xl bg-[var(--z-rose-soft)] flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                          <svg className="w-6 h-6 text-[var(--z-rose)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                          </svg>
+                        </div>
+                        <span className="text-sm font-semibold text-[var(--z-text-secondary)] group-hover:text-[var(--z-text-primary)]">Foundation Impact</span>
+                      </Link>
+                    </div>
+                  </div>
+
+                  {/* System Status */}
+                  <div className="space-y-5">
+                    <h3 className="text-sm font-bold text-[var(--z-text-muted)] uppercase tracking-wider">System Status</h3>
+                    <div className="bg-[var(--z-bg-card)] border border-[var(--z-border-default)] rounded-2xl p-6 space-y-5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-2 h-2 rounded-full bg-[var(--z-emerald)] animate-pulse" />
+                          <span className="text-sm text-[var(--z-text-secondary)]">Active Schedules</span>
+                        </div>
+                        <span className="text-sm font-bold text-[var(--z-text-primary)]">
+                          {agentMetrics.schedules.active} / {agentMetrics.schedules.total}
+                        </span>
+                      </div>
+                      <div className="h-px bg-[var(--z-border-subtle)]" />
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-2 h-2 rounded-full ${agentMetrics.schedules.due_now > 0 ? 'bg-[var(--z-amber)] animate-pulse' : 'bg-[var(--z-text-muted)]'}`} />
+                          <span className="text-sm text-[var(--z-text-secondary)]">Due Now</span>
+                        </div>
+                        <span className={`text-sm font-bold ${agentMetrics.schedules.due_now > 0 ? 'text-[var(--z-amber)]' : 'text-[var(--z-text-primary)]'}`}>
+                          {agentMetrics.schedules.due_now}
+                        </span>
+                      </div>
+                      <div className="h-px bg-[var(--z-border-subtle)]" />
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-2 h-2 rounded-full bg-[var(--z-violet)]" />
+                          <span className="text-sm text-[var(--z-text-secondary)]">Safety Policies</span>
+                        </div>
+                        <span className="text-sm font-bold text-[var(--z-text-primary)]">
+                          {agentMetrics.safety_policies.active} active
+                        </span>
+                      </div>
+                      <div className="h-px bg-[var(--z-border-subtle)]" />
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-2 h-2 rounded-full bg-[var(--z-sky)]" />
+                          <span className="text-sm text-[var(--z-text-secondary)]">Tasks In Progress</span>
+                        </div>
+                        <span className="text-sm font-bold text-[var(--z-text-primary)]">
+                          {agentMetrics.agent_tasks.in_progress}
+                        </span>
+                      </div>
+                      <div className="h-px bg-[var(--z-border-subtle)]" />
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-2 h-2 rounded-full ${agentMetrics.agent_tasks.failed > 0 ? 'bg-[var(--z-rose)]' : 'bg-[var(--z-text-muted)]'}`} />
+                          <span className="text-sm text-[var(--z-text-secondary)]">Failed Tasks</span>
+                        </div>
+                        <span className={`text-sm font-bold ${agentMetrics.agent_tasks.failed > 0 ? 'text-[var(--z-rose)]' : 'text-[var(--z-text-primary)]'}`}>
+                          {agentMetrics.agent_tasks.failed}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
           </>
         )}
       </div>

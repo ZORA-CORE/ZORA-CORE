@@ -268,13 +268,59 @@ export default function AcademyPage() {
 
   return (
     <AppShell>
-      <div className="p-6 lg:p-8">
+      <div className="p-6 lg:p-10 space-y-8">
         <div className="max-w-7xl mx-auto">
-          <ZPageHeader
-            title={t('academy.title', 'Climate Academy')}
-            subtitle={t('academy.subtitle', 'Learn about climate science, sustainability, and take meaningful action')}
-            className="mb-6"
-          />
+          {/* ===== HERO SECTION ===== */}
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[var(--z-bg-elevated)] via-[var(--z-bg-surface)] to-[var(--z-bg-base)] border border-[var(--z-border-default)] mb-8">
+            {/* Background Effects */}
+            <div className="absolute inset-0 opacity-[0.03]">
+              <div className="absolute top-0 right-0 w-96 h-96 rounded-full bg-[var(--z-violet)] blur-3xl" />
+              <div className="absolute bottom-0 left-0 w-64 h-64 rounded-full bg-[var(--z-sky)] blur-3xl" />
+            </div>
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[var(--z-violet)] via-[var(--z-sky)] to-[var(--z-emerald)]" />
+            
+            <div className="relative p-8 lg:p-10">
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-12 h-12 rounded-2xl bg-[var(--z-violet)]/15 flex items-center justify-center">
+                      <svg className="w-6 h-6 text-[var(--z-violet)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                      </svg>
+                    </div>
+                    <ZBadge variant="odin" size="md">Climate Academy</ZBadge>
+                  </div>
+                  <h1 className="text-3xl md:text-4xl font-extrabold text-[var(--z-text-primary)] tracking-tight mb-2">
+                    {t('academy.title', 'Climate Academy')}
+                  </h1>
+                  <p className="text-lg text-[var(--z-text-tertiary)] max-w-2xl">
+                    {t('academy.subtitle', 'Learn about climate science, sustainability, and take meaningful action.')}
+                  </p>
+                </div>
+                
+                {/* Progress Summary */}
+                <div className="flex flex-col items-start lg:items-end gap-3">
+                  <div className="px-5 py-4 rounded-2xl bg-[var(--z-bg-card)] border border-[var(--z-border-default)]">
+                    <p className="text-[10px] text-[var(--z-text-muted)] uppercase tracking-[0.15em] mb-2">Your Progress</p>
+                    <div className="text-2xl font-bold text-[var(--z-violet)]">
+                      {completedLessons} / {lessons.length}
+                    </div>
+                    <p className="text-xs text-[var(--z-text-muted)]">lessons completed</p>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Quick Stats */}
+              <div className="mt-6 flex items-center gap-6 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-[var(--z-violet)] animate-pulse" />
+                  <span className="text-sm text-[var(--z-text-secondary)]">{inProgressCount} in progress</span>
+                </div>
+                <div className="h-4 w-px bg-[var(--z-border-default)]" />
+                <span className="text-sm text-[var(--z-text-muted)]">{learningPaths.length} learning paths</span>
+              </div>
+            </div>
+          </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <ZMetricTile label="Total Lessons" value={lessons.length} sublabel="available" onClick={() => handleTabChange('lessons')} />
