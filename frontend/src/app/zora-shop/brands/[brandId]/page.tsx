@@ -31,7 +31,7 @@ export default function BrandDetailPage() {
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
-      router.push('/login');
+      router.replace('/login');
     }
   }, [isAuthenticated, authLoading, router]);
 

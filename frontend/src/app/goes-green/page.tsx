@@ -414,7 +414,7 @@ export default function GoesGreenPage() {
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
-      router.push('/login');
+      router.replace('/login');
     }
   }, [isAuthenticated, authLoading, router]);
 

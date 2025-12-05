@@ -22,9 +22,20 @@ export default function SignupPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
+  // Redirect authenticated users away from signup page
+  // CRITICAL: Only redirect when auth state is fully loaded to prevent redirect loops
   useEffect(() => {
-    if (!isLoading && isAuthenticated && !showSuccess) {
-      router.push("/dashboard");
+    // Don't redirect while auth state is loading
+    if (isLoading) {
+      return;
+    }
+    // Don't redirect if showing success screen (user just signed up)
+    if (showSuccess) {
+      return;
+    }
+    // Redirect authenticated users to dashboard
+    if (isAuthenticated) {
+      router.replace("/dashboard");
     }
   }, [isAuthenticated, isLoading, router, showSuccess]);
 
@@ -72,9 +83,9 @@ export default function SignupPage() {
     setIsSubmitting(false);
   };
 
-  const handleContinue = () => {
-    router.push("/dashboard");
-  };
+    const handleContinue = () => {
+      router.replace("/dashboard");
+    };
 
   if (isLoading) {
     return (

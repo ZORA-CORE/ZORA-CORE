@@ -51,9 +51,16 @@ export default function DeskPage() {
   const [dataLoading, setDataLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Redirect unauthenticated users to login
+  // CRITICAL: Only redirect when auth state is fully loaded to prevent redirect loops
   useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      router.push('/login');
+    // Don't redirect while auth state is loading
+    if (authLoading) {
+      return;
+    }
+    // Redirect unauthenticated users to login
+    if (!isAuthenticated) {
+      router.replace('/login');
     }
   }, [isAuthenticated, authLoading, router]);
 

@@ -198,7 +198,7 @@ export default function SimulationPage() {
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
-      router.push('/login');
+      router.replace('/login');
     }
   }, [isAuthenticated, authLoading, router]);
 

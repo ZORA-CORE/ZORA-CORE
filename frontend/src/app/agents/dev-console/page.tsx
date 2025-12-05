@@ -96,7 +96,7 @@ export default function DevConsolePage() {
 
   useEffect(() => {
     if (!isAuthenticated) {
-      router.push('/login');
+      router.replace('/login');
     }
   }, [isAuthenticated, router]);
 
