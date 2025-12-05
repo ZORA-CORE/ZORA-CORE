@@ -71,32 +71,51 @@
     "impact": "Total Påvirkning",
     "contribute": "Bidrag"
   },
-  "academy": {
-    "title": "Klima Akademi",
-    "subtitle": "Lær om klimahandling",
-    "topics": "Emner",
-    "lessons": "Lektioner",
-    "learningPaths": "Læringsstier"
-  },
-  "simulation": {
-    "title": "Simulerings Studio",
-    "subtitle": "Modeller klimascenarier og forudsig resultater",
-    "runSimulation": "Kør Simulering",
-    "before": "Før",
-    "after": "Efter",
-    "delta": "Ændring",
-    "scenarios": "Scenarier"
-  },
-  "agents": {
-    "title": "Agenter & Autonomi",
-    "subtitle": "AI agenter der arbejder for klimaet",
-    "commands": "Kommandoer",
-    "pendingTasks": "Ventende Opgaver",
-    "completedTasks": "Fuldført",
-    "failedTasks": "Fejlet",
-    "activeSchedules": "Aktive Tidsplaner",
-    "pendingApproval": "Afventer Godkendelse"
-  },
+    "academy": {
+      "title": "Klima Akademi",
+      "subtitle": "Lær om klimavidenskab, bæredygtighed og meningsfuld handling",
+      "topics": "Emner",
+      "lessons": "Lektioner",
+      "modules": "Moduler",
+      "learningPaths": "Læringsstier",
+      "yourProgress": "Din Fremgang",
+      "completed": "Fuldført",
+      "inProgress": "I gang"
+    },
+    "simulation": {
+      "title": "Simulerings Studio",
+      "subtitle": "Kør 'hvad nu hvis' klimascenarier for at se FØR/EFTER påvirkning",
+      "runSimulation": "Kør Simulering",
+      "before": "Før",
+      "after": "Efter",
+      "delta": "Ændring",
+      "scenarios": "Scenarier",
+      "scenarioBuilder": "Scenarie Bygger",
+      "timeHorizon": "Tidshorisont",
+      "quickPresets": "Hurtige Forudindstillinger",
+      "results": "Simuleringsresultater",
+      "confidence": "Tillid"
+    },
+    "agents": {
+      "title": "Agenter & Autonomi",
+      "subtitle": "AI agenter der arbejder for klimaet",
+      "commands": "Kommandoer",
+      "pendingTasks": "Ventende Opgaver",
+      "completedTasks": "Fuldført",
+      "failedTasks": "Fejlet",
+      "activeSchedules": "Aktive Tidsplaner",
+      "pendingApproval": "Afventer Godkendelse"
+    },
+    "devConsole": {
+      "title": "Hjerne & Agent Konsol",
+      "subtitle": "Systemstatistik, agentaktivitet og vidensoversigt",
+      "systemOverview": "Systemoversigt",
+      "worldModel": "Verdensmodel Statistik",
+      "systemHealth": "Systemsundhed",
+      "agentActivity": "Agentaktivitet",
+      "knowledge": "Viden & Domæner",
+      "quickActions": "Hurtige Handlinger"
+    },
   "billing": {
     "title": "Planer & Priser",
     "subtitle": "Vælg den rigtige plan til din klimarejse",
