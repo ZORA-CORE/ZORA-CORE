@@ -175,24 +175,34 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[var(--z-bg-deep)] via-[var(--z-bg-base)] to-[var(--z-bg-surface)] py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[var(--z-bg-deep)] via-[var(--z-bg-base)] to-[var(--z-bg-surface)] py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+      {/* Background Effects */}
+      <div className="absolute inset-0 opacity-[0.02]">
+        <div className="absolute top-0 right-0 w-[600px] h-[600px] rounded-full bg-[var(--z-emerald)] blur-3xl" />
+        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] rounded-full bg-[var(--z-violet)] blur-3xl" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] rounded-full bg-[var(--primary)] blur-3xl" />
+      </div>
+      
+      <div className="max-w-md w-full space-y-8 relative z-10">
         <div className="text-center">
-          <Link href="/" className="inline-block">
-            <h1 className="text-3xl font-bold">
-              <span className="text-[var(--z-emerald)]">ZORA</span>{' '}
+          <Link href="/" className="inline-block group">
+            <div className="flex items-center justify-center gap-3 mb-2">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[var(--z-emerald)] to-[var(--primary)] flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform">
+                <span className="text-white font-bold text-xl">Z</span>
+              </div>
+            </div>
+            <h1 className="text-3xl font-extrabold tracking-tight">
+              <span className="bg-gradient-to-r from-[var(--z-emerald)] to-[var(--primary)] bg-clip-text text-transparent">ZORA</span>{' '}
               <span className="text-[var(--z-text-primary)]">CORE</span>
             </h1>
           </Link>
-          <p className="mt-2 text-sm text-[var(--z-text-tertiary)]">
-            {t('brand.tagline', 'Multi-agent, climate-first AI operating system')}
+          <p className="mt-3 text-sm text-[var(--z-text-tertiary)]">
+            {t('brand.tagline', 'Nordic Climate OS - Multi-agent AI for climate action')}
           </p>
-          <h2 className="mt-6 text-xl text-[var(--z-text-primary)]">
-            {t('auth.signIn', 'Sign in to your account')}
-          </h2>
-          <p className="mt-2 text-sm text-[var(--z-text-tertiary)]">
-            {t('auth.signInDesc', 'Enter your email and password to access the dashboard')}
-          </p>
+          <div className="mt-6 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--z-bg-elevated)] border border-[var(--z-border-default)]">
+            <div className="w-2 h-2 rounded-full bg-[var(--z-emerald)] animate-pulse" />
+            <span className="text-sm text-[var(--z-text-secondary)]">{t('auth.signIn', 'Sign in to your account')}</span>
+          </div>
         </div>
 
         <ZCard variant="elevated" padding="lg">

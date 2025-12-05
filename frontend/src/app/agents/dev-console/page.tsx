@@ -171,16 +171,66 @@ export default function DevConsolePage() {
 
   return (
     <AppShell>
-      <div className="p-6 lg:p-8">
+      <div className="p-6 lg:p-10 space-y-8">
         <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between mb-6">
-            <ZPageHeader
-              title={t('devConsole.title', 'Brain & Agents Console')}
-              subtitle={t('devConsole.subtitle', 'System stats, agent activity, and knowledge overview')}
-            />
-            <ZButton variant="secondary" onClick={fetchAllData} disabled={refreshing}>
-              {refreshing ? 'Refreshing...' : 'Refresh'}
-            </ZButton>
+          {/* ===== HERO SECTION ===== */}
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[var(--z-bg-elevated)] via-[var(--z-bg-surface)] to-[var(--z-bg-base)] border border-[var(--z-border-default)] mb-8">
+            {/* Background Effects */}
+            <div className="absolute inset-0 opacity-[0.03]">
+              <div className="absolute top-0 right-0 w-96 h-96 rounded-full bg-[var(--z-odin)] blur-3xl" />
+              <div className="absolute bottom-0 left-0 w-64 h-64 rounded-full bg-[var(--z-violet)] blur-3xl" />
+            </div>
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[var(--z-odin)] via-[var(--z-violet)] to-[var(--z-sky)]" />
+            
+            <div className="relative p-8 lg:p-10">
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-12 h-12 rounded-2xl bg-[var(--z-odin)]/15 flex items-center justify-center">
+                      <svg className="w-6 h-6 text-[var(--z-odin)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                    <ZBadge variant="odin" size="md">Dev Console</ZBadge>
+                  </div>
+                  <h1 className="text-3xl md:text-4xl font-extrabold text-[var(--z-text-primary)] tracking-tight mb-2">
+                    {t('devConsole.title', 'Brain & Agents Console')}
+                  </h1>
+                  <p className="text-lg text-[var(--z-text-tertiary)] max-w-2xl">
+                    {t('devConsole.subtitle', 'System stats, agent activity, and knowledge overview for Nordic agents.')}
+                  </p>
+                </div>
+                
+                {/* System Status */}
+                <div className="flex flex-col items-start lg:items-end gap-3">
+                  <div className="px-5 py-4 rounded-2xl bg-[var(--z-bg-card)] border border-[var(--z-border-default)]">
+                    <p className="text-[10px] text-[var(--z-text-muted)] uppercase tracking-[0.15em] mb-2">System Status</p>
+                    <div className="flex items-center gap-2">
+                      <div className={`w-3 h-3 rounded-full ${healthStatus?.status === 'ok' ? 'bg-[var(--z-emerald)] animate-pulse' : 'bg-[var(--z-rose)]'}`} />
+                      <span className="text-lg font-bold text-[var(--z-text-primary)]">
+                        {healthStatus?.status === 'ok' ? 'Online' : 'Offline'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-[var(--z-text-muted)]">{healthStatus?.environment || 'Unknown'}</p>
+                  </div>
+                  <ZButton variant="secondary" size="sm" onClick={fetchAllData} disabled={refreshing}>
+                    {refreshing ? 'Refreshing...' : 'Refresh Data'}
+                  </ZButton>
+                </div>
+              </div>
+              
+              {/* Quick Stats */}
+              <div className="mt-6 flex items-center gap-6 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-[var(--z-odin)] animate-pulse" />
+                  <span className="text-sm text-[var(--z-text-secondary)]">{manifestStats?.agents || 0} Nordic agents</span>
+                </div>
+                <div className="h-4 w-px bg-[var(--z-border-default)]" />
+                <span className="text-sm text-[var(--z-text-muted)]">{manifestStats?.endpoints || 0} API endpoints</span>
+                <div className="h-4 w-px bg-[var(--z-border-default)]" />
+                <span className="text-sm text-[var(--z-text-muted)]">v{manifestStats?.version || 'N/A'}</span>
+              </div>
+            </div>
           </div>
 
           {loading ? (

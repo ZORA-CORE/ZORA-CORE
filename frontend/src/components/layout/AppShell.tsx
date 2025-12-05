@@ -116,14 +116,18 @@ function NavLink({ item, isActive, collapsed }: { item: NavItem; isActive: boole
   return (
     <Link
       href={item.href}
-      className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
+      className={`group flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all relative ${
         isActive
-          ? 'bg-[var(--primary)]/10 text-[var(--primary)]'
-          : 'text-[var(--foreground)]/70 hover:bg-[var(--card-bg)] hover:text-[var(--foreground)]'
+          ? 'bg-[var(--primary)]/12 text-[var(--primary)] shadow-sm'
+          : 'text-[var(--z-text-secondary)] hover:bg-[var(--z-bg-elevated)] hover:text-[var(--z-text-primary)]'
       }`}
       title={collapsed ? item.label : undefined}
     >
-      <span className="flex-shrink-0">{item.icon}</span>
+      {/* Active indicator bar */}
+      {isActive && (
+        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-[var(--primary)] rounded-r-full" />
+      )}
+      <span className={`flex-shrink-0 transition-transform ${isActive ? 'scale-110' : 'group-hover:scale-105'}`}>{item.icon}</span>
       {!collapsed && <span className="text-sm font-medium">{item.label}</span>}
     </Link>
   );
@@ -146,7 +150,7 @@ function NavSection({
 
   if (collapsed) {
     return (
-      <div className="space-y-1">
+      <div className="space-y-1.5">
         {items.map((item) => (
           <NavLink
             key={item.href}
@@ -160,20 +164,20 @@ function NavSection({
   }
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-1.5">
       {title && (
         <button
           onClick={() => setIsOpen(!isOpen)}
-          className="flex items-center justify-between w-full px-3 py-2 text-xs font-semibold text-[var(--foreground)]/50 uppercase tracking-wider hover:text-[var(--foreground)]/70"
+          className="flex items-center justify-between w-full px-3 py-2 text-[10px] font-bold text-[var(--z-text-muted)] uppercase tracking-[0.1em] hover:text-[var(--z-text-tertiary)] transition-colors"
         >
           {title}
-          <span className={`transform transition-transform ${isOpen ? 'rotate-180' : ''}`}>
+          <span className={`transform transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}>
             <ChevronDownIcon />
           </span>
         </button>
       )}
       {(isOpen || !title) && (
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           {items.map((item) => (
             <NavLink
               key={item.href}
@@ -207,69 +211,99 @@ export function AppShell({ children }: AppShellProps) {
   }, []);
 
   return (
-    <div className="min-h-screen flex flex-col bg-[var(--background)]">
-      <header className="sticky top-0 z-50 bg-[var(--background)]/95 backdrop-blur-sm border-b border-[var(--card-border)]">
-        <div className="flex items-center justify-between h-14 px-4">
-          <div className="flex items-center gap-4">
+    <div className="min-h-screen flex flex-col bg-[var(--z-bg-base)]">
+      {/* ===== CONTROL BAR HEADER ===== */}
+      <header className="sticky top-0 z-50 bg-[var(--z-bg-surface)]/98 backdrop-blur-xl border-b border-[var(--z-border-default)]" style={{ height: 'var(--z-header-height)' }}>
+        <div className="flex items-center justify-between h-full px-6">
+          {/* Left: Menu + Branding */}
+          <div className="flex items-center gap-5">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="lg:hidden p-2 text-[var(--foreground)]/70 hover:text-[var(--foreground)] rounded-lg hover:bg-[var(--card-bg)]"
+              className="lg:hidden p-2.5 text-[var(--z-text-secondary)] hover:text-[var(--z-text-primary)] rounded-xl hover:bg-[var(--z-bg-elevated)] transition-all"
               aria-label="Toggle menu"
             >
               {sidebarOpen ? <CloseIcon /> : <MenuIcon />}
             </button>
             
-            <Link href="/dashboard" className="flex items-center gap-2">
-              <span className="text-xl font-bold text-[var(--primary)]">ZORA</span>
-              <span className="text-xl font-light text-[var(--foreground)]">CORE</span>
+            <Link href="/dashboard" className="flex items-center gap-3 group">
+              {/* Logo Mark */}
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] flex items-center justify-center shadow-lg shadow-[var(--primary)]/20 group-hover:shadow-[var(--primary)]/30 transition-shadow">
+                <span className="text-white font-extrabold text-sm">Z</span>
+              </div>
+              {/* Wordmark */}
+              <div className="hidden sm:flex items-baseline gap-1">
+                <span className="text-xl font-extrabold tracking-tight text-[var(--z-text-primary)]">ZORA</span>
+                <span className="text-xl font-light tracking-tight text-[var(--z-text-tertiary)]">CORE</span>
+              </div>
             </Link>
+            
+            {/* Plan Badge in Header */}
+            {currentPlan && (
+              <Link href="/billing/plans" className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--z-bg-elevated)] border border-[var(--z-border-default)] hover:border-[var(--z-border-strong)] transition-all">
+                <div className="w-2 h-2 rounded-full bg-[var(--primary)] animate-pulse"></div>
+                <span className="text-xs font-semibold text-[var(--z-text-secondary)] uppercase tracking-wide">{getPlanDisplayName()}</span>
+              </Link>
+            )}
           </div>
 
-          <div className="flex items-center gap-4">
+          {/* Right: Controls */}
+          <div className="flex items-center gap-3">
+            {/* Command Palette Hint */}
+            <button className="hidden lg:flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--z-bg-elevated)] border border-[var(--z-border-default)] hover:border-[var(--z-border-strong)] text-[var(--z-text-tertiary)] hover:text-[var(--z-text-secondary)] transition-all">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <span className="text-sm">Search...</span>
+              <kbd className="px-1.5 py-0.5 text-xs font-mono bg-[var(--z-bg-overlay)] rounded border border-[var(--z-border-default)]">⌘K</kbd>
+            </button>
+            
             <LanguageSwitcher className="hidden sm:flex" />
             
-            {user && (
-              <div className="hidden sm:flex items-center gap-2 text-sm text-[var(--foreground)]/60">
-                <span>{user.email}</span>
-              </div>
-            )}
-            
+            {/* User Menu */}
             <div className="relative group">
-              <button className="flex items-center gap-2 p-2 rounded-lg hover:bg-[var(--card-bg)] text-[var(--foreground)]/70 hover:text-[var(--foreground)]">
-                <UserIcon />
+              <button className="flex items-center gap-3 p-2 rounded-xl hover:bg-[var(--z-bg-elevated)] text-[var(--z-text-secondary)] hover:text-[var(--z-text-primary)] transition-all">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--z-violet)] to-[var(--z-violet)]/60 flex items-center justify-center">
+                  <UserIcon />
+                </div>
               </button>
               
-              <div className="absolute right-0 mt-2 w-56 py-2 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
+              <div className="absolute right-0 mt-2 w-64 py-2 bg-[var(--z-bg-card)] border border-[var(--z-border-default)] rounded-2xl shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all" style={{ boxShadow: 'var(--z-shadow-xl)' }}>
                 {user && (
                   <>
-                    <div className="px-4 py-2 border-b border-[var(--card-border)]">
-                      <p className="text-sm font-medium text-[var(--foreground)]">{user.display_name || user.email}</p>
-                      <p className="text-xs text-[var(--foreground)]/60">{user.role}</p>
+                    <div className="px-4 py-3 border-b border-[var(--z-border-subtle)]">
+                      <p className="text-sm font-semibold text-[var(--z-text-primary)]">{user.display_name || user.email}</p>
+                      <p className="text-xs text-[var(--z-text-muted)] mt-0.5">{user.role}</p>
                     </div>
                     {currentPlan && (
                       <Link
                         href="/billing/plans"
-                        className="block px-4 py-2 border-b border-[var(--card-border)] hover:bg-[var(--card-border)]"
+                        className="block px-4 py-3 border-b border-[var(--z-border-subtle)] hover:bg-[var(--z-bg-elevated)] transition-colors"
                       >
                         <div className="flex items-center justify-between">
-                          <span className="text-xs text-[var(--foreground)]/60">Plan</span>
-                          <span className={`px-2 py-0.5 text-xs font-medium rounded ${getStatusBadge().color}`}>
+                          <span className="text-xs text-[var(--z-text-muted)] uppercase tracking-wide">Current Plan</span>
+                          <span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${getStatusBadge().color}`}>
                             {getStatusBadge().label}
                           </span>
                         </div>
-                        <p className="text-sm font-medium text-[var(--foreground)] mt-1">{getPlanDisplayName()}</p>
+                        <p className="text-sm font-semibold text-[var(--z-text-primary)] mt-1">{getPlanDisplayName()}</p>
                       </Link>
                     )}
                     <Link
                       href="/billing/plans"
-                      className="block px-4 py-2 text-sm text-[var(--foreground)]/70 hover:bg-[var(--card-border)] hover:text-[var(--foreground)]"
+                      className="flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--z-text-secondary)] hover:bg-[var(--z-bg-elevated)] hover:text-[var(--z-text-primary)] transition-colors"
                     >
-                      Plans & Pricing
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                      </svg>
+                      Plans & Billing
                     </Link>
                     <button
                       onClick={logout}
-                      className="w-full text-left px-4 py-2 text-sm text-[var(--foreground)]/70 hover:bg-[var(--card-border)] hover:text-[var(--foreground)]"
+                      className="flex items-center gap-3 w-full text-left px-4 py-2.5 text-sm text-[var(--z-text-secondary)] hover:bg-[var(--z-bg-elevated)] hover:text-[var(--z-rose)] transition-colors"
                     >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                      </svg>
                       {t.nav.signOut}
                     </button>
                   </>
@@ -277,8 +311,11 @@ export function AppShell({ children }: AppShellProps) {
                 {!user && (
                   <Link
                     href="/login"
-                    className="block px-4 py-2 text-sm text-[var(--foreground)]/70 hover:bg-[var(--card-border)] hover:text-[var(--foreground)]"
+                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-[var(--z-text-secondary)] hover:bg-[var(--z-bg-elevated)] hover:text-[var(--z-text-primary)] transition-colors"
                   >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                    </svg>
                     {t.nav.signIn}
                   </Link>
                 )}
@@ -288,42 +325,66 @@ export function AppShell({ children }: AppShellProps) {
         </div>
       </header>
 
+      {/* ===== MAIN CONTENT AREA ===== */}
       <div className="flex flex-1">
+        {/* Mobile overlay */}
         {sidebarOpen && (
           <div
-            className="fixed inset-0 z-30 bg-black/50 lg:hidden"
+            className="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm lg:hidden"
             onClick={() => setSidebarOpen(false)}
           />
         )}
 
+        {/* ===== OS-LIKE SIDEBAR RAIL ===== */}
         <aside
-          className={`fixed lg:sticky top-14 z-40 h-[calc(100vh-3.5rem)] bg-[var(--background)] border-r border-[var(--card-border)] transition-all duration-300 ${
+          className={`fixed lg:sticky z-40 h-[calc(100vh-var(--z-header-height))] bg-[var(--z-bg-surface)] border-r border-[var(--z-border-default)] transition-all duration-300 ${
             sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
-          } ${sidebarCollapsed ? 'w-16' : 'w-64'}`}
+          } ${sidebarCollapsed ? 'w-20' : 'w-72'}`}
+          style={{ top: 'var(--z-header-height)' }}
         >
           <div className="flex flex-col h-full">
-            <nav className="flex-1 overflow-y-auto p-4 space-y-6">
-              <NavSection items={mainNavItems} pathname={pathname} collapsed={sidebarCollapsed} />
+            {/* Navigation */}
+            <nav className="flex-1 overflow-y-auto px-4 py-6 space-y-8">
+              {/* Main Navigation Section */}
+              <div>
+                {!sidebarCollapsed && (
+                  <div className="px-3 mb-4">
+                    <span className="text-[10px] font-bold text-[var(--z-text-muted)] uppercase tracking-[0.12em]">Navigation</span>
+                  </div>
+                )}
+                <NavSection items={mainNavItems} pathname={pathname} collapsed={sidebarCollapsed} />
+              </div>
               
+              {/* Divider */}
+              {isAuthenticated && !sidebarCollapsed && (
+                <div className="px-3">
+                  <div className="h-px bg-gradient-to-r from-[var(--z-border-default)] via-[var(--z-border-subtle)] to-transparent" />
+                </div>
+              )}
+              
+              {/* Admin Section */}
               {isAuthenticated && (
-                <NavSection 
-                  title={sidebarCollapsed ? undefined : t.nav.admin} 
-                  items={adminNavItems} 
-                  pathname={pathname}
-                  collapsed={sidebarCollapsed}
-                  defaultOpen={pathname.startsWith('/admin')}
-                />
+                <div>
+                  <NavSection 
+                    title={sidebarCollapsed ? undefined : t.nav.admin} 
+                    items={adminNavItems} 
+                    pathname={pathname}
+                    collapsed={sidebarCollapsed}
+                    defaultOpen={pathname.startsWith('/admin')}
+                  />
+                </div>
               )}
             </nav>
 
-            <div className="p-4 border-t border-[var(--card-border)]">
+            {/* Sidebar Footer */}
+            <div className="p-4 border-t border-[var(--z-border-subtle)]">
               <button
                 onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                className="hidden lg:flex items-center justify-center w-full p-2 text-[var(--foreground)]/50 hover:text-[var(--foreground)] rounded-lg hover:bg-[var(--card-bg)]"
+                className="hidden lg:flex items-center justify-center w-full p-2.5 text-[var(--z-text-muted)] hover:text-[var(--z-text-secondary)] rounded-xl hover:bg-[var(--z-bg-elevated)] transition-all"
                 aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
               >
                 <svg
-                  className={`w-5 h-5 transition-transform ${sidebarCollapsed ? 'rotate-180' : ''}`}
+                  className={`w-5 h-5 transition-transform duration-300 ${sidebarCollapsed ? 'rotate-180' : ''}`}
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -333,7 +394,7 @@ export function AppShell({ children }: AppShellProps) {
               </button>
               
               {!sidebarCollapsed && (
-                <div className="mt-4">
+                <div className="mt-4 px-2">
                   <VersionInfo />
                 </div>
               )}
@@ -341,7 +402,8 @@ export function AppShell({ children }: AppShellProps) {
           </div>
         </aside>
 
-        <main className={`flex-1 min-w-0 transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-0' : 'lg:ml-0'}`}>
+        {/* ===== MAIN CONTENT ===== */}
+        <main className="flex-1 min-w-0 transition-all duration-300 bg-[var(--z-bg-base)]">
           {children}
         </main>
       </div>

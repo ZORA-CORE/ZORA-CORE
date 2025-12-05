@@ -200,18 +200,68 @@ function PlansPageContent() {
 
   return (
     <AppShell>
-      <div className="p-6 lg:p-8">
+      <div className="p-6 lg:p-10 space-y-8">
         <div className="max-w-7xl mx-auto">
-          <ZPageHeader
-            title={t('billing.title', 'Plans & Pricing')}
-            subtitle={t('billing.subtitle', 'Choose the plan that best fits your climate journey')}
-            className="mb-6"
-          />
+          {/* ===== HERO SECTION ===== */}
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[var(--z-bg-elevated)] via-[var(--z-bg-surface)] to-[var(--z-bg-base)] border border-[var(--z-border-default)] mb-8">
+            {/* Background Effects */}
+            <div className="absolute inset-0 opacity-[0.03]">
+              <div className="absolute top-0 right-0 w-96 h-96 rounded-full bg-[var(--z-violet)] blur-3xl" />
+              <div className="absolute bottom-0 left-0 w-64 h-64 rounded-full bg-[var(--z-emerald)] blur-3xl" />
+            </div>
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[var(--z-violet)] via-[var(--primary)] to-[var(--z-emerald)]" />
+            
+            <div className="relative p-8 lg:p-10">
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-12 h-12 rounded-2xl bg-[var(--z-violet)]/15 flex items-center justify-center">
+                      <svg className="w-6 h-6 text-[var(--z-violet)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                      </svg>
+                    </div>
+                    <ZBadge variant="odin" size="md">Billing</ZBadge>
+                  </div>
+                  <h1 className="text-3xl md:text-4xl font-extrabold text-[var(--z-text-primary)] tracking-tight mb-2">
+                    {t('billing.title', 'Plans & Pricing')}
+                  </h1>
+                  <p className="text-lg text-[var(--z-text-tertiary)] max-w-2xl">
+                    {t('billing.subtitle', 'Choose the plan that best fits your climate journey and unlock powerful features.')}
+                  </p>
+                </div>
+                
+                {/* Current Plan */}
+                {currentPlan && (
+                  <div className="flex flex-col items-start lg:items-end gap-3">
+                    <div className="px-5 py-4 rounded-2xl bg-[var(--z-bg-card)] border border-[var(--z-border-default)]">
+                      <p className="text-[10px] text-[var(--z-text-muted)] uppercase tracking-[0.15em] mb-2">Current Plan</p>
+                      <div className="text-xl font-bold text-[var(--z-text-primary)]">{currentPlan.name}</div>
+                      <ZBadge variant={getStatusVariant(currentPlan.subscription_status)} size="sm" className="mt-1">
+                        {currentPlan.subscription_status === 'trial' ? 'Trial' :
+                         currentPlan.subscription_status === 'active' ? 'Active' :
+                         currentPlan.subscription_status === 'past_due' ? 'Past Due' : 'Canceled'}
+                      </ZBadge>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              {/* Quick Stats */}
+              <div className="mt-6 flex items-center gap-6 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-[var(--z-violet)] animate-pulse" />
+                  <span className="text-sm text-[var(--z-text-secondary)]">{plans.length} plans available</span>
+                </div>
+                <div className="h-4 w-px bg-[var(--z-border-default)]" />
+                <span className="text-sm text-[var(--z-text-muted)]">Climate-first pricing</span>
+              </div>
+            </div>
+          </div>
 
           {error && <ZErrorState message={error} onRetry={() => setError(null)} className="mb-6" />}
 
           {currentPlan && (
-            <ZCard className="mb-8 p-4 bg-[var(--z-surface)]">
+            <ZCard className="mb-8 p-4 bg-[var(--z-surface)] hidden">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-[var(--z-text-muted)]">Your current plan</p>

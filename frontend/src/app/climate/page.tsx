@@ -759,34 +759,64 @@ export default function ClimatePage() {
 
   return (
     <AppShell>
-      <div className="p-6 lg:p-8">
+      <div className="p-6 lg:p-10 space-y-8">
         <div className="max-w-7xl mx-auto">
-          <ZPageHeader
-            title={t('climate.title', 'Climate OS')}
-            subtitle={t('climate.subtitle', 'Track your climate impact and complete missions')}
-            className="mb-6"
-          />
-
-          <div className="flex items-center justify-between mb-6">
-            <div>
+          {/* ===== HERO SECTION ===== */}
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[var(--z-bg-elevated)] via-[var(--z-bg-surface)] to-[var(--z-bg-base)] border border-[var(--z-border-default)] mb-8">
+            {/* Background Effects */}
+            <div className="absolute inset-0 opacity-[0.03]">
+              <div className="absolute top-0 right-0 w-96 h-96 rounded-full bg-[var(--z-emerald)] blur-3xl" />
+              <div className="absolute bottom-0 left-0 w-64 h-64 rounded-full bg-[var(--primary)] blur-3xl" />
+            </div>
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[var(--z-emerald)] via-[var(--primary)] to-[var(--z-sky)]" />
+            
+            <div className="relative p-8 lg:p-10">
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-12 h-12 rounded-2xl bg-[var(--z-emerald-soft)] flex items-center justify-center">
+                      <svg className="w-6 h-6 text-[var(--z-emerald)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <ZBadge variant="success" size="md">Climate OS</ZBadge>
+                  </div>
+                  <h1 className="text-3xl md:text-4xl font-extrabold text-[var(--z-text-primary)] tracking-tight mb-2">
+                    {t('climate.title', 'Climate OS')}
+                  </h1>
+                  <p className="text-lg text-[var(--z-text-tertiary)] max-w-2xl">
+                    {t('climate.subtitle', 'Track your climate impact and complete missions to reduce your footprint.')}
+                  </p>
+                </div>
+                
+                {/* Profile Selector */}
+                {profiles.length > 0 && (
+                  <div className="flex flex-col items-start lg:items-end gap-3">
+                    <div className="px-5 py-4 rounded-2xl bg-[var(--z-bg-card)] border border-[var(--z-border-default)]">
+                      <p className="text-[10px] text-[var(--z-text-muted)] uppercase tracking-[0.15em] mb-2">Active Profile</p>
+                      <ProfileSelector profiles={profiles} selectedProfile={selectedProfile} onSelect={setSelectedProfile} onCreateNew={() => setShowCreateProfile(true)} />
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              {/* Active Profile Info */}
               {selectedProfile && (
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-[var(--z-text-muted)]">Active Profile:</span>
-                  <span className="text-sm font-medium text-[var(--z-text-primary)]">{selectedProfile.name}</span>
+                <div className="mt-6 flex items-center gap-4 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-[var(--z-emerald)] animate-pulse" />
+                    <span className="text-sm text-[var(--z-text-secondary)]">{selectedProfile.name}</span>
+                  </div>
                   <ZBadge variant="info" size="sm">{selectedProfile.scope}</ZBadge>
                   {selectedProfile.is_primary && <ZBadge variant="success" size="sm">Primary</ZBadge>}
+                  {isDefaultConfig && (
+                    <Link href="/admin/frontend" className="text-xs text-[var(--z-text-muted)] hover:text-[var(--z-accent)] transition-colors">
+                      Customize config
+                    </Link>
+                  )}
                 </div>
               )}
-              {isDefaultConfig && (
-                <p className="text-xs text-[var(--z-text-muted)] mt-1">
-                  Using default configuration.{' '}
-                  <Link href="/admin/frontend" className="text-[var(--z-accent)] hover:underline">Customize</Link>
-                </p>
-              )}
             </div>
-            {profiles.length > 0 && (
-              <ProfileSelector profiles={profiles} selectedProfile={selectedProfile} onSelect={setSelectedProfile} onCreateNew={() => setShowCreateProfile(true)} />
-            )}
           </div>
 
           {loading ? (
