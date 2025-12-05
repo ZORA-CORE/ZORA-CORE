@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import Link from "next/link";
-import { useState, useEffect, useCallback } from "react";
+import Link from 'next/link';
+import { useState, useEffect, useCallback } from 'react';
 import {
   getClimateProfiles,
   getClimateMissions,
@@ -14,7 +14,7 @@ import {
   getFrontendConfig,
   createAgentTask,
   ZoraApiError,
-} from "@/lib/api";
+} from '@/lib/api';
 import type {
   ClimateProfile,
   ClimateMission,
@@ -25,77 +25,78 @@ import type {
   DashboardSummary,
   ClimatePageConfig,
   ProfileScope,
-} from "@/lib/types";
-import { PageShell } from "@/components/ui/PageShell";
-import { HeroSection } from "@/components/ui/HeroSection";
-import { SectionHeader } from "@/components/ui/SectionHeader";
-import { Card } from "@/components/ui/Card";
-import { StatCard } from "@/components/ui/StatCard";
-import { useAuth } from "@/lib/AuthContext";
-import { AgentPanel } from "@/components/cockpit/AgentPanel";
-import type { AgentPanelSuggestion } from "@/lib/types";
+  AgentPanelSuggestion,
+} from '@/lib/types';
+import { AppShell } from '@/components/layout';
+import { AgentPanel } from '@/components/cockpit/AgentPanel';
+import {
+  ZCard,
+  ZButton,
+  ZMetricTile,
+  ZPageHeader,
+  ZSectionHeader,
+  ZBadge,
+  ZStatusBadge,
+  ZInput,
+  ZTextarea,
+  ZSelect,
+  ZEmptyState,
+  ZLoadingState,
+  ZErrorState,
+} from '@/components/z';
+import { useI18n } from '@/lib/I18nProvider';
 
 const DEFAULT_CLIMATE_CONFIG: ClimatePageConfig = {
-  hero_title: "Climate OS",
-  hero_subtitle: "Track your climate impact and complete missions to reduce your footprint. Every action counts in the fight against climate change.",
+  hero_title: 'Climate OS',
+  hero_subtitle: 'Track your climate impact and complete missions to reduce your footprint.',
   show_profile_section: true,
   show_dashboard_section: true,
   show_missions_section: true,
 };
 
-const SCOPE_COLORS: Record<ProfileScope, string> = {
-  individual: "bg-blue-500",
-  household: "bg-purple-500",
-  organization: "bg-amber-500",
-  brand: "bg-emerald-500",
-};
+const SCOPE_OPTIONS = [
+  { value: 'individual', label: 'Individual' },
+  { value: 'household', label: 'Household' },
+  { value: 'organization', label: 'Organization' },
+  { value: 'brand', label: 'Brand' },
+];
 
-const SCOPE_LABELS: Record<ProfileScope, string> = {
-  individual: "Individual",
-  household: "Household",
-  organization: "Organization",
-  brand: "Brand",
-};
+const PROFILE_TYPE_OPTIONS = [
+  { value: 'person', label: 'Person' },
+  { value: 'brand', label: 'Brand' },
+  { value: 'organization', label: 'Organization' },
+];
 
-function LoadingSpinner() {
-  return (
-    <div className="flex items-center justify-center p-8">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500"></div>
-    </div>
-  );
-}
+const CATEGORY_OPTIONS = [
+  { value: 'energy', label: 'Energy' },
+  { value: 'transport', label: 'Transport' },
+  { value: 'food', label: 'Food' },
+  { value: 'products', label: 'Products' },
+  { value: 'other', label: 'Other' },
+];
 
-function ErrorMessage({ message, onRetry }: { message: string; onRetry?: () => void }) {
-  return (
-    <div className="agent-card bg-red-900/20 border-red-800">
-      <p className="text-red-400 mb-2">{message}</p>
-      {onRetry && (
-        <button
-          onClick={onRetry}
-          className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded text-white text-sm transition-colors"
-        >
-          Retry
-        </button>
-      )}
-    </div>
-  );
-}
+const ENERGY_SOURCE_OPTIONS = [
+  { value: '', label: 'Select...' },
+  { value: 'grid_mixed', label: 'Grid (Mixed)' },
+  { value: 'grid_renewable', label: 'Grid (Renewable)' },
+  { value: 'solar', label: 'Solar' },
+  { value: 'wind', label: 'Wind' },
+  { value: 'natural_gas', label: 'Natural Gas' },
+  { value: 'oil', label: 'Oil' },
+  { value: 'coal', label: 'Coal' },
+  { value: 'other', label: 'Other' },
+];
 
-function ScopeBadge({ scope }: { scope: ProfileScope }) {
-  return (
-    <span className={`px-2 py-0.5 rounded text-xs text-white \${SCOPE_COLORS[scope]}`}>
-      {SCOPE_LABELS[scope]}
-    </span>
-  );
-}
-
-function PrimaryBadge() {
-  return (
-    <span className="px-2 py-0.5 rounded text-xs bg-emerald-600 text-white">
-      Primary
-    </span>
-  );
-}
+const SECTOR_OPTIONS = [
+  { value: '', label: 'Select...' },
+  { value: 'fashion', label: 'Fashion' },
+  { value: 'tech', label: 'Technology' },
+  { value: 'food', label: 'Food & Beverage' },
+  { value: 'retail', label: 'Retail' },
+  { value: 'manufacturing', label: 'Manufacturing' },
+  { value: 'services', label: 'Services' },
+  { value: 'other', label: 'Other' },
+];
 
 function ProfileSelector({
   profiles,
@@ -114,19 +115,21 @@ function ProfileSelector({
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-4 py-2 bg-zinc-800 border border-zinc-700 rounded hover:border-emerald-500 transition-colors min-w-[200px]"
+        className="flex items-center gap-2 px-3 py-2 bg-[var(--z-surface)] border border-[var(--z-border)] rounded-lg hover:border-[var(--z-accent)]/50 transition-colors min-w-[200px]"
       >
         {selectedProfile ? (
           <>
-            <span className="flex-1 text-left truncate">{selectedProfile.name}</span>
-            <ScopeBadge scope={selectedProfile.scope} />
-            {selectedProfile.is_primary && <PrimaryBadge />}
+            <span className="flex-1 text-left truncate text-sm text-[var(--z-text-primary)]">
+              {selectedProfile.name}
+            </span>
+            <ZBadge variant="info" size="sm">{selectedProfile.scope}</ZBadge>
+            {selectedProfile.is_primary && <ZBadge variant="success" size="sm">Primary</ZBadge>}
           </>
         ) : (
-          <span className="text-gray-400">Select a profile...</span>
+          <span className="text-[var(--z-text-muted)] text-sm">Select a profile...</span>
         )}
         <svg
-          className={`w-4 h-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
+          className={`w-4 h-4 text-[var(--z-text-muted)] transition-transform ${isOpen ? 'rotate-180' : ''}`}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -136,7 +139,7 @@ function ProfileSelector({
       </button>
 
       {isOpen && (
-        <div className="absolute z-10 mt-1 w-full bg-zinc-800 border border-zinc-700 rounded shadow-lg max-h-60 overflow-auto">
+        <div className="absolute z-10 mt-1 w-full bg-[var(--z-surface)] border border-[var(--z-border)] rounded-lg shadow-lg max-h-60 overflow-auto">
           {profiles.map((profile) => (
             <button
               key={profile.id}
@@ -144,13 +147,13 @@ function ProfileSelector({
                 onSelect(profile);
                 setIsOpen(false);
               }}
-              className={`w-full flex items-center gap-2 px-4 py-2 hover:bg-zinc-700 transition-colors text-left ${
-                selectedProfile?.id === profile.id ? "bg-zinc-700" : ""
+              className={`w-full flex items-center gap-2 px-3 py-2 hover:bg-[var(--z-surface-elevated)] transition-colors text-left ${
+                selectedProfile?.id === profile.id ? 'bg-[var(--z-surface-elevated)]' : ''
               }`}
             >
-              <span className="flex-1 truncate">{profile.name}</span>
-              <ScopeBadge scope={profile.scope} />
-              {profile.is_primary && <PrimaryBadge />}
+              <span className="flex-1 truncate text-sm text-[var(--z-text-primary)]">{profile.name}</span>
+              <ZBadge variant="info" size="sm">{profile.scope}</ZBadge>
+              {profile.is_primary && <ZBadge variant="success" size="sm">Primary</ZBadge>}
             </button>
           ))}
           <button
@@ -158,12 +161,12 @@ function ProfileSelector({
               onCreateNew();
               setIsOpen(false);
             }}
-            className="w-full flex items-center gap-2 px-4 py-2 hover:bg-zinc-700 transition-colors text-left border-t border-zinc-700 text-emerald-500"
+            className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[var(--z-surface-elevated)] transition-colors text-left border-t border-[var(--z-border)] text-[var(--z-accent)]"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
-            <span>Create New Profile</span>
+            <span className="text-sm">Create New Profile</span>
           </button>
         </div>
       )}
@@ -171,79 +174,68 @@ function ProfileSelector({
   );
 }
 
-function MissionCard({
+function MissionRow({
   mission,
   onStatusChange,
 }: {
   mission: ClimateMission;
   onStatusChange: (id: string, status: MissionStatus) => void;
 }) {
-  const statusColors: Record<MissionStatus, string> = {
-    planned: "status-pending",
-    in_progress: "status-active",
-    completed: "status-completed",
-    cancelled: "bg-gray-600",
-    failed: "bg-red-600",
-  };
-
-  const categoryColors: Record<string, string> = {
-    energy: "bg-amber-500",
-    transport: "bg-blue-500",
-    food: "bg-emerald-500",
-    products: "bg-purple-500",
-    other: "bg-gray-500",
-  };
-
-  const formatImpact = (mission: ClimateMission) => {
-    if (mission.estimated_impact_kgco2) return `~${mission.estimated_impact_kgco2} kg CO2`;
-    if (mission.impact_estimate?.co2_kg) return `~${mission.impact_estimate.co2_kg} kg CO2`;
-    if (mission.impact_estimate?.description) return String(mission.impact_estimate.description);
-    return "Impact TBD";
+  const formatImpact = (m: ClimateMission) => {
+    if (m.estimated_impact_kgco2) return `~${m.estimated_impact_kgco2} kg CO2`;
+    if (m.impact_estimate?.co2_kg) return `~${m.impact_estimate.co2_kg} kg CO2`;
+    if (m.impact_estimate?.description) return String(m.impact_estimate.description);
+    return 'TBD';
   };
 
   const nextStatus: Record<MissionStatus, MissionStatus | null> = {
-    planned: "in_progress",
-    in_progress: "completed",
+    planned: 'in_progress',
+    in_progress: 'completed',
     completed: null,
     cancelled: null,
-    failed: "planned",
+    failed: 'planned',
+  };
+
+  const categoryVariants: Record<string, 'warning' | 'info' | 'success' | 'odin' | 'muted'> = {
+    energy: 'warning',
+    transport: 'info',
+    food: 'success',
+    products: 'odin',
+    other: 'muted',
   };
 
   return (
-    <div className="agent-card">
-      <div className="flex items-start justify-between mb-3">
-        <span
-          className={`px-2 py-1 rounded text-xs text-white ${
-            categoryColors[mission.category?.toLowerCase() || ""] || "bg-gray-500"
-          }`}
-        >
-          {mission.category || "General"}
-        </span>
-        <span className={`status-badge ${statusColors[mission.status]}`}>
-          {mission.status.replace("_", " ")}
-        </span>
-      </div>
-      <h3 className="text-lg font-semibold mb-2">{mission.title}</h3>
-      <p className="text-gray-400 text-sm mb-4">
-        {mission.description || "No description"}
-      </p>
-      <div className="flex items-center justify-between">
-        <div>
-          <span className="text-xs text-gray-500">Estimated Impact</span>
-          <p className="text-emerald-400 font-medium">
-            {formatImpact(mission)}
+    <ZCard className="p-4 hover:border-[var(--z-accent)]/30 transition-colors">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-2">
+            <ZBadge variant={categoryVariants[mission.category?.toLowerCase() || 'other'] || 'muted'} size="sm">
+              {mission.category || 'General'}
+            </ZBadge>
+            <ZStatusBadge status={mission.status} size="sm" />
+          </div>
+          <h3 className="font-medium text-[var(--z-text-primary)] mb-1">{mission.title}</h3>
+          <p className="text-sm text-[var(--z-text-muted)] line-clamp-2">
+            {mission.description || 'No description'}
           </p>
         </div>
-        {nextStatus[mission.status] && (
-          <button
-            onClick={() => onStatusChange(mission.id, nextStatus[mission.status]!)}
-            className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 rounded text-white text-sm transition-colors"
-          >
-            {mission.status === "planned" ? "Start" : "Complete"}
-          </button>
-        )}
+        <div className="flex flex-col items-end gap-2">
+          <div className="text-right">
+            <span className="text-xs text-[var(--z-text-muted)]">Impact</span>
+            <p className="text-sm font-medium text-emerald-400">{formatImpact(mission)}</p>
+          </div>
+          {nextStatus[mission.status] && (
+            <ZButton
+              variant="primary"
+              size="sm"
+              onClick={() => onStatusChange(mission.id, nextStatus[mission.status]!)}
+            >
+              {mission.status === 'planned' ? 'Start' : 'Complete'}
+            </ZButton>
+          )}
+        </div>
       </div>
-    </div>
+    </ZCard>
   );
 }
 
@@ -254,10 +246,10 @@ function CreateMissionForm({
   onSubmit: (input: CreateMissionInput) => void;
   onCancel: () => void;
 }) {
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [category, setCategory] = useState("energy");
-  const [co2Impact, setCo2Impact] = useState("");
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [category, setCategory] = useState('energy');
+  const [co2Impact, setCo2Impact] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -270,74 +262,44 @@ function CreateMissionForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="agent-card">
-      <h3 className="text-lg font-semibold mb-4">Create New Mission</h3>
-      <div className="space-y-4">
-        <div>
-          <label className="block text-sm text-gray-400 mb-1">Title *</label>
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            required
-            className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded focus:border-emerald-500 focus:outline-none"
-            placeholder="e.g., Switch to renewable energy"
-          />
-        </div>
-        <div>
-          <label className="block text-sm text-gray-400 mb-1">Description</label>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded focus:border-emerald-500 focus:outline-none"
-            placeholder="Describe the mission..."
-            rows={2}
-          />
-        </div>
+    <ZCard className="p-4">
+      <h3 className="text-lg font-semibold text-[var(--z-text-primary)] mb-4">Create New Mission</h3>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <ZInput
+          label="Title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="e.g., Switch to renewable energy"
+          required
+        />
+        <ZTextarea
+          label="Description"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Describe the mission..."
+          rows={2}
+        />
         <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm text-gray-400 mb-1">Category</label>
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded focus:border-emerald-500 focus:outline-none"
-            >
-              <option value="energy">Energy</option>
-              <option value="transport">Transport</option>
-              <option value="food">Food</option>
-              <option value="products">Products</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm text-gray-400 mb-1">CO2 Impact (kg)</label>
-            <input
-              type="number"
-              value={co2Impact}
-              onChange={(e) => setCo2Impact(e.target.value)}
-              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded focus:border-emerald-500 focus:outline-none"
-              placeholder="e.g., 500"
-            />
-          </div>
+          <ZSelect
+            label="Category"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            options={CATEGORY_OPTIONS}
+          />
+          <ZInput
+            label="CO2 Impact (kg)"
+            type="number"
+            value={co2Impact}
+            onChange={(e) => setCo2Impact(e.target.value)}
+            placeholder="e.g., 500"
+          />
         </div>
-        <div className="flex gap-2 justify-end">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 rounded text-white transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={!title}
-            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded text-white transition-colors"
-          >
-            Create Mission
-          </button>
+        <div className="flex gap-2 justify-end pt-2">
+          <ZButton variant="ghost" onClick={onCancel}>Cancel</ZButton>
+          <ZButton variant="primary" type="submit" disabled={!title}>Create Mission</ZButton>
         </div>
-      </div>
-    </form>
+      </form>
+    </ZCard>
   );
 }
 
@@ -350,16 +312,15 @@ function CreateProfileForm({
   onCancel?: () => void;
   isModal?: boolean;
 }) {
-  const [name, setName] = useState("");
-  const [profileType, setProfileType] = useState<"person" | "brand" | "organization">("person");
-  const [scope, setScope] = useState<ProfileScope>("individual");
-  const [country, setCountry] = useState("");
-  const [cityOrRegion, setCityOrRegion] = useState("");
-  const [householdSize, setHouseholdSize] = useState("");
-  const [primaryEnergySource, setPrimaryEnergySource] = useState("");
-  const [organizationName, setOrganizationName] = useState("");
-  const [sector, setSector] = useState("");
-  const [websiteUrl, setWebsiteUrl] = useState("");
+  const [name, setName] = useState('');
+  const [profileType, setProfileType] = useState<'person' | 'brand' | 'organization'>('person');
+  const [scope, setScope] = useState<ProfileScope>('individual');
+  const [country, setCountry] = useState('');
+  const [householdSize, setHouseholdSize] = useState('');
+  const [primaryEnergySource, setPrimaryEnergySource] = useState('');
+  const [organizationName, setOrganizationName] = useState('');
+  const [sector, setSector] = useState('');
+  const [websiteUrl, setWebsiteUrl] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -368,7 +329,6 @@ function CreateProfileForm({
       profile_type: profileType,
       scope,
       country: country || undefined,
-      city_or_region: cityOrRegion || undefined,
       household_size: householdSize ? parseInt(householdSize) : undefined,
       primary_energy_source: primaryEnergySource || undefined,
       organization_name: organizationName || undefined,
@@ -377,175 +337,97 @@ function CreateProfileForm({
     });
   };
 
-  const showOrgFields = scope === "organization" || scope === "brand";
+  const showOrgFields = scope === 'organization' || scope === 'brand';
 
   return (
-    <div className={isModal ? "" : "agent-card"}>
-      <h2 className="text-xl font-semibold mb-4">
-        {isModal ? "Create New Profile" : "Create Your Climate Profile"}
+    <ZCard className={isModal ? 'p-0 border-0' : 'p-6'}>
+      <h2 className="text-xl font-semibold text-[var(--z-text-primary)] mb-2">
+        {isModal ? 'Create New Profile' : 'Create Your Climate Profile'}
       </h2>
       {!isModal && (
-        <p className="text-gray-400 mb-4">
+        <p className="text-[var(--z-text-muted)] text-sm mb-4">
           Get started by creating your climate profile to track your environmental impact.
         </p>
       )}
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm text-gray-400 mb-1">Name *</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded focus:border-emerald-500 focus:outline-none"
-              placeholder="Enter your name or organization"
-            />
-          </div>
-          <div>
-            <label className="block text-sm text-gray-400 mb-1">Scope</label>
-            <select
-              value={scope}
-              onChange={(e) => setScope(e.target.value as ProfileScope)}
-              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded focus:border-emerald-500 focus:outline-none"
-            >
-              <option value="individual">Individual</option>
-              <option value="household">Household</option>
-              <option value="organization">Organization</option>
-              <option value="brand">Brand</option>
-            </select>
-          </div>
+          <ZInput
+            label="Name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Enter your name or organization"
+            required
+          />
+          <ZSelect
+            label="Scope"
+            value={scope}
+            onChange={(e) => setScope(e.target.value as ProfileScope)}
+            options={SCOPE_OPTIONS}
+          />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm text-gray-400 mb-1">Profile Type</label>
-            <select
-              value={profileType}
-              onChange={(e) => setProfileType(e.target.value as "person" | "brand" | "organization")}
-              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded focus:border-emerald-500 focus:outline-none"
-            >
-              <option value="person">Person</option>
-              <option value="brand">Brand</option>
-              <option value="organization">Organization</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm text-gray-400 mb-1">Country</label>
-            <input
-              type="text"
-              value={country}
-              onChange={(e) => setCountry(e.target.value)}
-              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded focus:border-emerald-500 focus:outline-none"
-              placeholder="e.g., Denmark"
-            />
-          </div>
+          <ZSelect
+            label="Profile Type"
+            value={profileType}
+            onChange={(e) => setProfileType(e.target.value as 'person' | 'brand' | 'organization')}
+            options={PROFILE_TYPE_OPTIONS}
+          />
+          <ZInput
+            label="Country"
+            value={country}
+            onChange={(e) => setCountry(e.target.value)}
+            placeholder="e.g., Denmark"
+          />
         </div>
         {showOrgFields && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm text-gray-400 mb-1">Organization Name</label>
-              <input
-                type="text"
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <ZInput
+                label="Organization Name"
                 value={organizationName}
                 onChange={(e) => setOrganizationName(e.target.value)}
-                className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded focus:border-emerald-500 focus:outline-none"
                 placeholder="Formal organization name"
               />
-            </div>
-            <div>
-              <label className="block text-sm text-gray-400 mb-1">Sector</label>
-              <select
+              <ZSelect
+                label="Sector"
                 value={sector}
                 onChange={(e) => setSector(e.target.value)}
-                className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded focus:border-emerald-500 focus:outline-none"
-              >
-                <option value="">Select...</option>
-                <option value="fashion">Fashion</option>
-                <option value="tech">Technology</option>
-                <option value="food">Food & Beverage</option>
-                <option value="retail">Retail</option>
-                <option value="manufacturing">Manufacturing</option>
-                <option value="services">Services</option>
-                <option value="other">Other</option>
-              </select>
+                options={SECTOR_OPTIONS}
+              />
             </div>
-          </div>
-        )}
-        {showOrgFields && (
-          <div>
-            <label className="block text-sm text-gray-400 mb-1">Website URL</label>
-            <input
+            <ZInput
+              label="Website URL"
               type="url"
               value={websiteUrl}
               onChange={(e) => setWebsiteUrl(e.target.value)}
-              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded focus:border-emerald-500 focus:outline-none"
               placeholder="https://example.com"
             />
-          </div>
+          </>
         )}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm text-gray-400 mb-1">City / Region</label>
-            <input
-              type="text"
-              value={cityOrRegion}
-              onChange={(e) => setCityOrRegion(e.target.value)}
-              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded focus:border-emerald-500 focus:outline-none"
-              placeholder="e.g., Copenhagen"
-            />
-          </div>
-          <div>
-            <label className="block text-sm text-gray-400 mb-1">
-              {scope === "household" ? "Household Size" : "Team Size"}
-            </label>
-            <input
+        {!showOrgFields && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <ZInput
+              label="Household Size"
               type="number"
               min="1"
               value={householdSize}
               onChange={(e) => setHouseholdSize(e.target.value)}
-              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded focus:border-emerald-500 focus:outline-none"
               placeholder="Number of people"
             />
+            <ZSelect
+              label="Primary Energy Source"
+              value={primaryEnergySource}
+              onChange={(e) => setPrimaryEnergySource(e.target.value)}
+              options={ENERGY_SOURCE_OPTIONS}
+            />
           </div>
-        </div>
-        <div>
-          <label className="block text-sm text-gray-400 mb-1">Primary Energy Source</label>
-          <select
-            value={primaryEnergySource}
-            onChange={(e) => setPrimaryEnergySource(e.target.value)}
-            className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded focus:border-emerald-500 focus:outline-none"
-          >
-            <option value="">Select...</option>
-            <option value="grid_mixed">Grid (Mixed)</option>
-            <option value="grid_renewable">Grid (Renewable)</option>
-            <option value="solar">Solar</option>
-            <option value="wind">Wind</option>
-            <option value="natural_gas">Natural Gas</option>
-            <option value="oil">Oil</option>
-            <option value="coal">Coal</option>
-            <option value="other">Other</option>
-          </select>
-        </div>
-        <div className="flex justify-end gap-2">
-          {onCancel && (
-            <button
-              type="button"
-              onClick={onCancel}
-              className="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 rounded text-white transition-colors"
-            >
-              Cancel
-            </button>
-          )}
-          <button
-            type="submit"
-            disabled={!name}
-            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded text-white transition-colors"
-          >
-            Create Profile
-          </button>
+        )}
+        <div className="flex gap-2 justify-end pt-2">
+          {onCancel && <ZButton variant="ghost" onClick={onCancel}>Cancel</ZButton>}
+          <ZButton variant="primary" type="submit" disabled={!name}>Create Profile</ZButton>
         </div>
       </form>
-    </div>
+    </ZCard>
   );
 }
 
@@ -560,104 +442,40 @@ function ProfileDetailPane({
   onEdit: () => void;
   settingPrimary: boolean;
 }) {
-  const showOrgFields = profile.scope === "organization" || profile.scope === "brand";
-
   return (
-    <div className="agent-card">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <h2 className="text-xl font-semibold">Climate Profile</h2>
-          <ScopeBadge scope={profile.scope} />
-          {profile.is_primary && <PrimaryBadge />}
-        </div>
-        <div className="flex gap-2">
-          {!profile.is_primary && (
-            <button
-              onClick={onSetPrimary}
-              disabled={settingPrimary}
-              className="px-3 py-1 bg-zinc-700 hover:bg-zinc-600 disabled:bg-gray-600 rounded text-white text-sm transition-colors"
-            >
-              {settingPrimary ? "Setting..." : "Set as Primary"}
-            </button>
-          )}
-          <button
-            onClick={onEdit}
-            className="px-3 py-1 bg-zinc-700 hover:bg-zinc-600 rounded text-white text-sm transition-colors"
-          >
-            Edit
-          </button>
-        </div>
-      </div>
+    <ZCard className="p-4">
+      <ZSectionHeader title="Profile Details" className="mb-4" />
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
         <div>
-          <p className="text-gray-400 text-sm">Name</p>
-          <p className="font-medium">{profile.name}</p>
+          <span className="text-xs text-[var(--z-text-muted)]">Scope</span>
+          <p className="text-sm font-medium text-[var(--z-text-primary)]">{profile.scope}</p>
         </div>
         <div>
-          <p className="text-gray-400 text-sm">Type</p>
-          <p className="font-medium capitalize">{profile.profile_type}</p>
+          <span className="text-xs text-[var(--z-text-muted)]">Type</span>
+          <p className="text-sm font-medium text-[var(--z-text-primary)]">{profile.profile_type}</p>
         </div>
-        <div>
-          <p className="text-gray-400 text-sm">Country</p>
-          <p className="font-medium">{profile.country || "Not set"}</p>
-        </div>
-        <div>
-          <p className="text-gray-400 text-sm">City / Region</p>
-          <p className="font-medium">{profile.city_or_region || "Not set"}</p>
-        </div>
-      </div>
-      {showOrgFields && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+        {profile.country && (
           <div>
-            <p className="text-gray-400 text-sm">Organization Name</p>
-            <p className="font-medium">{profile.organization_name || "Not set"}</p>
+            <span className="text-xs text-[var(--z-text-muted)]">Country</span>
+            <p className="text-sm font-medium text-[var(--z-text-primary)]">{profile.country}</p>
           </div>
+        )}
+        {profile.sector && (
           <div>
-            <p className="text-gray-400 text-sm">Sector</p>
-            <p className="font-medium capitalize">{profile.sector || "Not set"}</p>
+            <span className="text-xs text-[var(--z-text-muted)]">Sector</span>
+            <p className="text-sm font-medium text-[var(--z-text-primary)]">{profile.sector}</p>
           </div>
-          <div className="col-span-2">
-            <p className="text-gray-400 text-sm">Website</p>
-            {profile.website_url ? (
-              <a
-                href={profile.website_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-medium text-emerald-500 hover:text-emerald-400"
-              >
-                {profile.website_url}
-              </a>
-            ) : (
-              <p className="font-medium">Not set</p>
-            )}
-          </div>
-        </div>
-      )}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div>
-          <p className="text-gray-400 text-sm">
-            {profile.scope === "household" ? "Household Size" : "Team Size"}
-          </p>
-          <p className="font-medium">
-            {profile.household_size ? `${profile.household_size} people` : "Not set"}
-          </p>
-        </div>
-        <div>
-          <p className="text-gray-400 text-sm">Primary Energy</p>
-          <p className="font-medium">
-            {profile.primary_energy_source?.replace(/_/g, " ") || "Not set"}
-          </p>
-        </div>
-        <div>
-          <p className="text-gray-400 text-sm">Transport Mode</p>
-          <p className="font-medium">{profile.transport_mode || "Not set"}</p>
-        </div>
-        <div>
-          <p className="text-gray-400 text-sm">Diet Type</p>
-          <p className="font-medium">{profile.diet_type || "Not set"}</p>
-        </div>
+        )}
       </div>
-    </div>
+      <div className="flex gap-2">
+        <ZButton variant="secondary" size="sm" onClick={onEdit}>Edit Profile</ZButton>
+        {!profile.is_primary && (
+          <ZButton variant="ghost" size="sm" onClick={onSetPrimary} disabled={settingPrimary}>
+            {settingPrimary ? 'Setting...' : 'Set as Primary'}
+          </ZButton>
+        )}
+      </div>
+    </ZCard>
   );
 }
 
@@ -673,20 +491,18 @@ function EditProfileModal({
   saving: boolean;
 }) {
   const [name, setName] = useState(profile.name);
-  const [scope, setScope] = useState<ProfileScope>(profile.scope);
-  const [country, setCountry] = useState(profile.country || "");
-  const [cityOrRegion, setCityOrRegion] = useState(profile.city_or_region || "");
-  const [householdSize, setHouseholdSize] = useState(profile.household_size?.toString() || "");
-  const [primaryEnergySource, setPrimaryEnergySource] = useState(profile.primary_energy_source || "");
-  const [organizationName, setOrganizationName] = useState(profile.organization_name || "");
-  const [sector, setSector] = useState(profile.sector || "");
-  const [websiteUrl, setWebsiteUrl] = useState(profile.website_url || "");
+  const [country, setCountry] = useState(profile.country || '');
+  const [cityOrRegion, setCityOrRegion] = useState(profile.city_or_region || '');
+  const [householdSize, setHouseholdSize] = useState(profile.household_size?.toString() || '');
+  const [primaryEnergySource, setPrimaryEnergySource] = useState(profile.primary_energy_source || '');
+  const [organizationName, setOrganizationName] = useState(profile.organization_name || '');
+  const [sector, setSector] = useState(profile.sector || '');
+  const [websiteUrl, setWebsiteUrl] = useState(profile.website_url || '');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave({
       name,
-      scope,
       country: country || undefined,
       city_or_region: cityOrRegion || undefined,
       household_size: householdSize ? parseInt(householdSize) : undefined,
@@ -697,149 +513,40 @@ function EditProfileModal({
     });
   };
 
-  const showOrgFields = scope === "organization" || scope === "brand";
+  const showOrgFields = profile.scope === 'organization' || profile.scope === 'brand';
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-zinc-900 border border-zinc-700 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-auto p-6">
-        <h2 className="text-xl font-semibold mb-4">Edit Profile</h2>
+      <ZCard className="max-w-2xl w-full max-h-[90vh] overflow-auto p-6">
+        <h2 className="text-xl font-semibold text-[var(--z-text-primary)] mb-4">Edit Profile</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm text-gray-400 mb-1">Name *</label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-                className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded focus:border-emerald-500 focus:outline-none"
-              />
-            </div>
-            <div>
-              <label className="block text-sm text-gray-400 mb-1">Scope</label>
-              <select
-                value={scope}
-                onChange={(e) => setScope(e.target.value as ProfileScope)}
-                className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded focus:border-emerald-500 focus:outline-none"
-              >
-                <option value="individual">Individual</option>
-                <option value="household">Household</option>
-                <option value="organization">Organization</option>
-                <option value="brand">Brand</option>
-              </select>
-            </div>
+            <ZInput label="Name" value={name} onChange={(e) => setName(e.target.value)} required />
+            <ZInput label="Country" value={country} onChange={(e) => setCountry(e.target.value)} placeholder="e.g., Denmark" />
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm text-gray-400 mb-1">Country</label>
-              <input
-                type="text"
-                value={country}
-                onChange={(e) => setCountry(e.target.value)}
-                className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded focus:border-emerald-500 focus:outline-none"
-              />
-            </div>
-            <div>
-              <label className="block text-sm text-gray-400 mb-1">City / Region</label>
-              <input
-                type="text"
-                value={cityOrRegion}
-                onChange={(e) => setCityOrRegion(e.target.value)}
-                className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded focus:border-emerald-500 focus:outline-none"
-              />
-            </div>
-          </div>
-          {showOrgFields && (
+          <ZInput label="City or Region" value={cityOrRegion} onChange={(e) => setCityOrRegion(e.target.value)} placeholder="e.g., Copenhagen" />
+          {showOrgFields ? (
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm text-gray-400 mb-1">Organization Name</label>
-                  <input
-                    type="text"
-                    value={organizationName}
-                    onChange={(e) => setOrganizationName(e.target.value)}
-                    className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded focus:border-emerald-500 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-400 mb-1">Sector</label>
-                  <select
-                    value={sector}
-                    onChange={(e) => setSector(e.target.value)}
-                    className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded focus:border-emerald-500 focus:outline-none"
-                  >
-                    <option value="">Select...</option>
-                    <option value="fashion">Fashion</option>
-                    <option value="tech">Technology</option>
-                    <option value="food">Food & Beverage</option>
-                    <option value="retail">Retail</option>
-                    <option value="manufacturing">Manufacturing</option>
-                    <option value="services">Services</option>
-                    <option value="other">Other</option>
-                  </select>
-                </div>
+                <ZInput label="Organization Name" value={organizationName} onChange={(e) => setOrganizationName(e.target.value)} />
+                <ZSelect label="Sector" value={sector} onChange={(e) => setSector(e.target.value)} options={SECTOR_OPTIONS} />
               </div>
-              <div>
-                <label className="block text-sm text-gray-400 mb-1">Website URL</label>
-                <input
-                  type="url"
-                  value={websiteUrl}
-                  onChange={(e) => setWebsiteUrl(e.target.value)}
-                  className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded focus:border-emerald-500 focus:outline-none"
-                />
-              </div>
+              <ZInput label="Website URL" type="url" value={websiteUrl} onChange={(e) => setWebsiteUrl(e.target.value)} />
             </>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <ZInput label="Household Size" type="number" min="1" value={householdSize} onChange={(e) => setHouseholdSize(e.target.value)} />
+              <ZSelect label="Primary Energy Source" value={primaryEnergySource} onChange={(e) => setPrimaryEnergySource(e.target.value)} options={ENERGY_SOURCE_OPTIONS} />
+            </div>
           )}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm text-gray-400 mb-1">
-                {scope === "household" ? "Household Size" : "Team Size"}
-              </label>
-              <input
-                type="number"
-                min="1"
-                value={householdSize}
-                onChange={(e) => setHouseholdSize(e.target.value)}
-                className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded focus:border-emerald-500 focus:outline-none"
-              />
-            </div>
-            <div>
-              <label className="block text-sm text-gray-400 mb-1">Primary Energy Source</label>
-              <select
-                value={primaryEnergySource}
-                onChange={(e) => setPrimaryEnergySource(e.target.value)}
-                className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded focus:border-emerald-500 focus:outline-none"
-              >
-                <option value="">Select...</option>
-                <option value="grid_mixed">Grid (Mixed)</option>
-                <option value="grid_renewable">Grid (Renewable)</option>
-                <option value="solar">Solar</option>
-                <option value="wind">Wind</option>
-                <option value="natural_gas">Natural Gas</option>
-                <option value="oil">Oil</option>
-                <option value="coal">Coal</option>
-                <option value="other">Other</option>
-              </select>
-            </div>
-          </div>
           <div className="flex justify-end gap-2 pt-4">
-            <button
-              type="button"
-              onClick={onCancel}
-              className="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 rounded text-white transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={!name || saving}
-              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded text-white transition-colors"
-            >
-              {saving ? "Saving..." : "Save Changes"}
-            </button>
+            <ZButton variant="ghost" onClick={onCancel}>Cancel</ZButton>
+            <ZButton variant="primary" type="submit" disabled={!name || saving}>
+              {saving ? 'Saving...' : 'Save Changes'}
+            </ZButton>
           </div>
         </form>
-      </div>
+      </ZCard>
     </div>
   );
 }
@@ -853,14 +560,15 @@ function CreateProfileModal({
 }) {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-zinc-900 border border-zinc-700 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-auto p-6">
+      <ZCard className="max-w-2xl w-full max-h-[90vh] overflow-auto p-6">
         <CreateProfileForm onSubmit={onSubmit} onCancel={onCancel} isModal />
-      </div>
+      </ZCard>
     </div>
   );
 }
 
 export default function ClimatePage() {
+  const { t } = useI18n();
   const [profiles, setProfiles] = useState<ClimateProfile[]>([]);
   const [selectedProfile, setSelectedProfile] = useState<ClimateProfile | null>(null);
   const [missions, setMissions] = useState<ClimateMission[]>([]);
@@ -874,15 +582,18 @@ export default function ClimatePage() {
   const [isDefaultConfig, setIsDefaultConfig] = useState(true);
   const [settingPrimary, setSettingPrimary] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
+  const [bootstrapping, setBootstrapping] = useState(false);
+  const [askingOracle, setAskingOracle] = useState(false);
+  const [oracleMessage, setOracleMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
     async function loadConfig() {
       try {
-        const response = await getFrontendConfig("climate");
+        const response = await getFrontendConfig('climate');
         setConfig(response.config as ClimatePageConfig);
         setIsDefaultConfig(response.is_default);
       } catch (err) {
-        console.error("Failed to load frontend config:", err);
+        console.error('Failed to load frontend config:', err);
       }
     }
     loadConfig();
@@ -901,7 +612,7 @@ export default function ClimatePage() {
         setSelectedProfile(null);
       }
     } catch (err) {
-      const message = err instanceof ZoraApiError ? err.message : "Failed to load profiles";
+      const message = err instanceof ZoraApiError ? err.message : 'Failed to load profiles';
       setError(message);
     } finally {
       setLoading(false);
@@ -914,15 +625,13 @@ export default function ClimatePage() {
       const response = await getClimateMissions(profileId);
       setMissions(response.data);
     } catch (err) {
-      console.error("Failed to load missions:", err);
+      console.error('Failed to load missions:', err);
     } finally {
       setMissionsLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    loadProfiles();
-  }, [loadProfiles]);
+  useEffect(() => { loadProfiles(); }, [loadProfiles]);
 
   useEffect(() => {
     if (selectedProfile) {
@@ -940,7 +649,7 @@ export default function ClimatePage() {
       setSelectedProfile(newProfile);
       setShowCreateProfile(false);
     } catch (err) {
-      const message = err instanceof ZoraApiError ? err.message : "Failed to create profile";
+      const message = err instanceof ZoraApiError ? err.message : 'Failed to create profile';
       setError(message);
     } finally {
       setLoading(false);
@@ -956,7 +665,7 @@ export default function ClimatePage() {
       setSelectedProfile(updated);
       setShowEditProfile(false);
     } catch (err) {
-      console.error("Failed to update profile:", err);
+      console.error('Failed to update profile:', err);
     } finally {
       setSavingProfile(false);
     }
@@ -967,15 +676,10 @@ export default function ClimatePage() {
     try {
       setSettingPrimary(true);
       const updated = await setProfileAsPrimary(selectedProfile.id);
-      setProfiles((prev) =>
-        prev.map((p) => ({
-          ...p,
-          is_primary: p.id === updated.id,
-        }))
-      );
+      setProfiles((prev) => prev.map((p) => ({ ...p, is_primary: p.id === updated.id })));
       setSelectedProfile(updated);
     } catch (err) {
-      console.error("Failed to set primary profile:", err);
+      console.error('Failed to set primary profile:', err);
     } finally {
       setSettingPrimary(false);
     }
@@ -988,70 +692,47 @@ export default function ClimatePage() {
       setMissions((prev) => [newMission, ...prev]);
       setShowCreateMission(false);
     } catch (err) {
-      console.error("Failed to create mission:", err);
+      console.error('Failed to create mission:', err);
     }
   };
 
   const handleStatusChange = async (missionId: string, status: MissionStatus) => {
     try {
       const updated = await updateMissionStatus(missionId, { status });
-      setMissions((prev) =>
-        prev.map((m) => (m.id === missionId ? updated : m))
-      );
+      setMissions((prev) => prev.map((m) => (m.id === missionId ? updated : m)));
     } catch (err) {
-      console.error("Failed to update mission:", err);
+      console.error('Failed to update mission:', err);
     }
   };
 
-  const dashboardSummary: DashboardSummary = {
-    total_missions: missions.length,
-    completed_count: missions.filter((m) => m.status === "completed").length,
-    in_progress_count: missions.filter((m) => m.status === "in_progress").length,
-    total_impact_kgco2: missions.reduce((sum, m) => {
-      const co2 = m.estimated_impact_kgco2 ?? (m.impact_estimate?.co2_kg as number | undefined);
-      return sum + (typeof co2 === "number" ? co2 : 0);
-    }, 0),
+  const handleAskOracle = async () => {
+    if (!selectedProfile) return;
+    try {
+      setAskingOracle(true);
+      setOracleMessage(null);
+      await createAgentTask({
+        agent_id: 'HEIMDALL',
+        task_type: 'propose_new_climate_missions',
+        title: `Suggest climate missions for ${selectedProfile.name}`,
+        description: `HEIMDALL should analyze the profile "${selectedProfile.name}" (scope: ${selectedProfile.scope}) and suggest new climate missions.`,
+        payload: {
+          profile_id: selectedProfile.id,
+          profile_name: selectedProfile.name,
+          profile_scope: selectedProfile.scope,
+          country: selectedProfile.country,
+          sector: selectedProfile.sector,
+        },
+        priority: 1,
+      });
+      setOracleMessage({ type: 'success', text: 'HEIMDALL task created! Check /admin/agents/insights soon.' });
+    } catch (err) {
+      setOracleMessage({ type: 'error', text: err instanceof Error ? err.message : 'Failed to create task' });
+    } finally {
+      setAskingOracle(false);
+    }
   };
 
-    const [bootstrapping, setBootstrapping] = useState(false);
-    const [askingOracle, setAskingOracle] = useState(false);
-    const [oracleMessage, setOracleMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
-
-    const handleAskOracle = async () => {
-      if (!selectedProfile) return;
-      try {
-        setAskingOracle(true);
-        setOracleMessage(null);
-        await createAgentTask({
-          agent_id: "HEIMDALL",
-          task_type: "propose_new_climate_missions",
-          title: `Suggest climate missions for ${selectedProfile.name}`,
-          description: `HEIMDALL should analyze the profile "${selectedProfile.name}" (scope: ${selectedProfile.scope}) and suggest new climate missions tailored to their situation.`,
-          payload: {
-            profile_id: selectedProfile.id,
-            profile_name: selectedProfile.name,
-            profile_scope: selectedProfile.scope,
-            country: selectedProfile.country,
-            sector: selectedProfile.sector,
-          },
-          priority: 1,
-        });
-        setOracleMessage({
-          type: "success",
-          text: "HEIMDALL task created! Check /admin/agents/insights soon for new mission suggestions.",
-        });
-      } catch (err) {
-        console.error("Failed to ask HEIMDALL:", err);
-        setOracleMessage({
-          type: "error",
-          text: err instanceof Error ? err.message : "Failed to create HEIMDALL task",
-        });
-      } finally {
-        setAskingOracle(false);
-      }
-    };
-
-    const handleBootstrapMissions = async () => {
+  const handleBootstrapMissions = async () => {
     if (!selectedProfile) return;
     try {
       setBootstrapping(true);
@@ -1060,244 +741,154 @@ export default function ClimatePage() {
         setMissions(result.missions);
       }
     } catch (err) {
-      console.error("Failed to bootstrap missions:", err);
+      console.error('Failed to bootstrap missions:', err);
     } finally {
       setBootstrapping(false);
     }
   };
 
-  const profilesByScope = profiles.reduce(
-    (acc, p) => {
-      acc[p.scope] = (acc[p.scope] || 0) + 1;
-      return acc;
-    },
-    {} as Record<ProfileScope, number>
-  );
+  const dashboardSummary: DashboardSummary = {
+    total_missions: missions.length,
+    completed_count: missions.filter((m) => m.status === 'completed').length,
+    in_progress_count: missions.filter((m) => m.status === 'in_progress').length,
+    total_impact_kgco2: missions.reduce((sum, m) => {
+      const co2 = m.estimated_impact_kgco2 ?? (m.impact_estimate?.co2_kg as number | undefined);
+      return sum + (typeof co2 === 'number' ? co2 : 0);
+    }, 0),
+  };
 
   return (
-    <PageShell isAuthenticated={true}>
-      <HeroSection
-        headline={config.hero_title}
-        subheadline={config.hero_subtitle}
-        size="sm"
-      />
+    <AppShell>
+      <div className="p-6 lg:p-8">
+        <div className="max-w-7xl mx-auto">
+          <ZPageHeader
+            title={t('climate.title', 'Climate OS')}
+            subtitle={t('climate.subtitle', 'Track your climate impact and complete missions')}
+            className="mb-6"
+          />
 
-      <section className="py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                {selectedProfile && (
-                  <p className="text-sm text-[var(--primary)]">
-                    Viewing: {selectedProfile.name} (scope: {SCOPE_LABELS[selectedProfile.scope]})
-                    {selectedProfile.is_primary && " - Primary Profile"}
-                  </p>
-                )}
-                {isDefaultConfig && (
-                  <p className="text-xs text-[var(--foreground)]/40 mt-1">
-                    Using default configuration.{" "}
-                    <Link href="/admin/frontend" className="text-[var(--primary)] hover:underline">
-                      Customize
-                    </Link>
-                  </p>
-                )}
-              </div>
-              {profiles.length > 0 && (
-                <ProfileSelector
-                  profiles={profiles}
-                  selectedProfile={selectedProfile}
-                  onSelect={setSelectedProfile}
-                  onCreateNew={() => setShowCreateProfile(true)}
-                />
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              {selectedProfile && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-[var(--z-text-muted)]">Active Profile:</span>
+                  <span className="text-sm font-medium text-[var(--z-text-primary)]">{selectedProfile.name}</span>
+                  <ZBadge variant="info" size="sm">{selectedProfile.scope}</ZBadge>
+                  {selectedProfile.is_primary && <ZBadge variant="success" size="sm">Primary</ZBadge>}
+                </div>
+              )}
+              {isDefaultConfig && (
+                <p className="text-xs text-[var(--z-text-muted)] mt-1">
+                  Using default configuration.{' '}
+                  <Link href="/admin/frontend" className="text-[var(--z-accent)] hover:underline">Customize</Link>
+                </p>
               )}
             </div>
+            {profiles.length > 0 && (
+              <ProfileSelector profiles={profiles} selectedProfile={selectedProfile} onSelect={setSelectedProfile} onCreateNew={() => setShowCreateProfile(true)} />
+            )}
           </div>
 
           {loading ? (
-            <LoadingSpinner />
+            <ZLoadingState message="Loading climate profiles..." />
           ) : error ? (
-            <ErrorMessage message={error} onRetry={loadProfiles} />
+            <ZErrorState message={error} onRetry={loadProfiles} />
           ) : profiles.length === 0 ? (
             <CreateProfileForm onSubmit={handleCreateProfile} />
           ) : selectedProfile ? (
-            <>
-              {config.show_dashboard_section && (
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-                  <div className="agent-card text-center">
-                    <p className="text-gray-400 text-sm mb-1">Total Missions</p>
-                    <p className="text-4xl font-bold text-emerald-500">
-                      {dashboardSummary.total_missions}
-                    </p>
-                    <p className="text-xs text-gray-500">climate actions</p>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2 space-y-6">
+                {config.show_dashboard_section && (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <ZMetricTile label="Total Missions" value={dashboardSummary.total_missions} sublabel="climate actions" />
+                    <ZMetricTile label="Completed" value={dashboardSummary.completed_count} sublabel="missions done" variant="emerald" />
+                    <ZMetricTile label="In Progress" value={dashboardSummary.in_progress_count} sublabel="active now" variant="amber" />
+                    <ZMetricTile label="Total Impact" value={dashboardSummary.total_impact_kgco2 > 0 ? `${dashboardSummary.total_impact_kgco2}` : '--'} sublabel="kg CO2 reduction" variant="emerald" />
                   </div>
-                  <div className="agent-card text-center">
-                    <p className="text-gray-400 text-sm mb-1">Completed</p>
-                    <p className="text-4xl font-bold text-emerald-500">
-                      {dashboardSummary.completed_count}
-                    </p>
-                    <p className="text-xs text-gray-500">missions done</p>
-                  </div>
-                  <div className="agent-card text-center">
-                    <p className="text-gray-400 text-sm mb-1">In Progress</p>
-                    <p className="text-4xl font-bold text-amber-500">
-                      {dashboardSummary.in_progress_count}
-                    </p>
-                    <p className="text-xs text-gray-500">active now</p>
-                  </div>
-                  <div className="agent-card text-center">
-                    <p className="text-gray-400 text-sm mb-1">Total Impact</p>
-                    <p className="text-4xl font-bold text-emerald-500">
-                      {dashboardSummary.total_impact_kgco2 > 0 ? `${dashboardSummary.total_impact_kgco2} kg` : "--"}
-                    </p>
-                    <p className="text-xs text-gray-500">CO2 reduction</p>
-                  </div>
-                </div>
-              )}
+                )}
 
-                            {config.show_missions_section && (
-                              <div className="mb-6">
-                                <div className="flex items-center justify-between mb-4">
-                                  <h2 className="text-xl font-semibold">
-                                    Missions for {selectedProfile.name}
-                                  </h2>
-                                  <div className="flex items-center gap-2">
-                                    <button
-                                      onClick={handleAskOracle}
-                                      disabled={askingOracle}
-                                      className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded text-white transition-colors flex items-center gap-2"
-                                      title="Ask HEIMDALL to suggest new climate missions"
-                                    >
-                                      {askingOracle ? (
-                                        <>
-                                          <span className="animate-spin">&#9696;</span>
-                                          Asking...
-                                        </>
-                                      ) : (
-                                        <>
-                                          <span>&#9733;</span>
-                                          Ask HEIMDALL
-                                        </>
-                                      )}
-                                    </button>
-                                    <button
-                                      onClick={() => setShowCreateMission(true)}
-                                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 rounded text-white transition-colors"
-                                    >
-                                      + New Mission
-                                    </button>
-                                  </div>
-                                </div>
+                {config.show_missions_section && (
+                  <ZCard className="p-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <ZSectionHeader title={`Missions for ${selectedProfile.name}`} />
+                      <div className="flex items-center gap-2">
+                        <ZButton variant="secondary" size="sm" onClick={handleAskOracle} disabled={askingOracle}>
+                          {askingOracle ? 'Asking...' : 'Ask HEIMDALL'}
+                        </ZButton>
+                        <ZButton variant="primary" size="sm" onClick={() => setShowCreateMission(true)}>+ New Mission</ZButton>
+                      </div>
+                    </div>
 
-                                {oracleMessage && (
-                                  <div
-                                    className={`mb-4 p-3 rounded border ${
-                                      oracleMessage.type === "success"
-                                        ? "bg-emerald-900/20 border-emerald-800 text-emerald-400"
-                                        : "bg-red-900/20 border-red-800 text-red-400"
-                                    }`}
-                                  >
-                                    {oracleMessage.text}
-                                    {oracleMessage.type === "success" && (
-                                      <Link
-                                        href="/admin/agents/insights"
-                                        className="ml-2 underline hover:no-underline"
-                                      >
-                                        View Insights
-                                      </Link>
-                                    )}
-                                    <button
-                                      onClick={() => setOracleMessage(null)}
-                                      className="float-right text-sm opacity-70 hover:opacity-100"
-                                    >
-                                      Dismiss
-                                    </button>
-                                  </div>
-                                )}
+                    {oracleMessage && (
+                      <div className={`mb-4 p-3 rounded-lg border ${oracleMessage.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-red-500/10 border-red-500/30 text-red-400'}`}>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm">{oracleMessage.text}</span>
+                          <button onClick={() => setOracleMessage(null)} className="text-xs opacity-70 hover:opacity-100">Dismiss</button>
+                        </div>
+                        {oracleMessage.type === 'success' && (
+                          <Link href="/admin/agents/insights" className="text-xs underline hover:no-underline mt-1 inline-block">View Insights</Link>
+                        )}
+                      </div>
+                    )}
 
-                  {showCreateMission && (
-                    <div className="mb-4">
-                      <CreateMissionForm
-                        onSubmit={handleCreateMission}
-                        onCancel={() => setShowCreateMission(false)}
+                    {showCreateMission && (
+                      <div className="mb-4">
+                        <CreateMissionForm onSubmit={handleCreateMission} onCancel={() => setShowCreateMission(false)} />
+                      </div>
+                    )}
+
+                    {missionsLoading ? (
+                      <ZLoadingState message="Loading missions..." size="sm" />
+                    ) : missions.length === 0 ? (
+                      <ZEmptyState
+                        title="No missions yet"
+                        description="Get started with some recommended climate actions!"
+                        action={{ label: bootstrapping ? 'Creating...' : 'Create Starter Missions', onClick: handleBootstrapMissions }}
                       />
-                    </div>
-                  )}
+                    ) : (
+                      <div className="space-y-3 max-h-[500px] overflow-y-auto">
+                        {missions.map((mission) => (
+                          <MissionRow key={mission.id} mission={mission} onStatusChange={handleStatusChange} />
+                        ))}
+                      </div>
+                    )}
+                  </ZCard>
+                )}
 
-                  {missionsLoading ? (
-                    <LoadingSpinner />
-                  ) : missions.length === 0 ? (
-                    <div className="agent-card text-center">
-                      <p className="text-gray-400 mb-4">
-                        No missions yet for this profile. Get started with some recommended climate actions!
-                      </p>
-                      <button
-                        onClick={handleBootstrapMissions}
-                        disabled={bootstrapping}
-                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded text-white transition-colors"
-                      >
-                        {bootstrapping ? "Creating..." : "Create Starter Missions"}
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {missions.map((mission) => (
-                        <MissionCard
-                          key={mission.id}
-                          mission={mission}
-                          onStatusChange={handleStatusChange}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
+                {config.show_profile_section && (
+                  <ProfileDetailPane profile={selectedProfile} onSetPrimary={handleSetPrimary} onEdit={() => setShowEditProfile(true)} settingPrimary={settingPrimary} />
+                )}
+              </div>
 
-              {config.show_profile_section && (
-                <ProfileDetailPane
-                  profile={selectedProfile}
-                  onSetPrimary={handleSetPrimary}
-                  onEdit={() => setShowEditProfile(true)}
-                  settingPrimary={settingPrimary}
-                />
-              )}
-
-              <div className="mt-8">
+              <div className="space-y-6">
                 <AgentPanel
                   context="climate"
                   profileId={selectedProfile.id}
                   title="Ask HEIMDALL"
                   description="Nordic agent for climate mission intelligence"
                   onSuggestionSelect={(suggestion: AgentPanelSuggestion) => {
-                    if (suggestion.type === 'mission') {
-                      setShowCreateMission(true);
-                    }
+                    if (suggestion.type === 'mission') setShowCreateMission(true);
                   }}
                 />
+
+                <ZCard className="p-4">
+                  <ZSectionHeader title="Quick Actions" className="mb-3" />
+                  <div className="space-y-2">
+                    <ZButton variant="secondary" className="w-full justify-start" href="/simulation">Run Climate Simulation</ZButton>
+                    <ZButton variant="secondary" className="w-full justify-start" href="/goes-green">GOES GREEN Energy</ZButton>
+                    <ZButton variant="secondary" className="w-full justify-start" href="/foundation">Support Foundation Projects</ZButton>
+                  </div>
+                </ZCard>
               </div>
-            </>
-          ) : (
-            <div className="agent-card text-center">
-              <p className="text-gray-400 mb-4">Select a profile to view its climate data.</p>
             </div>
+          ) : (
+            <ZEmptyState title="Select a profile" description="Choose a climate profile to view its data and missions." />
           )}
         </div>
-      </section>
+      </div>
 
-      {showCreateProfile && (
-        <CreateProfileModal
-          onSubmit={handleCreateProfile}
-          onCancel={() => setShowCreateProfile(false)}
-        />
-      )}
-
-      {showEditProfile && selectedProfile && (
-        <EditProfileModal
-          profile={selectedProfile}
-          onSave={handleUpdateProfile}
-          onCancel={() => setShowEditProfile(false)}
-          saving={savingProfile}
-        />
-      )}
-    </PageShell>
+      {showCreateProfile && <CreateProfileModal onSubmit={handleCreateProfile} onCancel={() => setShowCreateProfile(false)} />}
+      {showEditProfile && selectedProfile && <EditProfileModal profile={selectedProfile} onSave={handleUpdateProfile} onCancel={() => setShowEditProfile(false)} saving={savingProfile} />}
+    </AppShell>
   );
 }

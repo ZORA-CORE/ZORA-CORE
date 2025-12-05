@@ -12,6 +12,7 @@ export interface ZMetricTileProps {
   variant?: 'default' | 'emerald' | 'rose' | 'amber' | 'violet' | 'sky';
   size?: 'sm' | 'md' | 'lg';
   className?: string;
+  onClick?: () => void;
 }
 
 export function ZMetricTile({
@@ -24,6 +25,7 @@ export function ZMetricTile({
   variant = 'default',
   size = 'md',
   className = '',
+  onClick,
 }: ZMetricTileProps) {
   const variantClasses = {
     default: 'bg-[var(--z-bg-surface)] border-[var(--z-border-default)]',
@@ -70,7 +72,10 @@ export function ZMetricTile({
   };
 
   return (
-    <div className={`rounded-[var(--z-radius-lg)] border ${variantClasses[variant]} ${sizeClasses[size].container} ${className}`}>
+    <div
+      className={`rounded-[var(--z-radius-lg)] border ${variantClasses[variant]} ${sizeClasses[size].container} ${onClick ? 'cursor-pointer hover:border-[var(--z-accent)]/50 transition-colors' : ''} ${className}`}
+      onClick={onClick}
+    >
       <div className="flex items-start justify-between mb-2">
         <span className={`${sizeClasses[size].label} text-[var(--z-text-tertiary)] font-medium`}>{label}</span>
         {icon && (

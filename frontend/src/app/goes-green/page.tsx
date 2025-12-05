@@ -4,10 +4,24 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/AuthContext';
 import { AppShell } from '@/components/layout';
-import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { AgentPanel } from '@/components/cockpit/AgentPanel';
+import {
+  ZCard,
+  ZButton,
+  ZMetricTile,
+  ZPageHeader,
+  ZSectionHeader,
+  ZBadge,
+  ZStatusBadge,
+  ZInput,
+  ZSelect,
+  ZTextarea,
+  ZEmptyState,
+  ZLoadingState,
+  ZErrorState,
+  ZProgress,
+} from '@/components/z';
+import { useI18n } from '@/lib/I18nProvider';
 import {
   getGoesGreenProfiles,
   getGoesGreenActions,
@@ -24,68 +38,96 @@ import type {
   AgentPanelSuggestion,
 } from '@/lib/types';
 
-const STATUS_COLORS: Record<GoesGreenActionStatus, string> = {
-  planned: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-  in_progress: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
-  completed: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-  cancelled: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
-};
+const PROFILE_TYPE_OPTIONS = [
+  { value: 'household', label: 'Household' },
+  { value: 'organization', label: 'Organization' },
+];
 
-const STATUS_LABELS: Record<GoesGreenActionStatus, string> = {
-  planned: 'Planned',
-  in_progress: 'In Progress',
-  completed: 'Completed',
-  cancelled: 'Cancelled',
-};
+const ACTION_TYPE_OPTIONS = [
+  { value: 'energy_efficiency', label: 'Energy Efficiency' },
+  { value: 'renewable_energy', label: 'Renewable Energy' },
+  { value: 'transport', label: 'Transport' },
+  { value: 'heating_cooling', label: 'Heating/Cooling' },
+  { value: 'appliances', label: 'Appliances' },
+  { value: 'behavior_change', label: 'Behavior Change' },
+  { value: 'other', label: 'Other' },
+];
 
-function ProfileCard({
-  profile,
-  isSelected,
+function ProfileSelector({
+  profiles,
+  selectedProfile,
   onSelect,
+  onCreateNew,
 }: {
-  profile: GoesGreenProfile;
-  isSelected: boolean;
-  onSelect: () => void;
+  profiles: GoesGreenProfile[];
+  selectedProfile: GoesGreenProfile | null;
+  onSelect: (profile: GoesGreenProfile) => void;
+  onCreateNew: () => void;
 }) {
+  const [isOpen, setIsOpen] = useState(false);
+
   return (
-    <div
-      onClick={onSelect}
-      className={`p-4 rounded-lg border cursor-pointer transition-all ${
-        isSelected
-          ? 'bg-green-500/10 border-green-500/50'
-          : 'bg-[var(--card-bg)] border-[var(--card-border)] hover:border-green-500/30'
-      }`}
-    >
-      <div className="flex items-start justify-between mb-2">
-        <h3 className="font-medium text-[var(--foreground)]">{profile.name}</h3>
-        <span className="text-xs px-2 py-1 rounded bg-green-500/20 text-green-400">
-          {profile.profile_type}
-        </span>
-      </div>
-      {profile.country && (
-        <p className="text-sm text-[var(--foreground)]/60 mb-1">{profile.country}</p>
-      )}
-      <div className="grid grid-cols-2 gap-2 mt-3 text-xs">
-        {profile.annual_energy_kwh && (
-          <div>
-            <span className="text-[var(--foreground)]/40">Energy:</span>{' '}
-            <span className="text-[var(--foreground)]/70">
-              {profile.annual_energy_kwh.toLocaleString()} kWh/yr
+    <div className="relative">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-2 px-3 py-2 bg-[var(--z-surface)] border border-[var(--z-border)] rounded-lg hover:border-[var(--z-accent)]/50 transition-colors min-w-[200px]"
+      >
+        {selectedProfile ? (
+          <>
+            <span className="flex-1 text-left truncate text-sm text-[var(--z-text-primary)]">
+              {selectedProfile.name}
             </span>
-          </div>
+            <ZBadge variant="success" size="sm">{selectedProfile.profile_type}</ZBadge>
+          </>
+        ) : (
+          <span className="text-[var(--z-text-muted)] text-sm">Select a profile...</span>
         )}
-        {profile.target_green_share_percent !== null && (
-          <div>
-            <span className="text-[var(--foreground)]/40">Target:</span>{' '}
-            <span className="text-green-400">{profile.target_green_share_percent}% green</span>
-          </div>
-        )}
-      </div>
+        <svg
+          className={`w-4 h-4 text-[var(--z-text-muted)] transition-transform ${isOpen ? 'rotate-180' : ''}`}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {isOpen && (
+        <div className="absolute z-10 mt-1 w-full bg-[var(--z-surface)] border border-[var(--z-border)] rounded-lg shadow-lg max-h-60 overflow-auto">
+          {profiles.map((profile) => (
+            <button
+              key={profile.id}
+              onClick={() => {
+                onSelect(profile);
+                setIsOpen(false);
+              }}
+              className={`w-full flex items-center gap-2 px-3 py-2 hover:bg-[var(--z-surface-elevated)] transition-colors text-left ${
+                selectedProfile?.id === profile.id ? 'bg-[var(--z-surface-elevated)]' : ''
+              }`}
+            >
+              <span className="flex-1 truncate text-sm text-[var(--z-text-primary)]">{profile.name}</span>
+              <ZBadge variant="success" size="sm">{profile.profile_type}</ZBadge>
+            </button>
+          ))}
+          <button
+            onClick={() => {
+              onCreateNew();
+              setIsOpen(false);
+            }}
+            className="w-full flex items-center gap-2 px-3 py-2 hover:bg-[var(--z-surface-elevated)] transition-colors text-left border-t border-[var(--z-border)] text-[var(--z-accent)]"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            <span className="text-sm">Create New Profile</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }
 
-function ActionCard({
+function ActionRow({
   action,
   onStatusChange,
 }: {
@@ -100,48 +142,58 @@ function ActionCard({
     setIsUpdating(false);
   };
 
+  const nextStatus: Record<GoesGreenActionStatus, GoesGreenActionStatus | null> = {
+    planned: 'in_progress',
+    in_progress: 'completed',
+    completed: null,
+    cancelled: null,
+  };
+
+  const typeVariants: Record<string, 'warning' | 'info' | 'success' | 'odin' | 'muted'> = {
+    energy_efficiency: 'warning',
+    renewable_energy: 'success',
+    transport: 'info',
+    heating_cooling: 'odin',
+    appliances: 'warning',
+    behavior_change: 'info',
+    other: 'muted',
+  };
+
   return (
-    <div className="p-4 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-lg">
-      <div className="flex items-start justify-between mb-2">
-        <h4 className="font-medium text-[var(--foreground)]">{action.title}</h4>
-        <span className={`text-xs px-2 py-1 rounded border ${STATUS_COLORS[action.status]}`}>
-          {STATUS_LABELS[action.status]}
-        </span>
-      </div>
-      {action.description && (
-        <p className="text-sm text-[var(--foreground)]/60 mb-2">{action.description}</p>
-      )}
-      <div className="flex items-center justify-between text-xs">
-        <span className="text-[var(--foreground)]/40">{action.action_type}</span>
-        {action.estimated_impact_kgco2 && (
-          <span className="text-emerald-400">
-            Est. {action.estimated_impact_kgco2.toFixed(1)} kg CO2
-          </span>
-        )}
-      </div>
-      {action.status !== 'completed' && action.status !== 'cancelled' && (
-        <div className="mt-3 flex gap-2">
-          {action.status === 'planned' && (
-            <button
-              onClick={() => handleStatusChange('in_progress')}
-              disabled={isUpdating}
-              className="text-xs px-3 py-1 bg-amber-600 hover:bg-amber-700 disabled:bg-gray-600 rounded text-white transition-colors"
-            >
-              {isUpdating ? '...' : 'Start'}
-            </button>
+    <ZCard className="p-4 hover:border-[var(--z-accent)]/30 transition-colors">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-2">
+            <ZBadge variant={typeVariants[action.action_type] || 'muted'} size="sm">
+              {action.action_type.replace('_', ' ')}
+            </ZBadge>
+            <ZStatusBadge status={action.status} size="sm" />
+          </div>
+          <h3 className="font-medium text-[var(--z-text-primary)] mb-1">{action.title}</h3>
+          <p className="text-sm text-[var(--z-text-muted)] line-clamp-2">
+            {action.description || 'No description'}
+          </p>
+        </div>
+        <div className="flex flex-col items-end gap-2">
+          {action.estimated_impact_kgco2 && (
+            <div className="text-right">
+              <span className="text-xs text-[var(--z-text-muted)]">Impact</span>
+              <p className="text-sm font-medium text-emerald-400">~{action.estimated_impact_kgco2} kg CO2</p>
+            </div>
           )}
-          {action.status === 'in_progress' && (
-            <button
-              onClick={() => handleStatusChange('completed')}
+          {nextStatus[action.status] && (
+            <ZButton
+              variant="primary"
+              size="sm"
+              onClick={() => handleStatusChange(nextStatus[action.status]!)}
               disabled={isUpdating}
-              className="text-xs px-3 py-1 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-600 rounded text-white transition-colors"
             >
-              {isUpdating ? '...' : 'Complete'}
-            </button>
+              {isUpdating ? '...' : action.status === 'planned' ? 'Start' : 'Complete'}
+            </ZButton>
           )}
         </div>
-      )}
-    </div>
+      </div>
+    </ZCard>
   );
 }
 
@@ -178,80 +230,56 @@ function CreateProfileForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <label className="block text-sm text-[var(--foreground)]/70 mb-1">Profile Name *</label>
-        <input
-          type="text"
+    <ZCard className="p-4">
+      <h3 className="text-lg font-semibold text-[var(--z-text-primary)] mb-4">Create Energy Profile</h3>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <ZInput
+          label="Profile Name"
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="My Home Energy Profile"
-          className="w-full p-2 bg-[var(--background)] border border-[var(--card-border)] rounded text-[var(--foreground)] text-sm focus:outline-none focus:border-green-500/50"
           required
         />
-      </div>
-      <div>
-        <label className="block text-sm text-[var(--foreground)]/70 mb-1">Profile Type</label>
-        <select
-          value={profileType}
-          onChange={(e) => setProfileType(e.target.value as 'household' | 'organization')}
-          className="w-full p-2 bg-[var(--background)] border border-[var(--card-border)] rounded text-[var(--foreground)] text-sm focus:outline-none focus:border-green-500/50"
-        >
-          <option value="household">Household</option>
-          <option value="organization">Organization</option>
-        </select>
-      </div>
-      <div>
-        <label className="block text-sm text-[var(--foreground)]/70 mb-1">Country</label>
-        <input
-          type="text"
-          value={country}
-          onChange={(e) => setCountry(e.target.value)}
-          placeholder="Denmark"
-          className="w-full p-2 bg-[var(--background)] border border-[var(--card-border)] rounded text-[var(--foreground)] text-sm focus:outline-none focus:border-green-500/50"
-        />
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm text-[var(--foreground)]/70 mb-1">Annual Energy (kWh)</label>
-          <input
+        <div className="grid grid-cols-2 gap-4">
+          <ZSelect
+            label="Profile Type"
+            value={profileType}
+            onChange={(e) => setProfileType(e.target.value as 'household' | 'organization')}
+            options={PROFILE_TYPE_OPTIONS}
+          />
+          <ZInput
+            label="Country"
+            value={country}
+            onChange={(e) => setCountry(e.target.value)}
+            placeholder="Denmark"
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <ZInput
+            label="Annual Energy (kWh)"
             type="number"
             value={annualEnergyKwh}
             onChange={(e) => setAnnualEnergyKwh(e.target.value)}
             placeholder="5000"
-            className="w-full p-2 bg-[var(--background)] border border-[var(--card-border)] rounded text-[var(--foreground)] text-sm focus:outline-none focus:border-green-500/50"
           />
-        </div>
-        <div>
-          <label className="block text-sm text-[var(--foreground)]/70 mb-1">Target Green %</label>
-          <input
+          <ZInput
+            label="Target Green %"
             type="number"
             value={targetGreenShare}
             onChange={(e) => setTargetGreenShare(e.target.value)}
             placeholder="100"
             min="0"
             max="100"
-            className="w-full p-2 bg-[var(--background)] border border-[var(--card-border)] rounded text-[var(--foreground)] text-sm focus:outline-none focus:border-green-500/50"
           />
         </div>
-      </div>
-      <div className="flex gap-2 pt-2">
-        <button
-          type="submit"
-          disabled={isSubmitting || !name.trim()}
-          className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded text-white text-sm transition-colors"
-        >
-          {isSubmitting ? 'Creating...' : 'Create Profile'}
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="px-4 py-2 bg-[var(--card-bg)] border border-[var(--card-border)] hover:border-[var(--primary)]/50 rounded text-[var(--foreground)] text-sm transition-colors"
-        >
-          Cancel
-        </button>
-      </div>
-    </form>
+        <div className="flex gap-2 justify-end pt-2">
+          <ZButton variant="ghost" onClick={onCancel}>Cancel</ZButton>
+          <ZButton variant="primary" type="submit" disabled={isSubmitting || !name.trim()}>
+            {isSubmitting ? 'Creating...' : 'Create Profile'}
+          </ZButton>
+        </div>
+      </form>
+    </ZCard>
   );
 }
 
@@ -289,77 +317,89 @@ function CreateActionForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <label className="block text-sm text-[var(--foreground)]/70 mb-1">Action Title *</label>
-        <input
-          type="text"
+    <ZCard className="p-4">
+      <h3 className="text-lg font-semibold text-[var(--z-text-primary)] mb-4">Create Green Action</h3>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <ZInput
+          label="Action Title"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Install solar panels"
-          className="w-full p-2 bg-[var(--background)] border border-[var(--card-border)] rounded text-[var(--foreground)] text-sm focus:outline-none focus:border-green-500/50"
           required
         />
-      </div>
-      <div>
-        <label className="block text-sm text-[var(--foreground)]/70 mb-1">Action Type</label>
-        <select
+        <ZSelect
+          label="Action Type"
           value={actionType}
           onChange={(e) => setActionType(e.target.value)}
-          className="w-full p-2 bg-[var(--background)] border border-[var(--card-border)] rounded text-[var(--foreground)] text-sm focus:outline-none focus:border-green-500/50"
-        >
-          <option value="energy_efficiency">Energy Efficiency</option>
-          <option value="renewable_energy">Renewable Energy</option>
-          <option value="transport">Transport</option>
-          <option value="heating_cooling">Heating/Cooling</option>
-          <option value="appliances">Appliances</option>
-          <option value="behavior_change">Behavior Change</option>
-          <option value="other">Other</option>
-        </select>
-      </div>
-      <div>
-        <label className="block text-sm text-[var(--foreground)]/70 mb-1">Description</label>
-        <textarea
+          options={ACTION_TYPE_OPTIONS}
+        />
+        <ZTextarea
+          label="Description"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Describe the action..."
           rows={2}
-          className="w-full p-2 bg-[var(--background)] border border-[var(--card-border)] rounded text-[var(--foreground)] text-sm focus:outline-none focus:border-green-500/50 resize-none"
         />
-      </div>
-      <div>
-        <label className="block text-sm text-[var(--foreground)]/70 mb-1">
-          Estimated Impact (kg CO2)
-        </label>
-        <input
+        <ZInput
+          label="Estimated Impact (kg CO2)"
           type="number"
           value={estimatedImpact}
           onChange={(e) => setEstimatedImpact(e.target.value)}
           placeholder="500"
-          className="w-full p-2 bg-[var(--background)] border border-[var(--card-border)] rounded text-[var(--foreground)] text-sm focus:outline-none focus:border-green-500/50"
         />
+        <div className="flex gap-2 justify-end pt-2">
+          <ZButton variant="ghost" onClick={onCancel}>Cancel</ZButton>
+          <ZButton variant="primary" type="submit" disabled={isSubmitting || !title.trim()}>
+            {isSubmitting ? 'Creating...' : 'Create Action'}
+          </ZButton>
+        </div>
+      </form>
+    </ZCard>
+  );
+}
+
+function ProfileDetailPane({ profile }: { profile: GoesGreenProfile }) {
+  const greenSharePercent = profile.grid_renewable_share_percent ?? 0;
+  const targetPercent = profile.target_green_share_percent ?? 100;
+
+  return (
+    <ZCard className="p-4">
+      <ZSectionHeader title="Energy Profile" className="mb-4" />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+        <div>
+          <span className="text-xs text-[var(--z-text-muted)]">Type</span>
+          <p className="text-sm font-medium text-[var(--z-text-primary)]">{profile.profile_type}</p>
+        </div>
+        {profile.country && (
+          <div>
+            <span className="text-xs text-[var(--z-text-muted)]">Country</span>
+            <p className="text-sm font-medium text-[var(--z-text-primary)]">{profile.country}</p>
+          </div>
+        )}
+        {profile.annual_energy_kwh && (
+          <div>
+            <span className="text-xs text-[var(--z-text-muted)]">Annual Energy</span>
+            <p className="text-sm font-medium text-[var(--z-text-primary)]">{profile.annual_energy_kwh.toLocaleString()} kWh</p>
+          </div>
+        )}
+        <div>
+          <span className="text-xs text-[var(--z-text-muted)]">Target</span>
+          <p className="text-sm font-medium text-emerald-400">{targetPercent}% green</p>
+        </div>
       </div>
-      <div className="flex gap-2 pt-2">
-        <button
-          type="submit"
-          disabled={isSubmitting || !title.trim()}
-          className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded text-white text-sm transition-colors"
-        >
-          {isSubmitting ? 'Creating...' : 'Create Action'}
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="px-4 py-2 bg-[var(--card-bg)] border border-[var(--card-border)] hover:border-[var(--primary)]/50 rounded text-[var(--foreground)] text-sm transition-colors"
-        >
-          Cancel
-        </button>
+      <div className="mt-4">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm text-[var(--z-text-muted)]">Green Energy Progress</span>
+          <span className="text-sm font-medium text-emerald-400">{greenSharePercent}%</span>
+        </div>
+        <ZProgress value={greenSharePercent} max={targetPercent} variant="success" />
       </div>
-    </form>
+    </ZCard>
   );
 }
 
 export default function GoesGreenPage() {
+  const { t } = useI18n();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const router = useRouter();
 
@@ -462,105 +502,78 @@ export default function GoesGreenPage() {
 
   const completedActions = actions.filter((a) => a.status === 'completed');
   const activeActions = actions.filter((a) => a.status === 'in_progress');
-  const plannedActions = actions.filter((a) => a.status === 'planned');
-  const totalImpact = completedActions.reduce(
-    (sum, a) => sum + (a.estimated_impact_kgco2 || 0),
-    0
-  );
+  const totalImpact = actions.reduce((sum, a) => {
+    if (a.status === 'completed' && a.estimated_impact_kgco2) {
+      return sum + a.estimated_impact_kgco2;
+    }
+    return sum;
+  }, 0);
 
   return (
     <AppShell>
       <div className="p-6 lg:p-8">
         <div className="max-w-7xl mx-auto">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-[var(--foreground)] mb-2">ZORA GOES GREEN</h1>
-            <p className="text-[var(--foreground)]/60">
-              Track your sustainable energy journey and green initiatives
-            </p>
+          <ZPageHeader
+            title={t('goesGreen.title', 'GOES GREEN')}
+            subtitle={t('goesGreen.subtitle', 'Track your energy transition and green actions')}
+            className="mb-6"
+          />
+
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              {selectedProfile && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-[var(--z-text-muted)]">Active Profile:</span>
+                  <span className="text-sm font-medium text-[var(--z-text-primary)]">{selectedProfile.name}</span>
+                  <ZBadge variant="success" size="sm">{selectedProfile.profile_type}</ZBadge>
+                </div>
+              )}
+            </div>
+            {profiles.length > 0 && (
+              <ProfileSelector
+                profiles={profiles}
+                selectedProfile={selectedProfile}
+                onSelect={setSelectedProfile}
+                onCreateNew={() => setShowCreateProfile(true)}
+              />
+            )}
           </div>
 
-          {error && (
-            <div className="mb-6 p-4 bg-red-900/20 border border-red-800 rounded-lg text-red-400">
-              {error}
-              <button
-                onClick={() => setError(null)}
-                className="ml-4 text-red-300 hover:text-red-200"
-              >
-                Dismiss
-              </button>
+          {isLoadingProfiles ? (
+            <ZLoadingState message="Loading energy profiles..." />
+          ) : error ? (
+            <ZErrorState message={error} onRetry={loadProfiles} />
+          ) : profiles.length === 0 ? (
+            <div className="space-y-6">
+              <ZEmptyState
+                title="No energy profiles yet"
+                description="Create your first energy profile to start tracking your green transition."
+                action={{ label: 'Create Profile', onClick: () => setShowCreateProfile(true) }}
+              />
+              {showCreateProfile && (
+                <CreateProfileForm onSubmit={handleCreateProfile} onCancel={() => setShowCreateProfile(false)} />
+              )}
             </div>
-          )}
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 space-y-6">
-              <Card variant="default" padding="md">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-semibold text-[var(--foreground)]">
-                    Energy Profiles
-                  </h2>
-                  <Button
-                    onClick={() => setShowCreateProfile(!showCreateProfile)}
-                    variant="outline"
-                    size="sm"
-                  >
-                    {showCreateProfile ? 'Cancel' : '+ New Profile'}
-                  </Button>
+          ) : selectedProfile ? (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2 space-y-6">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <ZMetricTile label="Total Actions" value={actions.length} sublabel="green initiatives" />
+                  <ZMetricTile label="Completed" value={completedActions.length} sublabel="actions done" variant="emerald" />
+                  <ZMetricTile label="In Progress" value={activeActions.length} sublabel="active now" variant="amber" />
+                  <ZMetricTile label="CO2 Saved" value={totalImpact > 0 ? `${totalImpact}` : '--'} sublabel="kg CO2 reduction" variant="emerald" />
                 </div>
 
-                {showCreateProfile && (
-                  <div className="mb-4 p-4 bg-[var(--background)] rounded-lg border border-[var(--card-border)]">
-                    <CreateProfileForm
-                      onSubmit={handleCreateProfile}
-                      onCancel={() => setShowCreateProfile(false)}
-                    />
-                  </div>
-                )}
+                <ProfileDetailPane profile={selectedProfile} />
 
-                {isLoadingProfiles ? (
-                  <div className="flex justify-center py-8">
-                    <LoadingSpinner />
-                  </div>
-                ) : profiles.length === 0 ? (
-                  <div className="text-center py-8 text-[var(--foreground)]/50">
-                    <p>No energy profiles yet.</p>
-                    <p className="text-sm mt-1">Create your first profile to start tracking.</p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {profiles.map((profile) => (
-                      <ProfileCard
-                        key={profile.id}
-                        profile={profile}
-                        isSelected={selectedProfile?.id === profile.id}
-                        onSelect={() => setSelectedProfile(profile)}
-                      />
-                    ))}
-                  </div>
-                )}
-              </Card>
-
-              {selectedProfile && (
-                <Card variant="default" padding="md">
+                <ZCard className="p-4">
                   <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <h2 className="text-lg font-semibold text-[var(--foreground)]">
-                        Green Actions
-                      </h2>
-                      <p className="text-sm text-[var(--foreground)]/60">
-                        for {selectedProfile.name}
-                      </p>
-                    </div>
-                    <Button
-                      onClick={() => setShowCreateAction(!showCreateAction)}
-                      variant="outline"
-                      size="sm"
-                    >
-                      {showCreateAction ? 'Cancel' : '+ New Action'}
-                    </Button>
+                    <ZSectionHeader title="Green Actions" />
+                    <ZButton variant="primary" size="sm" onClick={() => setShowCreateAction(true)}>+ New Action</ZButton>
                   </div>
 
                   {showCreateAction && (
-                    <div className="mb-4 p-4 bg-[var(--background)] rounded-lg border border-[var(--card-border)]">
+                    <div className="mb-4">
                       <CreateActionForm
                         profileId={selectedProfile.id}
                         onSubmit={handleCreateAction}
@@ -569,107 +582,57 @@ export default function GoesGreenPage() {
                     </div>
                   )}
 
-                  <div className="grid grid-cols-4 gap-4 mb-6 p-4 bg-[var(--background)] rounded-lg">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-[var(--foreground)]">
-                        {actions.length}
-                      </div>
-                      <div className="text-xs text-[var(--foreground)]/50">Total</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-blue-400">{plannedActions.length}</div>
-                      <div className="text-xs text-[var(--foreground)]/50">Planned</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-amber-400">{activeActions.length}</div>
-                      <div className="text-xs text-[var(--foreground)]/50">Active</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-emerald-400">
-                        {completedActions.length}
-                      </div>
-                      <div className="text-xs text-[var(--foreground)]/50">Done</div>
-                    </div>
-                  </div>
-
-                  {totalImpact > 0 && (
-                    <div className="mb-4 p-3 bg-emerald-900/20 border border-emerald-800/50 rounded-lg text-center">
-                      <span className="text-emerald-400 font-semibold">
-                        {totalImpact.toFixed(1)} kg CO2
-                      </span>{' '}
-                      <span className="text-[var(--foreground)]/60">saved from completed actions</span>
-                    </div>
-                  )}
-
                   {isLoadingActions ? (
-                    <div className="flex justify-center py-8">
-                      <LoadingSpinner />
-                    </div>
+                    <ZLoadingState message="Loading actions..." size="sm" />
                   ) : actions.length === 0 ? (
-                    <div className="text-center py-8 text-[var(--foreground)]/50">
-                      <p>No actions yet for this profile.</p>
-                      <p className="text-sm mt-1">
-                        Create an action or ask FREYA for suggestions.
-                      </p>
-                    </div>
+                    <ZEmptyState
+                      title="No actions yet"
+                      description="Create your first green action to start your energy transition!"
+                      action={{ label: 'Create Action', onClick: () => setShowCreateAction(true) }}
+                      size="sm"
+                    />
                   ) : (
-                    <div className="space-y-3 max-h-96 overflow-y-auto">
+                    <div className="space-y-3 max-h-[500px] overflow-y-auto">
                       {actions.map((action) => (
-                        <ActionCard
-                          key={action.id}
-                          action={action}
-                          onStatusChange={handleStatusChange}
-                        />
+                        <ActionRow key={action.id} action={action} onStatusChange={handleStatusChange} />
                       ))}
                     </div>
                   )}
-                </Card>
-              )}
+                </ZCard>
+              </div>
+
+              <div className="space-y-6">
+                <AgentPanel
+                  context="goes_green"
+                  profileId={selectedProfile.id}
+                  title="Ask THOR"
+                  description="Nordic agent for energy and infrastructure"
+                  onSuggestionSelect={handleSuggestionSelect}
+                />
+
+                <ZCard className="p-4">
+                  <ZSectionHeader title="Quick Actions" className="mb-3" />
+                  <div className="space-y-2">
+                    <ZButton variant="secondary" className="w-full justify-start" href="/climate">Climate OS</ZButton>
+                    <ZButton variant="secondary" className="w-full justify-start" href="/simulation">Run Simulation</ZButton>
+                    <ZButton variant="secondary" className="w-full justify-start" href="/foundation">Support Projects</ZButton>
+                  </div>
+                </ZCard>
+              </div>
             </div>
-
-            <div className="space-y-6">
-              <AgentPanel
-                context="goes_green"
-                profileId={selectedProfile?.id}
-                title="Ask FREYA"
-                description="Nordic agent for energy transition intelligence"
-                onSuggestionSelect={handleSuggestionSelect}
-              />
-
-              <Card variant="bordered" padding="md">
-                <h3 className="font-semibold text-[var(--foreground)] mb-3">Quick Stats</h3>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-[var(--foreground)]/60">Total Profiles</span>
-                    <span className="font-medium text-[var(--foreground)]">{profiles.length}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-[var(--foreground)]/60">Total Actions</span>
-                    <span className="font-medium text-[var(--foreground)]">{actions.length}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-[var(--foreground)]/60">Completion Rate</span>
-                    <span className="font-medium text-emerald-400">
-                      {actions.length > 0
-                        ? ((completedActions.length / actions.length) * 100).toFixed(0)
-                        : 0}
-                      %
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-[var(--foreground)]/60">CO2 Saved</span>
-                    <span className="font-medium text-emerald-400">{totalImpact.toFixed(1)} kg</span>
-                  </div>
-                </div>
-              </Card>
-
-              <Button href="/dashboard" variant="outline" className="w-full">
-                Back to Desk
-              </Button>
-            </div>
-          </div>
+          ) : (
+            <ZEmptyState title="Select a profile" description="Choose an energy profile to view its data and actions." />
+          )}
         </div>
       </div>
+
+      {showCreateProfile && profiles.length > 0 && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="max-w-lg w-full">
+            <CreateProfileForm onSubmit={handleCreateProfile} onCancel={() => setShowCreateProfile(false)} />
+          </div>
+        </div>
+      )}
     </AppShell>
   );
 }

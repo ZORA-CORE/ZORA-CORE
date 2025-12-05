@@ -71,32 +71,51 @@
     "impact": "Total Impact",
     "contribute": "Contribute"
   },
-  "academy": {
-    "title": "Climate Academy",
-    "subtitle": "Learn about climate action",
-    "topics": "Topics",
-    "lessons": "Lessons",
-    "learningPaths": "Learning Paths"
-  },
-  "simulation": {
-    "title": "Simulation Studio",
-    "subtitle": "Model climate scenarios and predict outcomes",
-    "runSimulation": "Run Simulation",
-    "before": "Before",
-    "after": "After",
-    "delta": "Delta",
-    "scenarios": "Scenarios"
-  },
-  "agents": {
-    "title": "Agents & Autonomy",
-    "subtitle": "AI agents working for climate",
-    "commands": "Commands",
-    "pendingTasks": "Pending Tasks",
-    "completedTasks": "Completed",
-    "failedTasks": "Failed",
-    "activeSchedules": "Active Schedules",
-    "pendingApproval": "Pending Approval"
-  },
+    "academy": {
+      "title": "Climate Academy",
+      "subtitle": "Learn about climate science, sustainability, and take meaningful action",
+      "topics": "Topics",
+      "lessons": "Lessons",
+      "modules": "Modules",
+      "learningPaths": "Learning Paths",
+      "yourProgress": "Your Progress",
+      "completed": "Completed",
+      "inProgress": "In Progress"
+    },
+    "simulation": {
+      "title": "Simulation Studio",
+      "subtitle": "Run 'what if' climate scenarios to see BEFORE/AFTER impact",
+      "runSimulation": "Run Simulation",
+      "before": "Before",
+      "after": "After",
+      "delta": "Delta",
+      "scenarios": "Scenarios",
+      "scenarioBuilder": "Scenario Builder",
+      "timeHorizon": "Time Horizon",
+      "quickPresets": "Quick Presets",
+      "results": "Simulation Results",
+      "confidence": "Confidence"
+    },
+    "agents": {
+      "title": "Agents & Autonomy",
+      "subtitle": "AI agents working for climate",
+      "commands": "Commands",
+      "pendingTasks": "Pending Tasks",
+      "completedTasks": "Completed",
+      "failedTasks": "Failed",
+      "activeSchedules": "Active Schedules",
+      "pendingApproval": "Pending Approval"
+    },
+    "devConsole": {
+      "title": "Brain & Agents Console",
+      "subtitle": "System stats, agent activity, and knowledge overview",
+      "systemOverview": "System Overview",
+      "worldModel": "World Model Stats",
+      "systemHealth": "System Health",
+      "agentActivity": "Agent Activity",
+      "knowledge": "Knowledge & Domains",
+      "quickActions": "Quick Actions"
+    },
   "billing": {
     "title": "Plans & Pricing",
     "subtitle": "Choose the right plan for your climate journey",
