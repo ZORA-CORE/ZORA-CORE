@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useId } from 'react';
 
 export interface ZSelectOption {
   value: string;
@@ -30,7 +30,8 @@ export function ZSelect({
   id,
   ...props
 }: ZSelectProps) {
-  const selectId = id || `z-select-${Math.random().toString(36).substr(2, 9)}`;
+  const generatedId = useId();
+  const selectId = id || `z-select-${generatedId}`;
 
   const sizeStyles = {
     sm: 'px-2.5 py-1.5 text-xs',

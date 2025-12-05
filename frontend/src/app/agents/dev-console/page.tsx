@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { AppShell } from '@/components/layout';
 import { useAuth } from '@/lib/AuthContext';
@@ -100,7 +100,7 @@ export default function DevConsolePage() {
     }
   }, [isAuthenticated, router]);
 
-  const fetchAllData = async () => {
+  const fetchAllData = useCallback(async () => {
     setRefreshing(true);
 
     const [manifest, worldModel, health, knowledge, domains, tasks, commands] = await Promise.all([
@@ -135,14 +135,20 @@ export default function DevConsolePage() {
 
     setLoading(false);
     setRefreshing(false);
-  };
+  }, []);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      fetchAllData();
-    } else {
-      setLoading(false);
-    }
+    let isMounted = true;
+    const loadData = async () => {
+      if (isAuthenticated) {
+        await fetchAllData();
+      } else {
+        if (isMounted) setLoading(false);
+      }
+    };
+    loadData();
+    return () => { isMounted = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
 
   const formatDate = (dateStr: string) => {

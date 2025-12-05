@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useId } from 'react';
 
 export interface ZInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'size'> {
   label?: string;
@@ -24,7 +24,8 @@ export function ZInput({
   id,
   ...props
 }: ZInputProps) {
-  const inputId = id || `z-input-${Math.random().toString(36).substr(2, 9)}`;
+  const generatedId = useId();
+  const inputId = id || `z-input-${generatedId}`;
 
   const sizeStyles = {
     sm: 'px-2.5 py-1.5 text-xs',
@@ -102,7 +103,8 @@ export function ZTextarea({
   rows = 3,
   ...props
 }: ZTextareaProps) {
-  const textareaId = id || `z-textarea-${Math.random().toString(36).substr(2, 9)}`;
+  const generatedTextareaId = useId();
+  const textareaId = id || `z-textarea-${generatedTextareaId}`;
 
   return (
     <div className={`${fullWidth ? 'w-full' : ''}`}>
