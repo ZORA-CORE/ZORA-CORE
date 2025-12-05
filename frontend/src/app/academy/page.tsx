@@ -206,7 +206,7 @@ export default function AcademyPage() {
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
-      router.push('/login');
+      router.replace('/login');
     }
   }, [isAuthenticated, authLoading, router]);
 

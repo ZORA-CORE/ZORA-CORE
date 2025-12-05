@@ -22,9 +22,20 @@ export default function LoginPage() {
   const [showLegacyLogin, setShowLegacyLogin] = useState(false);
   const [legacyToken, setLegacyToken] = useState('');
 
+  // Redirect authenticated users away from login page
+  // CRITICAL: Only redirect when auth state is fully loaded to prevent redirect loops
   useEffect(() => {
-    if (!isLoading && isAuthenticated && !showSuccess) {
-      router.push('/dashboard');
+    // Don't redirect while auth state is loading
+    if (isLoading) {
+      return;
+    }
+    // Don't redirect if showing success screen (user just logged in)
+    if (showSuccess) {
+      return;
+    }
+    // Redirect authenticated users to dashboard
+    if (isAuthenticated) {
+      router.replace('/dashboard');
     }
   }, [isAuthenticated, isLoading, router, showSuccess]);
 
@@ -87,9 +98,9 @@ export default function LoginPage() {
     setIsSubmitting(false);
   };
 
-  const handleContinue = () => {
-    router.push('/dashboard');
-  };
+    const handleContinue = () => {
+      router.replace('/dashboard');
+    };
 
   if (isLoading) {
     return (

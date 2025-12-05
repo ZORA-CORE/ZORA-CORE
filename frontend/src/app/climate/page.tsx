@@ -2,6 +2,8 @@
 
 import Link from 'next/link';
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/AuthContext';
 import {
   getClimateProfiles,
   getClimateMissions,
@@ -569,6 +571,8 @@ function CreateProfileModal({
 
 export default function ClimatePage() {
   const { t } = useI18n();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const router = useRouter();
   const [profiles, setProfiles] = useState<ClimateProfile[]>([]);
   const [selectedProfile, setSelectedProfile] = useState<ClimateProfile | null>(null);
   const [missions, setMissions] = useState<ClimateMission[]>([]);
@@ -585,6 +589,17 @@ export default function ClimatePage() {
   const [bootstrapping, setBootstrapping] = useState(false);
   const [askingOracle, setAskingOracle] = useState(false);
   const [oracleMessage, setOracleMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Redirect unauthenticated users to login
+  // CRITICAL: Only redirect when auth state is fully loaded to prevent redirect loops
+  useEffect(() => {
+    if (authLoading) {
+      return;
+    }
+    if (!isAuthenticated) {
+      router.replace('/login');
+    }
+  }, [isAuthenticated, authLoading, router]);
 
   useEffect(() => {
     async function loadConfig() {
@@ -756,6 +771,17 @@ export default function ClimatePage() {
       return sum + (typeof co2 === 'number' ? co2 : 0);
     }, 0),
   };
+
+  // Show loading state while auth is being checked
+  if (authLoading || !isAuthenticated) {
+    return (
+      <AppShell>
+        <div className="min-h-[60vh] flex items-center justify-center">
+          <ZLoadingState message="Loading..." />
+        </div>
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell>
