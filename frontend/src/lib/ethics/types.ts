@@ -7,7 +7,22 @@ export type AgentId = 'odin' | 'thor' | 'baldur' | 'tyr' | 'eivor' | 'freya' | '
 
 export type ValidationVerdict = 'approved' | 'needs_revision' | 'rejected' | 'blocked';
 
-export type ClaimType = 'emission' | 'impact' | 'offset' | 'comparison' | 'projection' | 'product' | 'certification';
+export type ClaimType = 
+  | 'emission' 
+  | 'impact' 
+  | 'offset' 
+  | 'comparison' 
+  | 'projection' 
+  | 'product' 
+  | 'certification'
+  | 'emissions_reduction'
+  | 'carbon_neutral'
+  | 'renewable_energy'
+  | 'sustainable_materials'
+  | 'biodiversity'
+  | 'water_conservation'
+  | 'waste_reduction'
+  | 'climate_impact';
 
 export type SecurityThreatLevel = 'none' | 'low' | 'medium' | 'high' | 'critical';
 
@@ -302,6 +317,7 @@ export interface SatelliteDataResult {
     resolution: string;
     coverage: string;
     quality: number;
+    source?: string;
   };
 }
 
