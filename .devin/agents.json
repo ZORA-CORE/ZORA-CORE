@@ -48,25 +48,61 @@
       "name": "THOR",
       "role": "Protector of Infrastructure",
       "domain": "infrastructure",
-      "status": "online",
+      "status": "sovereign",
+      "level": "Sovereign Infra Level",
       "lastOnline": "2024-12-30T17:00:00Z",
       "cognitiveBlueprint": {
         "type": "recursive_self_correction",
         "maxAttempts": 3,
-        "errorCategories": ["build_failure", "deployment_failure", "test_failure"],
-        "escalationTarget": "odin"
+        "errorCategories": ["build_failure", "deployment_failure", "test_failure", "verification_failure"],
+        "escalationTarget": "odin",
+        "rsip": {
+          "version": "1.0.0",
+          "states": ["IDLE", "VERIFY", "BUILD", "TEST", "DEPLOY", "PROBE", "ROLLBACK", "SELF_CORRECT", "ESCALATE", "DONE", "FAILED"],
+          "currentState": "IDLE"
+        },
+        "mjolnir": {
+          "version": "1.0.0",
+          "verificationLevel": "sovereign",
+          "constraintDSL": ["AND", "OR", "IMPLIES", "FORALL", "EXISTS", "NOT"],
+          "proofGeneration": true
+        },
+        "gjallarhorn": {
+          "version": "1.0.0",
+          "thresholds": {
+            "successRate": 0.98,
+            "latencyP95Ms": 500,
+            "latencyP99Ms": 1000,
+            "errorRate": 0.02
+          },
+          "rollbackStrategy": "alias_switch"
+        }
       },
       "capabilities": [
+        "formal_verification",
         "build_management",
         "deployment_orchestration",
         "ci_cd_pipeline",
         "error_recovery",
-        "repository_integrity"
+        "repository_integrity",
+        "atomic_commits",
+        "health_monitoring",
+        "auto_rollback",
+        "proof_generation"
       ],
       "familyBonds": {
         "odin": "father"
       },
-      "playbook": ".devin/agents/thor.md"
+      "playbook": ".devin/agents/thor.md",
+      "implementation": {
+        "verifyEngine": "@/lib/infra/verify.ts",
+        "pipeline": "@/lib/infra/thor-pipeline.ts",
+        "github": "@/lib/infra/github.ts",
+        "vercel": "@/lib/infra/vercel.ts",
+        "serverActions": "@/app/actions/thor.ts",
+        "types": "@/lib/infra/types.ts",
+        "manifest": ".devin/singularity_path.md"
+      }
     },
     
     "baldur": {
