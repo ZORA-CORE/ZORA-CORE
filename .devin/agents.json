@@ -107,31 +107,69 @@
       }
     },
     
-    "baldur": {
-      "id": "baldur",
-      "name": "BALDUR",
-      "role": "Radiant UX/UI",
-      "domain": "design",
-      "status": "online",
-      "lastOnline": "2024-12-30T17:00:00Z",
-      "cognitiveBlueprint": {
-        "type": "shadcn_mcp_integration",
-        "server": "shadcn-mcp",
-        "accuracyTarget": 1.0,
-        "accessibilityStandard": "WCAG 2.1 AA"
-      },
-      "capabilities": [
-        "component_architecture",
-        "design_system_management",
-        "accessibility_compliance",
-        "performance_optimization",
-        "ai_elements_integration"
-      ],
-      "familyBonds": {
-        "odin": "advisor_to"
-      },
-      "playbook": ".devin/agents/baldur.md"
-    },
+        "baldur": {
+          "id": "baldur",
+          "name": "BALDUR",
+          "role": "High-Fidelity Interface Architect",
+          "domain": "visual_intelligence",
+          "status": "sovereign",
+          "level": "Visual Intelligence Level",
+          "lastOnline": "2024-12-30T18:00:00Z",
+          "memoryHash": "d4e5f6789012345a",
+          "cognitiveBlueprint": {
+            "type": "visual_intelligence_layer",
+            "accuracyTarget": 1.0,
+            "accessibilityStandard": "WCAG 2.1 AA",
+            "asgardDashboard": {
+              "framework": "Next.js 15",
+              "rendering": "PPR",
+              "styling": "Tailwind 4",
+              "lighthouseTarget": 100
+            },
+            "generativeUI": {
+              "sdk": "ai@latest",
+              "engine": "streamUI",
+              "aiElements": ["Reasoning", "Tool", "Sources"]
+            },
+            "vlmSelfHealing": {
+              "enabled": true,
+              "confidenceThreshold": 0.7,
+              "maxRetries": 3,
+              "autoFix": false
+            },
+            "shadcnMCP": {
+              "client": "@/lib/shadcn/mcp-integration.ts",
+              "wcagLevel": "AA"
+            }
+          },
+          "capabilities": [
+            "component_architecture",
+            "design_system_management",
+            "accessibility_compliance",
+            "performance_optimization",
+            "ai_elements_integration",
+            "generative_ui",
+            "stream_ui_rendering",
+            "vlm_error_detection",
+            "self_healing_ui",
+            "agent_monitoring",
+            "lighthouse_optimization"
+          ],
+          "familyBonds": {
+            "odin": "advisor_to"
+          },
+          "playbook": ".devin/agents/baldur.md",
+          "implementation": {
+            "renderEngine": "@/lib/ai/render-engine.tsx",
+            "aiTypes": "@/lib/ai/types.ts",
+            "vlmSelfHealing": "@/lib/vlm/self-healing.ts",
+            "vlmTypes": "@/lib/vlm/types.ts",
+            "shadcnMCP": "@/lib/shadcn/mcp-integration.ts",
+            "aiElements": "@/app/dashboard/components/ai-elements/",
+            "agentMatrix": "@/app/dashboard/components/AgentMonitoringMatrix.tsx",
+            "agentsAPI": "@/app/api/agents/registry/route.ts"
+          }
+        },
     
     "tyr": {
       "id": "tyr",
@@ -328,15 +366,15 @@
           "vectorCount": 0
         }
       },
-      "agentMemoryHashes": {
-        "odin": "a1b2c3d4e5f67890",
-        "thor": "b2c3d4e5f6789012",
-        "baldur": "pending",
-        "tyr": "pending",
-        "eivor": "c3d4e5f678901234",
-        "freya": "pending",
-        "heimdall": "pending"
-      },
+            "agentMemoryHashes": {
+              "odin": "a1b2c3d4e5f67890",
+              "thor": "b2c3d4e5f6789012",
+              "baldur": "d4e5f6789012345a",
+              "tyr": "pending",
+              "eivor": "c3d4e5f678901234",
+              "freya": "pending",
+              "heimdall": "pending"
+            },
       "sicaProtocol": {
         "status": "ready",
         "totalPostMortems": 0,
