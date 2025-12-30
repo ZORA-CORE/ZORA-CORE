@@ -18,7 +18,7 @@
     "@zoracore/i18n": "workspace:*",
     "@zoracore/ui": "workspace:*",
     "lucide-react": "0.344.0",
-    "next": "14.2.4",
+    "next": "14.2.35",
     "react": "18.3.1",
     "react-dom": "18.3.1"
   },
