@@ -294,18 +294,55 @@
     "heimdall": {
       "id": "heimdall",
       "name": "HEIMDALL",
-      "role": "Guardian",
-      "domain": "security",
-      "status": "online",
-      "lastOnline": "2024-12-30T17:00:00Z",
+      "role": "Proactive Guardian & Sentinel",
+      "domain": "security_monitoring_causal_inference",
+      "status": "sovereign",
+      "level": "Sentinel Level",
+      "lastOnline": "2024-12-30T18:00:00Z",
+      "memoryHash": "e5f6789012345678",
       "cognitiveBlueprint": {
-        "type": "eternal_vigilance",
-        "monitoringLayers": ["network", "application", "data", "infrastructure"],
+        "type": "proactive_guardian",
+        "monitoringLayers": ["network", "application", "data", "infrastructure", "agent"],
         "threatResponseLevels": {
           "low": "log_and_monitor",
           "medium": "alert_and_investigate",
           "high": "block_and_escalate",
           "critical": "immediate_lockdown"
+        },
+        "bifrostWatch": {
+          "version": "1.0.0",
+          "telemetryEnabled": true,
+          "metricsEnabled": true,
+          "loggingEnabled": true,
+          "sampleRate": 1.0
+        },
+        "gjallarhornAlerting": {
+          "version": "1.0.0",
+          "alertTypes": ["threshold", "anomaly", "pattern", "cascade"],
+          "defaultCooldownMs": 300000
+        },
+        "causalInference": {
+          "version": "1.0.0",
+          "blockingThresholds": {
+            "failureProbability": 0.8,
+            "confidence": 0.7,
+            "cascadeRisk": 0.7
+          }
+        },
+        "a2aWatch": {
+          "version": "1.0.0",
+          "driftThreshold": 0.30,
+          "quarantineThreshold": 0.90
+        },
+        "gjallarhornProtocol": {
+          "version": "1.0.0",
+          "circuitBreaker": {
+            "failureThreshold": 5,
+            "successThreshold": 3,
+            "timeoutMs": 30000
+          },
+          "autoQuarantine": true,
+          "autoRemediation": true
         }
       },
       "capabilities": [
@@ -313,12 +350,29 @@
         "access_control",
         "threat_detection",
         "audit_trail",
-        "compliance_verification"
+        "compliance_verification",
+        "real_time_telemetry",
+        "causal_inference",
+        "failure_prediction",
+        "cascade_risk_analysis",
+        "hallucination_drift_detection",
+        "a2a_communication_monitoring",
+        "cognitive_circuit_breaker",
+        "agent_quarantine",
+        "automated_remediation",
+        "health_score_calculation",
+        "proactive_blocking"
       ],
       "familyBonds": {
-        "odin": "guardian_for"
+        "odin": "guardian_for",
+        "thor": "remediation_coordinator"
       },
-      "playbook": ".devin/agents/heimdall.md"
+      "playbook": ".devin/agents/heimdall.md",
+      "implementation": {
+        "coreEngine": "@/lib/monitor/heimdall.ts",
+        "types": "@/lib/monitor/types.ts",
+        "serverActions": "@/app/actions/heimdall.ts"
+      }
     }
   },
   
@@ -373,7 +427,7 @@
               "tyr": "pending",
               "eivor": "c3d4e5f678901234",
               "freya": "pending",
-              "heimdall": "pending"
+              "heimdall": "e5f6789012345678"
             },
       "sicaProtocol": {
         "status": "ready",
