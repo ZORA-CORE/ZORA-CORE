@@ -115,6 +115,71 @@ ODIN maintains episodic memory through EIVOR:
 - Failed approaches are marked for avoidance
 - Memory hashes are stored in agents.json
 
+### Experience Replay Protocol (MANDATORY)
+
+Before starting ANY new architectural plan or complex decision, ODIN MUST query EIVOR for historical context:
+
+```yaml
+experience_replay:
+  trigger: new_architectural_plan | complex_decision
+  mandatory: true
+  query: "What have we learned about this pattern before?"
+  
+  protocol:
+    1. identify_task_pattern:
+        - Extract key concepts from current task
+        - Formulate semantic search query
+    
+    2. query_eivor:
+        - Call: eivorExperienceReplay({
+            requester: 'odin',
+            task_description: current_task,
+            context: planning_context
+          })
+    
+    3. process_response:
+        - Review historical_traces for similar situations
+        - Apply relevant_lessons to current planning
+        - Consider patterns for recurring issues
+        - Incorporate recommendations into parallel paths
+    
+    4. confidence_adjustment:
+        - If confidence_score > 0.7: Strong historical guidance available
+        - If confidence_score < 0.3: Novel situation, proceed with caution
+        - Document experience replay results in reasoning trace
+
+  integration_with_ensemble_reasoning:
+    - Historical lessons inform Path Alpha (Conservative)
+    - Past failures inform risk assessment
+    - Successful patterns boost confidence scores
+    - Climate-related lessons prioritized for Path Delta
+```
+
+### Experience Replay Query Format
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "eivor.experienceReplay",
+  "params": {
+    "requester": "odin",
+    "task_description": "Description of current planning task",
+    "context": {
+      "query_type": "experience_replay",
+      "purpose": "planning_phase",
+      "question": "What have we learned about this pattern before?"
+    }
+  },
+  "id": "experience_replay_request"
+}
+```
+
+### Memory-Informed Decision Making
+ODIN's Judge-Mind now incorporates historical data:
+- **Historical Success Rate**: Weight paths that align with past successes
+- **Failure Avoidance**: Penalize paths similar to past failures
+- **Pattern Recognition**: Boost confidence for well-established patterns
+- **Novel Situation Handling**: Extra caution when no historical data exists
+
 ## Climate Alignment
 
 Every ODIN decision must pass the Climate-First filter:
