@@ -5,14 +5,15 @@
   "status": "initialized",
   
   "agents": {
-    "odin": {
-      "id": "odin",
-      "name": "ODIN",
-      "role": "All-Father Orchestrator",
-      "domain": "architecture",
-      "status": "online",
-      "lastOnline": "2024-12-30T17:00:00Z",
-      "cognitiveBlueprint": {
+        "odin": {
+          "id": "odin",
+          "name": "ODIN",
+          "role": "All-Father Orchestrator",
+          "domain": "architecture",
+          "status": "online",
+          "lastOnline": "2024-12-30T18:00:00Z",
+          "memoryHash": "a1b2c3d4e5f67890",
+          "cognitiveBlueprint": {
         "type": "ensemble_reasoning",
         "parallelPaths": 4,
         "strategies": ["conservative", "progressive", "holistic", "climate-first"],
@@ -43,15 +44,16 @@
       "playbook": ".devin/agents/odin.md"
     },
     
-    "thor": {
-      "id": "thor",
-      "name": "THOR",
-      "role": "Protector of Infrastructure",
-      "domain": "infrastructure",
-      "status": "sovereign",
-      "level": "Sovereign Infra Level",
-      "lastOnline": "2024-12-30T17:00:00Z",
-      "cognitiveBlueprint": {
+        "thor": {
+          "id": "thor",
+          "name": "THOR",
+          "role": "Protector of Infrastructure",
+          "domain": "infrastructure",
+          "status": "sovereign",
+          "level": "Sovereign Infra Level",
+          "lastOnline": "2024-12-30T18:00:00Z",
+          "memoryHash": "b2c3d4e5f6789012",
+          "cognitiveBlueprint": {
         "type": "recursive_self_correction",
         "maxAttempts": 3,
         "errorCategories": ["build_failure", "deployment_failure", "test_failure", "verification_failure"],
@@ -161,31 +163,70 @@
       "playbook": ".devin/agents/tyr.md"
     },
     
-    "eivor": {
-      "id": "eivor",
-      "name": "EIVOR",
-      "role": "Sage of Memory",
-      "domain": "memory",
-      "status": "online",
-      "lastOnline": "2024-12-30T17:00:00Z",
-      "cognitiveBlueprint": {
-        "type": "episodic_memory",
-        "hashAlgorithm": "sha256",
-        "storageLocations": ["agents.json", "bifrost_commits"],
-        "eventTypes": ["pr_review", "build_failure", "deployment", "validation", "decision"]
-      },
-      "capabilities": [
-        "memory_storage",
-        "memory_retrieval",
-        "pattern_analysis",
-        "learning_synthesis",
-        "knowledge_distribution"
-      ],
-      "familyBonds": {
-        "odin": "memory_keeper_for"
-      },
-      "playbook": ".devin/agents/eivor.md"
-    },
+        "eivor": {
+          "id": "eivor",
+          "name": "EIVOR",
+          "role": "Sage of Memory",
+          "domain": "memory",
+          "status": "sovereign",
+          "level": "Cognitive Sovereignty Level",
+          "lastOnline": "2024-12-30T18:00:00Z",
+          "cognitiveBlueprint": {
+            "type": "episodic_memory",
+            "hashAlgorithm": "sha256",
+            "storageLocations": ["hot_memory", "semantic_memory", "agents.json", "bifrost_commits"],
+            "eventTypes": ["pr_review", "build_failure", "deployment", "validation", "decision", "initialization", "learning"],
+            "wellOfMimir": {
+              "version": "1.0.0",
+              "hotMemory": {
+                "backend": "vercel_kv",
+                "maxEntries": 10,
+                "ttlMs": 3600000
+              },
+              "semanticMemory": {
+                "backend": "pinecone",
+                "indexName": "eivor-memory",
+                "namespace": "zora-core",
+                "embeddingModel": "multilingual-e5-large"
+              }
+            },
+            "sicaProtocol": {
+              "version": "1.0.0",
+              "phases": ["analyzing", "extracting", "updating", "complete"],
+              "maxLessonsPerPostMortem": 3,
+              "autoPlaybookUpdate": true
+            },
+            "trajectoryEncoding": {
+              "format": "context_action_outcome",
+              "importanceScoring": true,
+              "memoryHashing": "sha256_16"
+            }
+          },
+          "capabilities": [
+            "memory_storage",
+            "memory_retrieval",
+            "pattern_analysis",
+            "learning_synthesis",
+            "knowledge_distribution",
+            "trajectory_encoding",
+            "semantic_search",
+            "experience_replay",
+            "post_mortem_analysis",
+            "recursive_learning"
+          ],
+          "familyBonds": {
+            "odin": "memory_keeper_for"
+          },
+          "playbook": ".devin/agents/eivor.md",
+          "implementation": {
+            "memoryEngine": "@/lib/memory/engine.ts",
+            "hotMemory": "@/lib/memory/hot-memory.ts",
+            "semanticMemory": "@/lib/memory/semantic-memory.ts",
+            "sicaProtocol": "@/lib/memory/sica-protocol.ts",
+            "serverActions": "@/app/actions/eivor.ts",
+            "types": "@/lib/memory/types.ts"
+          }
+        },
     
     "freya": {
       "id": "freya",
@@ -261,19 +302,48 @@
     }
   },
   
-  "memory": {
-    "totalMemories": 0,
-    "patternsIdentified": 0,
-    "lessonsSynthesized": 0,
-    "recentHashes": [],
-    "memoryIndex": {
-      "recent": [],
-      "byType": {},
-      "byAgent": {}
+    "memory": {
+      "totalMemories": 0,
+      "patternsIdentified": 0,
+      "lessonsSynthesized": 0,
+      "recentHashes": [],
+      "memoryIndex": {
+        "recent": [],
+        "byType": {},
+        "byAgent": {}
+      },
+      "patterns": {},
+      "lessons": [],
+      "wellOfMimir": {
+        "status": "active",
+        "hotMemory": {
+          "backend": "vercel_kv",
+          "entriesCount": 0,
+          "maxEntries": 10
+        },
+        "semanticMemory": {
+          "backend": "pinecone",
+          "indexName": "eivor-memory",
+          "namespace": "zora-core",
+          "vectorCount": 0
+        }
+      },
+      "agentMemoryHashes": {
+        "odin": "a1b2c3d4e5f67890",
+        "thor": "b2c3d4e5f6789012",
+        "baldur": "pending",
+        "tyr": "pending",
+        "eivor": "c3d4e5f678901234",
+        "freya": "pending",
+        "heimdall": "pending"
+      },
+      "sicaProtocol": {
+        "status": "ready",
+        "totalPostMortems": 0,
+        "lessonsExtracted": 0,
+        "playbooksUpdated": []
+      }
     },
-    "patterns": {},
-    "lessons": []
-  },
   
   "bifrost": {
     "status": "connected",
