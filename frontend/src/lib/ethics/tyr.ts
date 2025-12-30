@@ -1138,12 +1138,12 @@ export class ClimateIntegrityValidator {
       const parametersStr = parameters.join(',');
 
       // Use climatology endpoint for long-term averages
-      // NASA POWER API is free and doesn't require authentication, but we can use api.nasa.gov for other endpoints
-      const nasaApiKey = this.nasaConfig.apiKey || process.env.NASA_API_KEY || 'DEMO_KEY';
+      // NASA POWER API is free and doesn't require authentication, but we store the key for other NASA endpoints (api.nasa.gov)
+      const hasNasaApiKey = !!(this.nasaConfig.apiKey || process.env.NASA_API_KEY);
       const url = `https://power.larc.nasa.gov/api/temporal/climatology/point?parameters=${parametersStr}&community=RE&longitude=${lon}&latitude=${lat}&format=JSON`;
 
       this.addTrace(`NASA POWER API URL: ${url}`);
-      this.addTrace(`Using NASA API key: ${nasaApiKey.substring(0, 8)}...`);
+      this.addTrace(`NASA API key configured: ${hasNasaApiKey}`);
 
       const response = await fetch(url, {
         method: 'GET',
