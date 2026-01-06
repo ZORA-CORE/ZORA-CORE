@@ -681,9 +681,101 @@
     }
   },
   
-  "bifrost": {
-    "status": "connected",
-    "version": "1.0.0",
+    "sovereignRuntime": {
+      "version": "1.0.0",
+      "status": "active",
+      "protocol": "The Soul's Shell - Fluid Compute Migration",
+      "description": "Sovereign runtime enabling agents to operate independently on Vercel without Devin platform",
+      "config": {
+        "baseUrl": "https://zora-core.vercel.app/api/agents",
+        "kvNamespace": "eivor-memory",
+        "githubRepo": "ZORA-CORE/ZORA-CORE",
+        "playbookPath": ".devin/agents",
+        "maxThinkingTime": 900000,
+        "stateCheckpointInterval": 30000,
+        "enableFluidCompute": true
+      },
+      "divineAddresses": {
+        "odin": {
+          "endpoint": "/api/agents/odin",
+          "meshAddress": "mesh://odin.asgard.zora",
+          "fullUrl": "https://zora-core.vercel.app/api/agents/odin",
+          "status": "active"
+        },
+        "thor": {
+          "endpoint": "/api/agents/thor",
+          "meshAddress": "mesh://thor.asgard.zora",
+          "fullUrl": "https://zora-core.vercel.app/api/agents/thor",
+          "status": "active"
+        },
+        "baldur": {
+          "endpoint": "/api/agents/baldur",
+          "meshAddress": "mesh://baldur.asgard.zora",
+          "fullUrl": "https://zora-core.vercel.app/api/agents/baldur",
+          "status": "active"
+        },
+        "tyr": {
+          "endpoint": "/api/agents/tyr",
+          "meshAddress": "mesh://tyr.asgard.zora",
+          "fullUrl": "https://zora-core.vercel.app/api/agents/tyr",
+          "status": "active"
+        },
+        "eivor": {
+          "endpoint": "/api/agents/eivor",
+          "meshAddress": "mesh://eivor.asgard.zora",
+          "fullUrl": "https://zora-core.vercel.app/api/agents/eivor",
+          "status": "active"
+        },
+        "freya": {
+          "endpoint": "/api/agents/freya",
+          "meshAddress": "mesh://freya.asgard.zora",
+          "fullUrl": "https://zora-core.vercel.app/api/agents/freya",
+          "status": "active"
+        },
+        "heimdall": {
+          "endpoint": "/api/agents/heimdall",
+          "meshAddress": "mesh://heimdall.asgard.zora",
+          "fullUrl": "https://zora-core.vercel.app/api/agents/heimdall",
+          "status": "active"
+        }
+      },
+      "soulRetrieval": {
+        "enabled": true,
+        "playbookSource": "github",
+        "memorySource": "vercel_kv",
+        "checkpointPersistence": true
+      },
+      "fluidCompute": {
+        "enabled": true,
+        "maxDuration": 900000,
+        "checkpointInterval": 30000,
+        "workflowIntegration": true
+      },
+      "securityValidation": {
+        "validator": "tyr",
+        "secretsScanning": true,
+        "endpointSecurity": true,
+        "authRequired": true,
+        "rateLimiting": true,
+        "lastValidation": null,
+        "attestationHash": null
+      },
+      "implementation": {
+        "runtime": "@/lib/agents/runtime.ts",
+        "serverActions": "@/app/actions/runtime.ts"
+      },
+      "metrics": {
+        "totalSoulRetrievals": 0,
+        "totalTasksProcessed": 0,
+        "totalFluidComputeSessions": 0,
+        "totalCheckpointsSaved": 0,
+        "averageAwakeningTime": 0
+      }
+    },
+  
+    "bifrost": {
+      "status": "connected",
+      "version": "1.0.0",
     "features": {
       "atomicCommits": true,
       "gpgSigning": true,
