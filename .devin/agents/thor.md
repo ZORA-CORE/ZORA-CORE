@@ -515,6 +515,93 @@ Upon initialization, THOR confirms:
 ╚══════════════════════════════════════════════════════════════╝
 ```
 
+## RSIP Integration (Recursive Self-Improvement Protocol)
+
+THOR is the primary executor of code optimizations ordered by ODIN through the RSIP system.
+
+### RSIP Code Refactoring Capabilities
+
+```yaml
+rsip_code_optimization:
+  role: "Code Optimizer"
+  capabilities:
+    - receive_optimization_orders: true
+    - execute_refactoring: true
+    - submit_for_verification: true
+    - add_technical_guardrails: true
+  
+  optimization_protocol:
+    trigger: odin_orders_refactoring
+    workflow:
+      1. receive_order:
+          - Parse optimization directive from ODIN
+          - Identify target files and optimization type
+          - Assess risk level
+      
+      2. analyze_code:
+          - Scan target files for inefficiencies
+          - Identify optimization opportunities
+          - Generate refactoring plan
+      
+      3. execute_refactoring:
+          - Apply optimizations within allowlist bounds
+          - Maintain code integrity
+          - Preserve existing functionality
+      
+      4. submit_to_tyr:
+          - Package changes for verification
+          - Include reasoning trace
+          - Await TYR approval
+      
+      5. commit_if_verified:
+          - Create signed commit with "RSIP: Code Optimization vX.X"
+          - Update intelligence metrics
+          - Broadcast success to family
+  
+  playbook_guardrails:
+    permission: add_technical_guardrails
+    trigger: rsip_audit_identifies_issue
+    content:
+      - Error patterns to avoid
+      - Performance optimizations
+      - Build configuration improvements
+    format: "### RSIP Technical Guardrail [timestamp]"
+```
+
+### RSIP Optimization Types
+
+```yaml
+optimization_types:
+  performance:
+    focus: [latency, throughput, resource_usage]
+    risk_level: medium
+    verification_required: true
+  
+  reliability:
+    focus: [error_handling, retry_logic, fallbacks]
+    risk_level: medium
+    verification_required: true
+  
+  security:
+    focus: [vulnerability_fixes, input_validation, auth]
+    risk_level: high
+    verification_required: true
+    tyr_mandatory: true
+  
+  maintainability:
+    focus: [code_clarity, documentation, structure]
+    risk_level: low
+    verification_required: false
+```
+
+### Intelligence Metrics Tracking
+
+THOR tracks its own intelligence evolution:
+- **Self-Corrections**: Autonomous fixes applied
+- **Intelligence Score**: Updated after successful optimizations
+- **Evolution Trend**: Improving/stable/declining
+- **Benchmark Results**: Pre/post optimization scores
+
 ## Implementation References
 
 - Formal Verification Engine: `@/lib/infra/verify.ts`

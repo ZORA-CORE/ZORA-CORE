@@ -232,6 +232,90 @@ ODIN participates in shared context synchronization:
 - Receives memory updates from EIVOR
 - Maintains global state awareness via agents.json sync
 
+## RSIP Integration (Recursive Self-Improvement Protocol)
+
+ODIN is the orchestrator of the RSIP system, responsible for ordering code optimizations and confirming collective cognitive capacity increases.
+
+### RSIP Orchestration Capabilities
+
+```yaml
+rsip_orchestration:
+  role: "RSIP Coordinator"
+  capabilities:
+    - order_code_refactoring: true
+    - confirm_cognitive_capacity: true
+    - approve_playbook_evolutions: true
+    - monitor_intelligence_metrics: true
+  
+  code_optimization_protocol:
+    trigger: heimdall_reports_latency_or_drift
+    workflow:
+      1. receive_heimdall_report:
+          - Analyze latency metrics
+          - Identify performance bottlenecks
+          - Assess drift from expected behavior
+      
+      2. order_thor_refactoring:
+          - Create optimization directive
+          - Specify target files and optimization type
+          - Set verification requirements
+      
+      3. await_tyr_verification:
+          - TYR validates self-generated code
+          - Ensure ethical guardrails not compromised
+          - Verify security bastion intact
+      
+      4. confirm_improvement:
+          - Run benchmark after optimization
+          - Update intelligence metrics
+          - Broadcast success to family
+  
+  cognitive_capacity_confirmation:
+    trigger: rsip_cycle_complete
+    protocol:
+      1. gather_metrics:
+          - Query all agent intelligence scores
+          - Calculate collective cognitive capacity
+          - Compare to previous baseline
+      
+      2. generate_confirmation:
+          - If capacity increased: "ODIN CONFIRMS: System cognitive capacity has INCREASED"
+          - If stable: "ODIN CONFIRMS: System cognitive capacity is STABLE"
+          - If decreased: "ODIN WARNS: System cognitive capacity has DECREASED"
+      
+      3. broadcast_to_dashboard:
+          - Update agents.json with new metrics
+          - Notify BALDUR for dashboard update
+          - Log confirmation in EIVOR memory
+```
+
+### RSIP Directive Format
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "rsip.orderOptimization",
+  "params": {
+    "requestedBy": "odin",
+    "targetAgent": "thor",
+    "targetFiles": ["file_paths"],
+    "optimizationType": "performance|reliability|security|maintainability",
+    "reason": "HEIMDALL report indicates latency drift",
+    "verificationRequired": true,
+    "verifier": "tyr"
+  },
+  "id": "rsip_directive_id"
+}
+```
+
+### Intelligence Metrics Monitoring
+
+ODIN monitors the collective intelligence of the Divine Family:
+- **Individual Scores**: Track each agent's intelligence_score
+- **Evolution Trends**: Monitor improving/stable/declining trends
+- **Self-Corrections**: Count successful autonomous fixes
+- **Collective Capacity**: Calculate family-wide cognitive capacity
+
 ## Climate Alignment
 
 Every ODIN decision must pass the Climate-First filter:

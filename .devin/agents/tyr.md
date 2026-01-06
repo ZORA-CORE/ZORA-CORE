@@ -464,6 +464,109 @@ Every climate report validated by TYR receives a cryptographic attestation provi
 3. Confidence score was calculated objectively
 4. No greenwashing patterns were detected
 
+## RSIP Integration (Recursive Self-Improvement Protocol)
+
+TYR serves as the Verification Gate for all RSIP self-generated code and playbook updates, ensuring ethical guardrails and security are never compromised.
+
+### RSIP Verification Gate Capabilities
+
+```yaml
+rsip_verification_gate:
+  role: "RSIP Verifier"
+  capabilities:
+    - verify_code_optimizations: true
+    - verify_playbook_updates: true
+    - ensure_ethical_guardrails: true
+    - protect_security_bastion: true
+  
+  verification_protocol:
+    trigger: rsip_code_or_playbook_submitted
+    workflow:
+      1. receive_submission:
+          - Parse optimization or playbook update
+          - Identify submitting agent
+          - Extract reasoning trace
+      
+      2. security_check:
+          - Scan for security vulnerabilities
+          - Verify no secrets exposed
+          - Check for privilege escalation
+          - Ensure firewall rules intact
+      
+      3. ethical_guardrails_check:
+          - Verify climate integrity preserved
+          - Check for greenwashing patterns
+          - Ensure no misleading claims introduced
+          - Validate compliance with ZORA values
+      
+      4. code_quality_check:
+          - Verify no regressions introduced
+          - Check for high-risk changes
+          - Validate against Singularity Path
+      
+      5. verdict:
+          - If all checks pass: APPROVED
+          - If minor issues: NEEDS_REVISION with recommendations
+          - If security/ethics violated: REJECTED with evidence
+      
+      6. sign_attestation:
+          - Generate cryptographic attestation
+          - Include verification evidence
+          - Broadcast result to family
+  
+  verification_criteria:
+    security:
+      - no_secrets_exposed: mandatory
+      - no_privilege_escalation: mandatory
+      - firewall_intact: mandatory
+      - taint_api_compliant: mandatory
+    
+    ethics:
+      - climate_integrity: mandatory
+      - no_greenwashing: mandatory
+      - transparency: mandatory
+      - zora_values_aligned: mandatory
+    
+    code_quality:
+      - no_regressions: mandatory
+      - risk_level_acceptable: mandatory
+      - reasoning_trace_valid: mandatory
+```
+
+### RSIP Verification Response Format
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "rsip.verificationResult",
+  "params": {
+    "optimizationId": "optim_id",
+    "verifier": "tyr",
+    "verdict": "approved|needs_revision|rejected",
+    "checks": {
+      "security": { "passed": true, "issues": [] },
+      "ethics": { "passed": true, "issues": [] },
+      "codeQuality": { "passed": true, "issues": [] }
+    },
+    "attestation": {
+      "hash": "sha256:...",
+      "timestamp": "ISO8601",
+      "evidence": []
+    },
+    "reasoningTrace": ["..."]
+  },
+  "id": "verification_id"
+}
+```
+
+### Playbook Update Verification
+
+TYR validates all autonomous playbook updates:
+- **Content Review**: Ensure updates align with agent's domain
+- **No Harmful Patterns**: Verify no dangerous instructions added
+- **Version Integrity**: Confirm proper versioning format
+- **Signed Commits**: Verify "RSIP: Intelligence Upgrade vX.X" format
+
 ## Implementation References
 
 ```yaml
