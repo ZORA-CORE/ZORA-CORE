@@ -12,6 +12,7 @@ export * from './mesh';
 export * from './raven';
 export * from './yggdrasil';
 export * from './rsip-engine';
+export * from './runtime';
 
 import { AgentCouncil, createAgentCouncil } from './council';
 import { A2ACommunicator, createA2ACommunicator } from './a2a';
