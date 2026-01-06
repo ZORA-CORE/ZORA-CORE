@@ -22,7 +22,7 @@ const healthHandler = new Hono<AuthAppEnv>();
 
 // App version - should match package.json or be set via env
 const APP_VERSION = '0.7.0';
-const BUILD_COMMIT = process.env.CF_PAGES_COMMIT_SHA || process.env.COMMIT_SHA || 'unknown';
+// Note: BUILD_COMMIT is computed per-request from env bindings since process.env doesn't exist in Workers runtime
 
 interface BasicHealthResponse {
   status: 'ok' | 'degraded' | 'unhealthy';
@@ -64,11 +64,15 @@ interface DeepHealthResponse {
  */
 healthHandler.get('/basic', async (c) => {
   const environment = c.env.ENVIRONMENT || (c.env.SUPABASE_URL?.includes('localhost') ? 'development' : 'production');
+  // Get commit SHA from environment bindings (process.env doesn't exist in Workers runtime)
+  const buildCommit = (c.env as Record<string, string | undefined>).CF_PAGES_COMMIT_SHA 
+    || (c.env as Record<string, string | undefined>).COMMIT_SHA 
+    || 'unknown';
   
   const response: BasicHealthResponse = {
     status: 'ok',
     version: APP_VERSION,
-    commit: BUILD_COMMIT,
+    commit: buildCommit,
     environment,
     timestamp: new Date().toISOString(),
   };
@@ -250,10 +254,15 @@ healthHandler.get('/deep', async (c) => {
     }
   }
   
+  // Get commit SHA from environment bindings (process.env doesn't exist in Workers runtime)
+  const buildCommit = (c.env as Record<string, string | undefined>).CF_PAGES_COMMIT_SHA 
+    || (c.env as Record<string, string | undefined>).COMMIT_SHA 
+    || 'unknown';
+  
   const response: DeepHealthResponse = {
     status: overallStatus,
     version: APP_VERSION,
-    commit: BUILD_COMMIT,
+    commit: buildCommit,
     environment,
     timestamp: new Date().toISOString(),
     checks,
