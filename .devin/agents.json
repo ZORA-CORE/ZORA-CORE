@@ -592,6 +592,95 @@
       }
     },
   
+  "rsip": {
+    "version": "1.0.0",
+    "status": "active",
+    "protocol": "Recursive Self-Improvement Protocol",
+    "config": {
+      "maxSelfCorrections": 5,
+      "intelligenceScoreIncrement": 0.1,
+      "minSuccessRateForEvolution": 0.7,
+      "verificationRequired": true,
+      "autoPlaybookUpdate": true,
+      "autoCodeRefactor": false
+    },
+    "intelligenceMetrics": {
+      "odin": {
+        "intelligenceScore": 1.0,
+        "intelligenceVersion": "1.0.0",
+        "selfCorrections": 0,
+        "successfulEvolutions": 0,
+        "failedEvolutions": 0,
+        "lastEvolution": null,
+        "evolutionTrend": "stable"
+      },
+      "thor": {
+        "intelligenceScore": 1.0,
+        "intelligenceVersion": "1.0.0",
+        "selfCorrections": 0,
+        "successfulEvolutions": 0,
+        "failedEvolutions": 0,
+        "lastEvolution": null,
+        "evolutionTrend": "stable"
+      },
+      "baldur": {
+        "intelligenceScore": 1.0,
+        "intelligenceVersion": "1.0.0",
+        "selfCorrections": 0,
+        "successfulEvolutions": 0,
+        "failedEvolutions": 0,
+        "lastEvolution": null,
+        "evolutionTrend": "stable"
+      },
+      "tyr": {
+        "intelligenceScore": 1.0,
+        "intelligenceVersion": "1.0.0",
+        "selfCorrections": 0,
+        "successfulEvolutions": 0,
+        "failedEvolutions": 0,
+        "lastEvolution": null,
+        "evolutionTrend": "stable"
+      },
+      "eivor": {
+        "intelligenceScore": 1.0,
+        "intelligenceVersion": "1.0.0",
+        "selfCorrections": 0,
+        "successfulEvolutions": 0,
+        "failedEvolutions": 0,
+        "lastEvolution": null,
+        "evolutionTrend": "stable"
+      },
+      "freya": {
+        "intelligenceScore": 1.0,
+        "intelligenceVersion": "1.0.0",
+        "selfCorrections": 0,
+        "successfulEvolutions": 0,
+        "failedEvolutions": 0,
+        "lastEvolution": null,
+        "evolutionTrend": "stable"
+      },
+      "heimdall": {
+        "intelligenceScore": 1.0,
+        "intelligenceVersion": "1.0.0",
+        "selfCorrections": 0,
+        "successfulEvolutions": 0,
+        "failedEvolutions": 0,
+        "lastEvolution": null,
+        "evolutionTrend": "stable"
+      }
+    },
+    "collectiveCognitiveCapacity": 1.0,
+    "totalSelfAudits": 0,
+    "totalDeltaAnalyses": 0,
+    "totalPlaybookEvolutions": 0,
+    "totalCodeOptimizations": 0,
+    "benchmarkHistory": [],
+    "implementation": {
+      "engine": "@/lib/agents/rsip-engine.ts",
+      "serverActions": "@/app/actions/rsip.ts"
+    }
+  },
+  
   "bifrost": {
     "status": "connected",
     "version": "1.0.0",
