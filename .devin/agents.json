@@ -508,6 +508,47 @@
     }
   },
   
+  "mesh": {
+    "version": "1.0.0",
+    "protocol": "Asgård Mesh v1",
+    "status": "active",
+    "addresses": {
+      "odin": "mesh://odin.asgard.zora",
+      "thor": "mesh://thor.asgard.zora",
+      "baldur": "mesh://baldur.asgard.zora",
+      "tyr": "mesh://tyr.asgard.zora",
+      "eivor": "mesh://eivor.asgard.zora",
+      "freya": "mesh://freya.asgard.zora",
+      "heimdall": "mesh://heimdall.asgard.zora"
+    },
+    "features": {
+      "divineMessages": true,
+      "encryptedPayloads": true,
+      "sseConnections": true,
+      "delegationSystem": true,
+      "statusStreaming": true
+    },
+    "raven": {
+      "version": "1.0.0",
+      "status": "active",
+      "maxConcurrentDelegations": 10,
+      "delegationTimeout": 300000,
+      "autoRetry": true
+    },
+    "yggdrasil": {
+      "version": "1.0.0",
+      "status": "active",
+      "syncInterval": 30000,
+      "conflictResolution": "latest_wins",
+      "enableAutoSync": true
+    },
+    "implementation": {
+      "mesh": "@/lib/agents/mesh.ts",
+      "raven": "@/lib/agents/raven.ts",
+      "yggdrasil": "@/lib/agents/yggdrasil.ts"
+    }
+  },
+  
     "memory": {
       "totalMemories": 0,
       "patternsIdentified": 0,

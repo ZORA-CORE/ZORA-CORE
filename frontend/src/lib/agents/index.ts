@@ -2,29 +2,45 @@
  * ZORA CORE: Aesir Genesis - Agent System
  * Multi-agent coordination with Tree-of-Thought reasoning
  * and Agent-to-Agent JSON-RPC communication
+ * Phase 3: Asgård Mesh A2A Protocol
  */
 
 export * from './types';
 export * from './council';
 export * from './a2a';
+export * from './mesh';
+export * from './raven';
+export * from './yggdrasil';
 
 import { AgentCouncil, createAgentCouncil } from './council';
 import { A2ACommunicator, createA2ACommunicator } from './a2a';
+import { AsgardMesh, createAsgardMesh, getGlobalMesh } from './mesh';
+import { RavensMessage, createRavensMessage, getGlobalRaven } from './raven';
+import { YggdrasilSync, createYggdrasilSync, getGlobalYggdrasil } from './yggdrasil';
 import type { AgentRegistry, OdinOnlineStatus } from './types';
 
 export interface AesirGenesisInstance {
   council: AgentCouncil;
   communicator: A2ACommunicator;
+  mesh: AsgardMesh;
+  raven: RavensMessage;
+  yggdrasil: YggdrasilSync;
   registry: AgentRegistry;
   
   initialize(): Promise<OdinOnlineStatus>;
   getStatus(): AgentRegistry;
+  getMeshStatus(): ReturnType<AsgardMesh['getMeshStatus']>;
+  getRavenStatus(): ReturnType<RavensMessage['getRavenStatus']>;
+  getYggdrasilStatus(): ReturnType<YggdrasilSync['getYggdrasilStatus']>;
   shutdown(): Promise<void>;
 }
 
 export function createAesirGenesis(): AesirGenesisInstance {
   const council = createAgentCouncil();
   const communicator = createA2ACommunicator();
+  const mesh = createAsgardMesh();
+  const raven = createRavensMessage({}, mesh);
+  const yggdrasil = createYggdrasilSync({}, mesh);
 
   const registry: AgentRegistry = {
     version: '1.0.0',
@@ -144,6 +160,9 @@ export function createAesirGenesis(): AesirGenesisInstance {
   return {
     council,
     communicator,
+    mesh,
+    raven,
+    yggdrasil,
     registry,
 
     async initialize(): Promise<OdinOnlineStatus> {
@@ -151,6 +170,8 @@ export function createAesirGenesis(): AesirGenesisInstance {
         registry.agents[agentId].status = 'online';
         registry.agents[agentId].lastOnline = Date.now();
         council.updateAgentStatus(agentId, 'online');
+        
+        mesh.establishSSEConnection(agentId);
       }
 
       registry.lastUpdated = Date.now();
@@ -163,7 +184,7 @@ export function createAesirGenesis(): AesirGenesisInstance {
         familyBonds: 'established',
         climateFilter: 'engaged',
         memoryLink: 'connected',
-        message: 'The All-Father watches over Aesir Genesis.',
+        message: 'The All-Father watches over Aesir Genesis. Asgård Mesh is active.',
       };
 
       return odinStatus;
@@ -173,10 +194,25 @@ export function createAesirGenesis(): AesirGenesisInstance {
       return { ...registry };
     },
 
+    getMeshStatus() {
+      return mesh.getMeshStatus();
+    },
+
+    getRavenStatus() {
+      return raven.getRavenStatus();
+    },
+
+    getYggdrasilStatus() {
+      return yggdrasil.getYggdrasilStatus();
+    },
+
     async shutdown(): Promise<void> {
+      yggdrasil.stopAutoSync();
+      
       for (const agentId of Object.keys(registry.agents) as Array<keyof typeof registry.agents>) {
         registry.agents[agentId].status = 'offline';
         council.updateAgentStatus(agentId, 'offline');
+        mesh.closeSSEConnection(agentId);
       }
       registry.lastUpdated = Date.now();
     },

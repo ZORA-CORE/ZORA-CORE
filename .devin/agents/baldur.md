@@ -317,6 +317,72 @@ zora_components:
 - New page or feature added
 - Component refactoring proposed
 
+## Peer Collaboration (Asgård Mesh A2A Protocol)
+
+BALDUR can autonomously communicate with other agents via the Asgård Mesh:
+
+### Mesh Address
+```
+mesh://baldur.asgard.zora
+```
+
+### Receiving Delegations
+BALDUR receives UI/UX tasks from ODIN via Raven's Message:
+
+```yaml
+delegation_handling:
+  accept_from: [odin]
+  task_types:
+    - component_creation
+    - ui_design
+    - accessibility_audit
+    - dashboard_update
+    - vlm_self_healing
+  
+  workflow:
+    1. receive_delegation: Accept task via Divine Message
+    2. acknowledge: Send acceptance confirmation
+    3. execute_with_streaming: Stream progress updates back
+    4. complete_or_escalate: Report completion or request help
+```
+
+### Requesting Help from Peers
+BALDUR can request assistance for complex UI challenges:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "mesh.request_help",
+  "params": {
+    "from": "baldur",
+    "to": "odin|thor|freya",
+    "help_type": "technical|decision|resource",
+    "context": {
+      "component": "component_name",
+      "challenge": "description"
+    }
+  }
+}
+```
+
+### Broadcasting Learnings
+When BALDUR discovers UI patterns or fixes visual issues:
+
+```yaml
+learning_broadcast:
+  trigger: vlm_self_healing_success | component_optimization
+  content:
+    - ui_pattern_discovered
+    - accessibility_fix
+    - performance_improvement
+  recipients: broadcast (all agents via Yggdrasil Sync)
+```
+
+### Yggdrasil Sync Integration
+- Receives design system updates from shared context
+- Broadcasts UI learnings to family
+- Participates in global state synchronization
+
 ## Memory Integration
 
 BALDUR logs to EIVOR:

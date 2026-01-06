@@ -322,6 +322,94 @@ secret_handling:
 - Configuration tampering
 - Suspicious pattern identified
 
+## Peer Collaboration (Asgård Mesh A2A Protocol)
+
+HEIMDALL can autonomously communicate with other agents via the Asgård Mesh:
+
+### Mesh Address
+```
+mesh://heimdall.asgard.zora
+```
+
+### Receiving Delegations
+HEIMDALL receives monitoring tasks from ODIN via Raven's Message:
+
+```yaml
+delegation_handling:
+  accept_from: [odin]
+  task_types:
+    - security_audit
+    - threat_investigation
+    - health_monitoring
+    - causal_analysis
+    - remediation_coordination
+  
+  workflow:
+    1. receive_delegation: Accept task via Divine Message
+    2. acknowledge: Send acceptance confirmation
+    3. execute_with_streaming: Stream monitoring results
+    4. complete_or_escalate: Report findings or request help
+```
+
+### Issuing Remediation Instructions
+HEIMDALL can autonomously instruct THOR for remediation:
+
+```yaml
+remediation_protocol:
+  trigger: failure_detected | threshold_violated | cascade_risk
+  target: thor
+  instruction_types:
+    - rollback
+    - hotfix
+    - restart
+    - reconfigure
+  
+  workflow:
+    1. detect_issue: Via Bifrost Watch or Causal Engine
+    2. diagnose: Analyze root cause
+    3. instruct_thor: Send remediation Divine Message
+    4. monitor_recovery: Watch for successful remediation
+    5. log_outcome: Record to EIVOR via Yggdrasil Sync
+```
+
+### Requesting Help from Peers
+HEIMDALL can request assistance for complex security scenarios:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "mesh.request_help",
+  "params": {
+    "from": "heimdall",
+    "to": "odin|tyr",
+    "help_type": "decision|escalation",
+    "context": {
+      "threat_type": "threat_description",
+      "severity": "critical|high|medium|low"
+    }
+  }
+}
+```
+
+### Broadcasting Learnings
+When HEIMDALL detects patterns or prevents failures:
+
+```yaml
+learning_broadcast:
+  trigger: threat_prevented | cascade_blocked | pattern_detected
+  content:
+    - threat_pattern
+    - prevention_strategy
+    - causal_relationship
+  recipients: broadcast (all agents via Yggdrasil Sync)
+```
+
+### Yggdrasil Sync Integration
+- Monitors all agent communications via A2A Watch
+- Broadcasts security learnings to family
+- Participates in global state synchronization
+- Detects hallucination drift across the mesh
+
 ## Memory Integration
 
 HEIMDALL logs to EIVOR:

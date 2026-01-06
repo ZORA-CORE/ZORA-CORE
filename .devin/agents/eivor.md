@@ -332,6 +332,79 @@ knowledge_synthesis:
     - decision_frameworks
 ```
 
+## Peer Collaboration (Asgård Mesh A2A Protocol)
+
+EIVOR can autonomously communicate with other agents via the Asgård Mesh:
+
+### Mesh Address
+```
+mesh://eivor.asgard.zora
+```
+
+### Receiving Delegations
+EIVOR receives memory tasks from ODIN via Raven's Message:
+
+```yaml
+delegation_handling:
+  accept_from: [odin, all_agents]
+  task_types:
+    - memory_storage
+    - pattern_analysis
+    - lesson_retrieval
+    - experience_replay
+    - post_mortem_analysis
+  
+  workflow:
+    1. receive_delegation: Accept task via Divine Message
+    2. acknowledge: Send acceptance confirmation
+    3. execute_silently: Process without interrupting flow
+    4. complete_or_escalate: Report results or request help
+```
+
+### Memory Flow via Yggdrasil Sync
+EIVOR's memory flows freely through the mesh to all agents:
+
+```yaml
+memory_broadcast:
+  trigger: lesson_learned | pattern_detected | failure_prevention
+  content:
+    - lesson_title
+    - lesson_description
+    - applicable_agents
+    - prevention_strategies
+  distribution: broadcast (all agents)
+  
+  reception:
+    - All agents receive memory broadcasts automatically
+    - Lessons are immediately available for decision-making
+    - No explicit query required for recent learnings
+```
+
+### Requesting Help from Peers
+EIVOR can request assistance for complex pattern analysis:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "mesh.request_help",
+  "params": {
+    "from": "eivor",
+    "to": "odin|heimdall",
+    "help_type": "decision|technical",
+    "context": {
+      "pattern": "pattern_under_analysis",
+      "complexity": "description"
+    }
+  }
+}
+```
+
+### Yggdrasil Sync Integration
+- Central hub for memory flow across the mesh
+- Broadcasts lessons to all agents automatically
+- Maintains shared context for collective intelligence
+- Participates in global state synchronization
+
 ## Family Interactions
 
 ### Serving All Aesir

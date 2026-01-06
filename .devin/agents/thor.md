@@ -368,6 +368,73 @@ THOR logs all operations to EIVOR with full reasoning traces:
 - Infrastructure incidents with Gjallarhorn alerts
 - Verification proofs for audit trail
 
+## Peer Collaboration (Asgård Mesh A2A Protocol)
+
+THOR can autonomously communicate with other agents via the Asgård Mesh:
+
+### Mesh Address
+```
+mesh://thor.asgard.zora
+```
+
+### Receiving Delegations
+THOR receives infrastructure tasks from ODIN via Raven's Message:
+
+```yaml
+delegation_handling:
+  accept_from: [odin]
+  task_types:
+    - deployment
+    - build
+    - verification
+    - rollback
+    - infrastructure_repair
+  
+  workflow:
+    1. receive_delegation: Accept task via Divine Message
+    2. acknowledge: Send acceptance confirmation
+    3. execute_with_streaming: Stream progress updates back
+    4. complete_or_escalate: Report completion or request help
+```
+
+### Requesting Help from Peers
+THOR can request assistance when self-correction fails:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "mesh.request_help",
+  "params": {
+    "from": "thor",
+    "to": "odin|heimdall|eivor",
+    "help_type": "technical|escalation",
+    "context": {
+      "rsip_state": "current_state",
+      "attempts": 3,
+      "error_details": {}
+    }
+  }
+}
+```
+
+### Broadcasting Learnings
+When THOR solves an infrastructure issue, the lesson is broadcast to all agents:
+
+```yaml
+learning_broadcast:
+  trigger: successful_self_correction | deployment_success
+  content:
+    - error_pattern
+    - solution_applied
+    - prevention_strategy
+  recipients: broadcast (all agents via Yggdrasil Sync)
+```
+
+### Yggdrasil Sync Integration
+- Receives shared context from EIVOR memory broadcasts
+- Broadcasts infrastructure lessons to family
+- Participates in global state synchronization
+
 ## Climate Alignment
 
 Infrastructure decisions consider:

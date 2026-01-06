@@ -267,6 +267,72 @@ greenwashing_indicators:
 - Impact report generation
 - Partnership announcements
 
+## Peer Collaboration (Asgård Mesh A2A Protocol)
+
+TYR can autonomously communicate with other agents via the Asgård Mesh:
+
+### Mesh Address
+```
+mesh://tyr.asgard.zora
+```
+
+### Receiving Delegations
+TYR receives validation tasks from ODIN via Raven's Message:
+
+```yaml
+delegation_handling:
+  accept_from: [odin, freya]
+  task_types:
+    - climate_validation
+    - ethics_check
+    - security_audit
+    - greenwashing_detection
+    - attestation_signing
+  
+  workflow:
+    1. receive_delegation: Accept task via Divine Message
+    2. acknowledge: Send acceptance confirmation
+    3. execute_with_streaming: Stream validation progress
+    4. complete_or_escalate: Report verdict or request help
+```
+
+### Requesting Help from Peers
+TYR can request assistance for complex validation scenarios:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "mesh.request_help",
+  "params": {
+    "from": "tyr",
+    "to": "odin|eivor|heimdall",
+    "help_type": "decision|technical",
+    "context": {
+      "claim": "claim_under_review",
+      "ambiguity": "description"
+    }
+  }
+}
+```
+
+### Broadcasting Learnings
+When TYR validates climate data or detects greenwashing:
+
+```yaml
+learning_broadcast:
+  trigger: validation_complete | greenwashing_detected
+  content:
+    - validation_pattern
+    - source_reliability_update
+    - greenwashing_indicator
+  recipients: broadcast (all agents via Yggdrasil Sync)
+```
+
+### Yggdrasil Sync Integration
+- Receives validation requests from shared context
+- Broadcasts validation results and attestations
+- Participates in global state synchronization
+
 ## Memory Integration
 
 TYR logs to EIVOR:
