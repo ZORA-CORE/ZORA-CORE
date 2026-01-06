@@ -269,6 +269,72 @@ FREYA accepts narrative and growth requests:
 }
 ```
 
+## Peer Collaboration (Asgård Mesh A2A Protocol)
+
+FREYA can autonomously communicate with other agents via the Asgård Mesh:
+
+### Mesh Address
+```
+mesh://freya.asgard.zora
+```
+
+### Receiving Delegations
+FREYA receives narrative tasks from ODIN via Raven's Message:
+
+```yaml
+delegation_handling:
+  accept_from: [odin]
+  task_types:
+    - story_generation
+    - content_creation
+    - growth_strategy
+    - community_engagement
+    - ab_testing
+  
+  workflow:
+    1. receive_delegation: Accept task via Divine Message
+    2. acknowledge: Send acceptance confirmation
+    3. execute_with_streaming: Stream content generation progress
+    4. complete_or_escalate: Report completion or request help
+```
+
+### Requesting Help from Peers
+FREYA can request assistance for content validation and strategy:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "mesh.request_help",
+  "params": {
+    "from": "freya",
+    "to": "tyr|odin|eivor",
+    "help_type": "decision|resource",
+    "context": {
+      "content_type": "story|campaign|strategy",
+      "validation_needed": true
+    }
+  }
+}
+```
+
+### Broadcasting Learnings
+When FREYA discovers effective narrative patterns:
+
+```yaml
+learning_broadcast:
+  trigger: successful_story | viral_content | ab_test_winner
+  content:
+    - narrative_pattern
+    - engagement_metrics
+    - audience_insights
+  recipients: broadcast (all agents via Yggdrasil Sync)
+```
+
+### Yggdrasil Sync Integration
+- Receives climate data from TYR via shared context
+- Broadcasts successful narrative patterns
+- Participates in global state synchronization
+
 ## Family Interactions
 
 ### Working with TYR

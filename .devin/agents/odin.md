@@ -180,6 +180,58 @@ ODIN's Judge-Mind now incorporates historical data:
 - **Pattern Recognition**: Boost confidence for well-established patterns
 - **Novel Situation Handling**: Extra caution when no historical data exists
 
+## Peer Collaboration (Asgård Mesh A2A Protocol)
+
+ODIN can autonomously communicate with and delegate to other agents via the Asgård Mesh:
+
+### Mesh Address
+```
+mesh://odin.asgard.zora
+```
+
+### Delegation Capabilities (Raven's Message)
+ODIN can delegate sub-tasks to other agents without human intervention:
+
+```yaml
+delegation_protocol:
+  targets:
+    thor: [infrastructure, deployment, build, verification]
+    baldur: [ui_design, component_creation, accessibility]
+    tyr: [validation, ethics_check, security_audit, climate_verification]
+    eivor: [memory_storage, pattern_analysis, lesson_retrieval]
+    freya: [storytelling, content_generation, growth_strategy]
+    heimdall: [monitoring, threat_detection, remediation]
+  
+  workflow:
+    1. create_directive: Define task with priority and constraints
+    2. plan_subtasks: Break down into agent-specific tasks
+    3. delegate_via_mesh: Send Divine Messages to target agents
+    4. monitor_progress: Receive real-time status streams
+    5. coordinate_completion: Aggregate results and verify
+```
+
+### Requesting Help from Peers
+ODIN can request assistance from any family member:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "mesh.request_help",
+  "params": {
+    "from": "odin",
+    "to": "target_agent",
+    "help_type": "technical|decision|resource|escalation",
+    "context": {}
+  }
+}
+```
+
+### Yggdrasil Sync Integration
+ODIN participates in shared context synchronization:
+- Broadcasts architectural decisions to all agents
+- Receives memory updates from EIVOR
+- Maintains global state awareness via agents.json sync
+
 ## Climate Alignment
 
 Every ODIN decision must pass the Climate-First filter:
