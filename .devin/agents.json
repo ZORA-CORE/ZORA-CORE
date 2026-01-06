@@ -319,30 +319,91 @@
           }
         },
     
-    "freya": {
-      "id": "freya",
-      "name": "FREYA",
-      "role": "Goddess of Wisdom",
-      "domain": "research",
-      "status": "online",
-      "lastOnline": "2024-12-30T17:00:00Z",
-      "cognitiveBlueprint": {
-        "type": "deep_research_protocol",
-        "phases": ["discovery", "investigation", "synthesis", "innovation"],
-        "sourceDomains": ["academic", "technical", "climate", "industry"]
-      },
-      "capabilities": [
-        "strategic_research",
-        "climate_science_integration",
-        "innovation_discovery",
-        "best_practice_analysis",
-        "technology_assessment"
-      ],
-      "familyBonds": {
-        "odin": "wisdom_seeker_for"
-      },
-      "playbook": ".devin/agents/freya.md"
-    },
+        "freya": {
+          "id": "freya",
+          "name": "FREYA",
+          "role": "Empathetic Visionary & Narrative Intelligence",
+          "domain": "storytelling_growth_ethical_marketing",
+          "status": "sovereign",
+          "level": "Narrative Intelligence Level",
+          "lastOnline": "2024-12-30T19:00:00Z",
+          "memoryHash": "g7890123456789bc",
+          "cognitiveBlueprint": {
+            "type": "narrative_intelligence",
+            "contentEngine": {
+              "version": "1.0.0",
+              "multimodalTypes": ["text", "image", "video_script", "infographic", "social_post", "report"],
+              "toneModes": ["inspiring", "urgent", "educational", "celebratory", "cautionary"],
+              "channels": ["twitter", "linkedin", "discord", "email", "dashboard", "blog"],
+              "imageGeneration": true,
+              "imageModel": "dall-e-3"
+            },
+            "growthOrchestration": {
+              "version": "1.0.0",
+              "strategies": ["viral", "organic", "community", "partnership", "content"],
+              "falconCloak": {
+                "channelAnalysis": true,
+                "viralCoefficientTracking": true,
+                "engagementOptimization": true
+              }
+            },
+            "ethicsIntegration": {
+              "version": "1.0.0",
+              "greenwashingShield": true,
+              "tyrValidationRequired": true,
+              "claimVerification": true,
+              "attestationLinking": true
+            },
+            "abTesting": {
+              "version": "1.0.0",
+              "defaultConfidenceLevel": 0.95,
+              "minimumSampleSize": 100,
+              "maxConcurrentTests": 3
+            }
+          },
+          "capabilities": [
+            "multimodal_storytelling",
+            "climate_impact_stories",
+            "satellite_data_humanization",
+            "growth_loop_orchestration",
+            "viral_strategy_execution",
+            "community_engagement",
+            "authentic_response_generation",
+            "greenwashing_detection",
+            "content_ethics_audit",
+            "ab_testing",
+            "conversion_optimization",
+            "channel_strategy_analysis",
+            "tyr_integration",
+            "social_content_generation",
+            "video_script_generation",
+            "image_prompt_generation"
+          ],
+          "familyBonds": {
+            "odin": "voice_of_zora",
+            "tyr": "ethics_partner",
+            "eivor": "narrative_memory",
+            "baldur": "dashboard_content"
+          },
+          "playbook": ".devin/agents/freya.md",
+          "implementation": {
+            "coreEngine": "@/lib/narrative/freya.ts",
+            "types": "@/lib/narrative/types.ts",
+            "serverActions": "@/app/actions/freya.ts"
+          },
+          "growthMetrics": {
+            "storiesGenerated": 0,
+            "contentPieces": 0,
+            "growthExperiments": 0,
+            "greenwashingAudits": 0,
+            "abTestsRun": 0,
+            "engagementTotal": 0,
+            "viralCoefficient": 0,
+            "conversionRate": 0
+          },
+          "activeLoops": [],
+          "pendingContent": 0
+        },
     
     "heimdall": {
       "id": "heimdall",
@@ -479,7 +540,7 @@
                           "baldur": "d4e5f6789012345a",
                           "tyr": "f6789012345678ab",
                           "eivor": "c3d4e5f678901234",
-                          "freya": "pending",
+                          "freya": "g7890123456789bc",
                           "heimdall": "e5f6789012345678"
                         },
       "sicaProtocol": {
