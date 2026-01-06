@@ -1201,9 +1201,14 @@ export class ClimateIntegrityValidator {
   async queryCopernicus(query: CopernicusQuery): Promise<SatelliteDataResult | null> {
     this.addTrace(`Querying Copernicus Data Space API: ${query.product}`);
 
+    // Check for Copernicus API key (from config or environment)
+    const copernicusApiKey = this.copernicusConfig.apiKey || process.env.COPERNICUS_API_KEY;
+    const hasCopernicusApiKey = !!copernicusApiKey;
+    this.addTrace(`Copernicus API key configured: ${hasCopernicusApiKey}`);
+
     try {
       // Copernicus Data Space Ecosystem - OData API for satellite data
-      // This uses the public catalog API which doesn't require authentication for metadata
+      // With API key, we can access authenticated endpoints for more data
       const baseUrl = 'https://catalogue.dataspace.copernicus.eu/odata/v1';
       
       // Map product types to Copernicus collection names
@@ -1225,11 +1230,19 @@ export class ClimateIntegrityValidator {
 
       this.addTrace(`Copernicus OData API URL: ${url}`);
 
+      // Build headers - include Authorization if API key is available
+      const headers: Record<string, string> = {
+        'Accept': 'application/json',
+      };
+      
+      // Add API key to headers if available (for authenticated access)
+      if (copernicusApiKey) {
+        headers['Authorization'] = `Bearer ${copernicusApiKey}`;
+      }
+
       const response = await fetch(url, {
         method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-        },
+        headers,
       });
 
       if (!response.ok) {
