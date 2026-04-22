@@ -32,20 +32,15 @@ interface ChatRequestBody {
   files?: unknown[];
 }
 
-function sseError(message: string, status = 500): Response {
-  const stream = new ReadableStream<Uint8Array>({
-    start(controller) {
-      const payload = JSON.stringify({ event: 'error', message });
-      controller.enqueue(new TextEncoder().encode(`data: ${payload}\n\n`));
-      controller.close();
-    },
-  });
-  return new Response(stream, {
+function jsonError(message: string, status = 500): Response {
+  // Non-streaming JSON for error responses so the client can show a clean
+  // message via `res.text()`. The SSE stream is reserved for successful
+  // Dify responses.
+  return new Response(JSON.stringify({ error: message }), {
     status,
     headers: {
-      'Content-Type': 'text/event-stream; charset=utf-8',
-      'Cache-Control': 'no-cache, no-transform',
-      Connection: 'keep-alive',
+      'Content-Type': 'application/json; charset=utf-8',
+      'Cache-Control': 'no-store',
     },
   });
 }
@@ -53,7 +48,7 @@ function sseError(message: string, status = 500): Response {
 export async function POST(req: NextRequest): Promise<Response> {
   const apiKey = process.env.DIFY_API_KEY;
   if (!apiKey) {
-    return sseError(
+    return jsonError(
       'Dify proxy is not configured. Set DIFY_API_KEY on the server.',
       500,
     );
@@ -63,12 +58,12 @@ export async function POST(req: NextRequest): Promise<Response> {
   try {
     body = (await req.json()) as ChatRequestBody;
   } catch {
-    return sseError('Invalid JSON body.', 400);
+    return jsonError('Invalid JSON body.', 400);
   }
 
   const query = (body.query ?? '').trim();
   if (!query) {
-    return sseError('`query` is required.', 400);
+    return jsonError('`query` is required.', 400);
   }
 
   const user = body.user?.trim() || 'zoracore-anon';
@@ -95,7 +90,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   if (!upstream.ok || !upstream.body) {
     const text = await upstream.text().catch(() => '');
-    return sseError(
+    return jsonError(
       `Dify upstream error (${upstream.status}): ${text.slice(0, 500) || upstream.statusText}`,
       upstream.status || 502,
     );

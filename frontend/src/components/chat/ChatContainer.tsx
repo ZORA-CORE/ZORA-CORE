@@ -97,7 +97,14 @@ export function ChatContainer() {
 
         if (!res.ok || !res.body) {
           const text = await res.text().catch(() => '');
-          throw new Error(text || `Request failed with status ${res.status}`);
+          let message = text;
+          try {
+            const parsed = JSON.parse(text) as { error?: string; message?: string };
+            message = parsed.error || parsed.message || text;
+          } catch {
+            /* not JSON, use raw text */
+          }
+          throw new Error(message || `Request failed with status ${res.status}`);
         }
 
         const reader = res.body.getReader();
@@ -266,9 +273,12 @@ export function ChatContainer() {
         <button
           type="button"
           onClick={() => {
+            abortRef.current?.abort();
+            abortRef.current = null;
             setMessages([]);
             setConversationId('');
             setError(null);
+            setIsStreaming(false);
           }}
           className="rounded-lg px-3 py-1.5 text-xs font-medium text-[#6E6E73] transition hover:bg-[#F5F5F7] hover:text-[#1D1D1F]"
         >
