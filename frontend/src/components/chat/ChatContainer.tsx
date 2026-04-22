@@ -2,14 +2,16 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { PanelRightOpen } from 'lucide-react';
-import { AgentStatusPulse } from './AgentStatusPulse';
+import { Brain, PanelRightOpen } from 'lucide-react';
 import { ChatInput, type ChatInputHandle } from './ChatInput';
+import { EivorMemoryPanel } from './EivorMemoryPanel';
 import { EmptyState } from './EmptyState';
 import { ForgePanel } from './ForgePanel';
 import { MessageBubble } from './MessageBubble';
+import { SwarmVisualizer } from './SwarmVisualizer';
 import { extractArtifacts, type Artifact, type ThoughtEvent } from './artifacts';
-import type { ChatMessage } from './types';
+import { extractMemory } from './memory';
+import type { AttachedFile, ChatMessage, ChatSubmission } from './types';
 
 function makeId(): string {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -127,6 +129,8 @@ export function ChatContainer() {
   const [conversationId, setConversationId] = useState<string>('');
   const [thoughts, setThoughts] = useState<ThoughtEvent[]>([]);
   const [forgeOpen, setForgeOpen] = useState(false);
+  const [memoryOpen, setMemoryOpen] = useState(false);
+  const [userId, setUserId] = useState<string>('valhalla-ssr');
 
   const userIdRef = useRef<string>('valhalla-ssr');
   const abortRef = useRef<AbortController | null>(null);
@@ -135,7 +139,9 @@ export function ChatContainer() {
   const thoughtCounterRef = useRef(0);
 
   useEffect(() => {
-    userIdRef.current = getOrCreateUserId();
+    const id = getOrCreateUserId();
+    userIdRef.current = id;
+    setUserId(id);
   }, []);
 
   useEffect(() => {
@@ -159,13 +165,19 @@ export function ChatContainer() {
     if (!forgeOpen && artifacts.length > 0) setForgeOpen(true);
   }, [artifacts.length, forgeOpen]);
 
+  const memory = useMemo(() => extractMemory(messages), [messages]);
+
   const sendMessage = useCallback(
-    async (query: string): Promise<void> => {
+    async ({ text, files }: ChatSubmission): Promise<void> => {
       setError(null);
       const userMsg: ChatMessage = {
         id: makeId(),
         role: 'user',
-        content: query,
+        content:
+          text +
+          (files.length > 0
+            ? `\n\n_Attached:_ ${files.map((f) => `\`${f.name}\``).join(', ')}`
+            : ''),
         createdAt: Date.now(),
       };
       const assistantId = makeId();
@@ -183,14 +195,20 @@ export function ChatContainer() {
       abortRef.current = controller;
 
       try {
+        const difyFiles = files.map((f: AttachedFile) => ({
+          type: f.kind,
+          transfer_method: 'local_file',
+          upload_file_id: f.difyId,
+        }));
         const res = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            query,
+            query: text,
             user: userIdRef.current,
             conversation_id: conversationId || undefined,
             inputs: {},
+            files: difyFiles,
           }),
           signal: controller.signal,
         });
@@ -328,6 +346,7 @@ export function ChatContainer() {
     setThoughts([]);
     thoughtCounterRef.current = 0;
     setForgeOpen(false);
+    setMemoryOpen(false);
   }, []);
 
   const progressBar = useMemo(
@@ -391,6 +410,15 @@ export function ChatContainer() {
           </span>
         </div>
         <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setMemoryOpen(true)}
+            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-[#6E6E73] transition hover:bg-[#F5F5F7] hover:text-[#1D1D1F]"
+            title="EIVOR Memory"
+          >
+            <Brain className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Memory</span>
+          </button>
           {(artifacts.length > 0 || thoughts.length > 0) && !forgeOpen && (
             <button
               type="button"
@@ -442,13 +470,14 @@ export function ChatContainer() {
 
           <div className="shrink-0 border-t border-[#F0F0F2] bg-white/80 backdrop-blur-xl">
             <div className="mx-auto w-full max-w-[800px] px-4 pt-3">
-              <AgentStatusPulse active={isStreaming} />
+              <SwarmVisualizer active={isStreaming} />
             </div>
             <ChatInput
               ref={inputRef}
               onSubmit={sendMessage}
               onStop={handleStop}
               isStreaming={isStreaming}
+              userId={userId}
             />
             {error && !isStreaming && (
               <div className="mx-auto mb-3 w-full max-w-[800px] px-4">
@@ -501,6 +530,12 @@ export function ChatContainer() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <EivorMemoryPanel
+        open={memoryOpen}
+        memory={memory}
+        onClose={() => setMemoryOpen(false)}
+      />
     </div>
   );
 }
