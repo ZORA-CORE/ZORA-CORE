@@ -1,0 +1,21 @@
+/* Zoracore Chat: Nordic Light surface override.
+ * The global ZORA CORE theme is a dark Climate OS. The chat experience at
+ * /chat uses a premium, Nordic-light aesthetic, so we locally reset the
+ * body background and color hierarchy within this route. */
+
+.zoracore-chat-root {
+  background: #ffffff;
+  color: #1d1d1f;
+  min-height: 100dvh;
+}
+
+html:has(.zoracore-chat-root),
+body:has(.zoracore-chat-root) {
+  background: #ffffff !important;
+  color: #1d1d1f !important;
+}
+
+body:has(.zoracore-chat-root)::before,
+body:has(.zoracore-chat-root)::after {
+  display: none !important;
+}
