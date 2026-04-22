@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Brain, PanelRightOpen } from 'lucide-react';
+import { Brain, Download, PanelRightOpen } from 'lucide-react';
+import { buildSessionBundle, triggerBrowserDownload } from './bundle';
 import { ChatInput, type ChatInputHandle } from './ChatInput';
 import { EivorMemoryPanel } from './EivorMemoryPanel';
 import { EmptyState } from './EmptyState';
@@ -51,6 +52,9 @@ interface DifySSEEvent {
   tool?: string;
   tool_input?: unknown;
   observation?: string;
+  /** Dify message id surfaced on agent_message / message_end. */
+  id?: string;
+  message_id?: string;
   data?: {
     title?: string;
     node_type?: string;
@@ -131,6 +135,7 @@ export function ChatContainer() {
   const [forgeOpen, setForgeOpen] = useState(false);
   const [memoryOpen, setMemoryOpen] = useState(false);
   const [userId, setUserId] = useState<string>('valhalla-ssr');
+  const [bundling, setBundling] = useState(false);
 
   const userIdRef = useRef<string>('valhalla-ssr');
   const abortRef = useRef<AbortController | null>(null);
@@ -166,6 +171,32 @@ export function ChatContainer() {
   }, [artifacts.length, forgeOpen]);
 
   const memory = useMemo(() => extractMemory(messages), [messages]);
+
+  const handleFeedback = useCallback(
+    (messageId: string, rating: 'like' | 'dislike' | null): void => {
+      setMessages((prev) =>
+        prev.map((m) => (m.id === messageId ? { ...m, feedback: rating } : m)),
+      );
+    },
+    [],
+  );
+
+  const handleDownloadBundle = useCallback(async (): Promise<void> => {
+    if (bundling) return;
+    setBundling(true);
+    try {
+      const { blob, filename } = await buildSessionBundle(artifacts, messages);
+      triggerBrowserDownload(blob, filename);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? `Bundle failed: ${err.message}`
+          : 'Bundle failed.',
+      );
+    } finally {
+      setBundling(false);
+    }
+  }, [artifacts, messages, bundling]);
 
   const sendMessage = useCallback(
     async ({ text, files }: ChatSubmission): Promise<void> => {
@@ -270,11 +301,31 @@ export function ChatContainer() {
               typeof parsed.answer === 'string'
             ) {
               accumulated += parsed.answer;
+              const difyId = parsed.message_id || parsed.id;
               setMessages((prev) =>
                 prev.map((m) =>
-                  m.id === assistantId ? { ...m, content: accumulated } : m,
+                  m.id === assistantId
+                    ? {
+                        ...m,
+                        content: accumulated,
+                        difyMessageId: m.difyMessageId ?? difyId,
+                      }
+                    : m,
                 ),
               );
+            }
+
+            if (parsed.event === 'message_end') {
+              const difyId = parsed.message_id || parsed.id;
+              if (difyId) {
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === assistantId
+                      ? { ...m, difyMessageId: m.difyMessageId ?? difyId }
+                      : m,
+                  ),
+                );
+              }
             }
 
             const thought = thoughtFromEvent(parsed, thoughtCounterRef.current);
@@ -419,6 +470,20 @@ export function ChatContainer() {
             <Brain className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Memory</span>
           </button>
+          {artifacts.length > 0 && (
+            <button
+              type="button"
+              onClick={() => void handleDownloadBundle()}
+              disabled={bundling}
+              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-[#6E6E73] transition hover:bg-[#F5F5F7] hover:text-[#1D1D1F] disabled:opacity-50"
+              title="Download session bundle (code + Mermaid + README + vercel.json)"
+            >
+              <Download className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">
+                {bundling ? 'Bundling…' : 'Download'}
+              </span>
+            </button>
+          )}
           {(artifacts.length > 0 || thoughts.length > 0) && !forgeOpen && (
             <button
               type="button"

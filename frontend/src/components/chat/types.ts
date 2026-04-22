@@ -5,6 +5,11 @@ export interface ChatMessage {
   role: ChatRole;
   content: string;
   createdAt: number;
+  /** Dify-side message id, captured from the SSE stream. Used for
+   *  the 'Correct the Gods' feedback call. */
+  difyMessageId?: string;
+  /** Feedback the user has left on this assistant message. */
+  feedback?: 'like' | 'dislike' | null;
 }
 
 export interface AgentPhase {
