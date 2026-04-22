@@ -9,7 +9,7 @@ function initMermaidOnce(): void {
   mermaid.initialize({
     startOnLoad: false,
     theme: 'neutral',
-    securityLevel: 'loose',
+    securityLevel: 'strict',
     fontFamily: 'var(--font-geist-sans), ui-sans-serif, system-ui',
   });
   mermaidInitialized = true;
