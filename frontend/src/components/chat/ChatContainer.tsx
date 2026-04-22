@@ -526,6 +526,8 @@ export function ChatContainer() {
                       i === messages.length - 1 &&
                       m.role === 'assistant'
                     }
+                    userId={userId}
+                    onFeedback={handleFeedback}
                   />
                 ))}
                 <div ref={bottomRef} />
