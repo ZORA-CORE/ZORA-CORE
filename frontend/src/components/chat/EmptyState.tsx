@@ -34,7 +34,7 @@ export const DEFAULT_QUICK_STARTS: QuickStartCard[] = [
   },
   {
     title: 'Forge a Nordic Landing Page',
-    description: 'A premium, airy marketing page in the Zoracore aesthetic.',
+    description: 'A premium, airy marketing page in the Valhalla aesthetic.',
     prompt:
       'Generate a Nordic minimalist landing page in Next.js + Tailwind for an AI software agency.',
     icon: 'sparkles',
@@ -89,11 +89,10 @@ export function EmptyState({
           </svg>
         </div>
         <h1 className="text-3xl font-semibold tracking-tight text-[#1D1D1F] sm:text-4xl">
-          Zoracore
+          Valhalla AI
         </h1>
         <p className="mt-3 max-w-md text-sm leading-6 text-[#6E6E73]">
-          A divine, high-tech Nordic intelligence. Ask anything, and watch your code
-          get forged — live.
+          Forging Future Systems through Divine Nordic Intelligence.
         </p>
       </motion.div>
 

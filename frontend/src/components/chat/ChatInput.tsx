@@ -30,7 +30,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
     onStop,
     isStreaming,
     disabled = false,
-    placeholder = 'Ask Zoracore to build, architect, or refactor…',
+    placeholder = 'Ask Valhalla to forge, architect, or refactor…',
   },
   ref,
 ) {
@@ -105,7 +105,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
         )}
       </div>
       <div className="mt-2 text-center text-[11px] text-[#9b9ba3]">
-        Zoracore can make mistakes. Verify important output. Press{' '}
+        Valhalla AI can make mistakes. Verify important output. Press{' '}
         <kbd className="rounded border border-[#EAEAEC] bg-[#F5F5F7] px-1 py-0.5 font-mono text-[10px]">
           Enter
         </kbd>{' '}

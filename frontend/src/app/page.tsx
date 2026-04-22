@@ -3,9 +3,9 @@ import './chat/chat.css';
 import { ChatContainer } from '@/components/chat/ChatContainer';
 
 export const metadata: Metadata = {
-  title: 'Zoracore — Divine Nordic Intelligence',
+  title: 'Valhalla AI — Divine Nordic Intelligence',
   description:
-    'A premium, minimalist AI chat interface for Zoracore — the face of our AI software agency.',
+    'Forging Future Systems through Divine Nordic Intelligence — a premium, multi-agent development environment.',
 };
 
 export default function Home() {
