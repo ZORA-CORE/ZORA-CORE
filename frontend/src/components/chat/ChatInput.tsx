@@ -66,14 +66,14 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
   const [showUrl, setShowUrl] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [voiceActive, setVoiceActive] = useState(false);
+  const [voiceSupported, setVoiceSupported] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const voiceRef = useRef<VoiceSession | null>(null);
-  const voiceSupported = useRef<boolean>(false);
 
   useEffect(() => {
-    voiceSupported.current = isVoiceSupported();
+    setVoiceSupported(isVoiceSupported());
   }, []);
 
   useImperativeHandle(ref, () => ({
@@ -209,12 +209,24 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
     if (!trimmedText && !hasAttachments && !hasUrl) return;
     if (disabled || isStreaming || uploading) return;
 
-    const composed =
-      hasUrl && trimmedText
-        ? `[Site analysis: ${trimmedUrl}]\n\n${trimmedText}`
-        : hasUrl
-          ? `Please analyse this URL: ${trimmedUrl}`
-          : trimmedText;
+    // The Dify proxy requires a non-empty query. When the user has only
+    // attached files (no text, no URL), synthesize a minimal prompt so the
+    // request isn't rejected at the server.
+    const composed = (() => {
+      if (hasUrl && trimmedText) {
+        return `[Site analysis: ${trimmedUrl}]\n\n${trimmedText}`;
+      }
+      if (hasUrl) {
+        return `Please analyse this URL: ${trimmedUrl}`;
+      }
+      if (trimmedText) return trimmedText;
+      if (hasAttachments) {
+        return files.length === 1
+          ? 'Please review the attached file.'
+          : `Please review the ${files.length} attached files.`;
+      }
+      return '';
+    })();
 
     onSubmit({
       text: composed,
@@ -326,19 +338,24 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
         )}
 
         <div className="flex items-end gap-2">
-          <textarea
-            ref={textareaRef}
-            value={interimVoice ? `${value}${value ? ' ' : ''}${interimVoice}` : value}
-            onChange={(e) => {
-              setValue(e.target.value);
-              if (interimVoice) setInterimVoice('');
-            }}
-            onKeyDown={handleKeyDown}
-            placeholder={placeholder}
-            rows={1}
-            disabled={disabled}
-            className="flex-1 resize-none bg-transparent px-3 py-2.5 text-[15px] leading-6 text-[#1D1D1F] placeholder:text-[#9b9ba3] focus:outline-none disabled:opacity-50"
-          />
+          <div className="relative flex-1">
+            <textarea
+              ref={textareaRef}
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={placeholder}
+              rows={1}
+              disabled={disabled || voiceActive}
+              readOnly={voiceActive}
+              className="w-full resize-none bg-transparent px-3 py-2.5 text-[15px] leading-6 text-[#1D1D1F] placeholder:text-[#9b9ba3] focus:outline-none disabled:opacity-50"
+            />
+            {interimVoice && (
+              <div className="pointer-events-none px-3 pb-1 text-[13px] italic leading-5 text-[#00CCFF]">
+                {interimVoice}
+              </div>
+            )}
+          </div>
 
           <div className="flex items-center gap-1">
             <input
@@ -363,7 +380,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
             >
               <Link2 className="h-4 w-4" />
             </IconButton>
-            {voiceSupported.current && (
+            {voiceSupported && (
               <IconButton
                 title={voiceActive ? 'Stop Voice Forge' : 'Voice Forge (speak)'}
                 onClick={toggleVoice}
