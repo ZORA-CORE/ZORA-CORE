@@ -109,12 +109,10 @@ export async function POST(req: NextRequest): Promise<Response> {
 }
 
 export async function GET(): Promise<Response> {
+  // Minimal healthcheck. Deliberately avoids leaking the upstream URL or
+  // whether the API key is configured to unauthenticated callers.
   return new Response(
-    JSON.stringify({
-      service: 'zoracore-chat-proxy',
-      upstream: DIFY_API_BASE,
-      configured: Boolean(process.env.DIFY_API_KEY),
-    }),
+    JSON.stringify({ service: 'zoracore-chat-proxy', status: 'ok' }),
     {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
