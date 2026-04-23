@@ -44,8 +44,12 @@ jobs:
         run: npm ci --legacy-peer-deps || npm install --legacy-peer-deps
 
       # ---- Vercel (frontend) ----
+      # NB: step-level \`env\` is NOT available in the step's own \`if\`
+      # condition — GH Actions evaluates \`if\` before applying the step
+      # env block. We reference the \`secrets\` context directly so missing
+      # secrets degrade gracefully instead of the step always skipping.
       - name: Deploy to Vercel
-        if: env.VERCEL_TOKEN != ''
+        if: \${{ secrets.VERCEL_TOKEN != '' }}
         env:
           VERCEL_TOKEN: \${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: \${{ secrets.VERCEL_ORG_ID }}
@@ -54,7 +58,7 @@ jobs:
 
       # ---- Cloudflare Workers (API) ----
       - name: Deploy Cloudflare Worker
-        if: env.CF_API_TOKEN != ''
+        if: \${{ secrets.CF_API_TOKEN != '' }}
         env:
           CF_API_TOKEN: \${{ secrets.CF_API_TOKEN }}
           CLOUDFLARE_API_TOKEN: \${{ secrets.CF_API_TOKEN }}
@@ -63,7 +67,7 @@ jobs:
 
       # ---- Supabase (DB migrations) ----
       - name: Apply Supabase migrations
-        if: env.SUPABASE_ACCESS_TOKEN != ''
+        if: \${{ secrets.SUPABASE_ACCESS_TOKEN != '' }}
         env:
           SUPABASE_ACCESS_TOKEN: \${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_URL: \${{ secrets.SUPABASE_DB_URL }}
@@ -250,8 +254,10 @@ the work to real environments:
 
 - The Supabase migration is **idempotent** (\`create … if not exists\`) and
   enables Row-Level Security on every table.
-- The GitHub Action checks \`if: env.<TOKEN> != ''\` before each deploy step,
-  so missing secrets degrade gracefully instead of failing the job.
+- The GitHub Action checks \`if: \${{ secrets.<TOKEN> != '' }}\` before
+  each deploy step (via the \`secrets\` context \u2014 step-level \`env\`
+  is NOT available in the step's own \`if\`), so missing secrets
+  degrade gracefully instead of failing the job.
 - \`scripts/deploy.sh\` uses \`set -euo pipefail\` and prints skipped steps
   explicitly so there's no silent no-op.
 
