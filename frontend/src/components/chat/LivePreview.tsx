@@ -146,41 +146,54 @@ function pickPreviewable(artifacts: Artifact[]): PreviewPlan | NotPreviewable {
     // change its error-handling semantics.
     const starterRe = /^\s*(import|export)(\s|\{)/;
     const isComplete = (buf: string): boolean => {
-      // Fast path: a statement that matched `starterRe` on a single line
-      // is always a complete declaration. We short-circuit BEFORE doing
-      // any brace counting because the counter below is not lexer-aware
-      // — it counts `{`/`}` inside strings, template literals, regex
-      // bodies, and comments. Inputs like `export const re = /\{/;` or
-      // `export const msg = 'missing {';` would otherwise report
-      // depth !== 0 and cause the outer loop to greedily swallow the
-      // rest of the file into topLevel, leaving body empty.
-      if (!buf.includes('\n')) return true;
-      // Balance braces and parens across the buffer; for multi-line
-      // statements we only treat it as complete once every opening has
-      // closed. This is still lexer-naive, but the only remaining way
-      // to trigger a miscount is a multi-line declaration that ALSO
-      // contains an unbalanced brace inside a string/regex — vanishingly
-      // rare for top-level imports/exports, and the subsequent `;` /
-      // `from '…'` / function-class checks catch the common cases.
+      // Walk the buffer and balance braces / parens. The counter is
+      // intentionally lexer-naive (no string / regex / comment state),
+      // so a stray `{` or `}` inside a literal will miscount depth —
+      // we rely on the terminator heuristics below to recover.
       let depth = 0;
       for (const ch of buf) {
         if (ch === '{' || ch === '(') depth += 1;
         else if (ch === '}' || ch === ')') depth -= 1;
       }
-      if (depth !== 0) return false;
       const trimmed = buf.trimEnd();
-      if (/;\s*$/.test(trimmed)) return true;
-      if (/from\s+['"][^'"]+['"]\s*;?\s*$/.test(trimmed)) return true;
-      // `export function f() { … }` / `export class C { … }` /
-      // `export default function () { … }` — multi-line forms that
-      // end with `}` at depth 0, not with `;`. Without this branch the
-      // loop would greedily consume the next statement (e.g.
-      // `const x = helper();`) and hoist it to module top-level.
-      if (
+      const singleLine = !buf.includes('\n');
+      const endsWithSemicolon = /;\s*$/.test(trimmed);
+      const endsWithFromClause = /from\s+['"][^'"]+['"]\s*;?\s*$/.test(trimmed);
+      const isExportFnOrClass =
         /^\s*export\b/.test(buf) &&
         /\}\s*$/.test(trimmed) &&
-        /\b(function|class|async\s+function)\b/.test(buf)
-      ) {
+        /\b(function|class|async\s+function)\b/.test(buf);
+
+      if (depth === 0) {
+        // Braces balanced. Trust any standard terminator, including
+        // multi-line `export function` / `export class` / default
+        // function tails that end with `}` (not `;`).
+        if (endsWithSemicolon || endsWithFromClause || isExportFnOrClass) {
+          return true;
+        }
+        // Depth-zero single-line statements without a semicolon (e.g.
+        // `export const API_URL = '…'`, `export { foo }` with no
+        // trailing `;`) are complete — there is no continuation to
+        // accumulate.
+        if (singleLine) return true;
+        // Multi-line at depth 0 without a known tail is unusual; stay
+        // conservative and let the outer loop append the next line.
+        return false;
+      }
+
+      // depth !== 0. Two shapes land here:
+      //   (a) Genuinely multi-line declarations mid-accumulation such
+      //       as `import {` on its own line — we MUST return false so
+      //       the outer loop pulls in the continuation lines, otherwise
+      //       `import {` gets hoisted to topLevel while `useState,` /
+      //       `} from 'react';` fall into body and get wrapped in the
+      //       try/catch, producing a syntax error.
+      //   (b) A single-line statement whose stray `{` / `}` lives
+      //       inside a string or regex literal — e.g.
+      //       `export const re = /\{/;` or `export const msg = "{";`.
+      //       These are complete by construction, so we trust the
+      //       terminator heuristics to recover from the miscount.
+      if (singleLine && (endsWithSemicolon || endsWithFromClause)) {
         return true;
       }
       return false;
