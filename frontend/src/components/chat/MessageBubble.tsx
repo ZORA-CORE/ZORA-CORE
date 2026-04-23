@@ -32,8 +32,8 @@ export function MessageBubble({
       <div
         className={
           isUser
-            ? 'max-w-[85%] rounded-2xl bg-[#F5F5F7] px-4 py-3 text-[#1D1D1F]'
-            : 'flex max-w-[92%] flex-col rounded-2xl border border-[#EEF0F2] bg-white px-5 py-4 text-[#1D1D1F] shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(0,0,0,0.08)]'
+            ? 'max-w-[85%] rounded-2xl bg-[#F4F4F4] px-4 py-3 text-neutral-900 dark:bg-[#2F2F2F] dark:text-neutral-100'
+            : 'flex max-w-[92%] flex-col rounded-2xl border border-neutral-200 bg-white px-5 py-4 text-neutral-900 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(0,0,0,0.08)] dark:border-neutral-800 dark:bg-[#2A2A2A] dark:text-neutral-100 dark:shadow-none'
         }
       >
         {isUser ? (

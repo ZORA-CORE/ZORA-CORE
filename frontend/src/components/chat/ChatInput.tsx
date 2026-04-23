@@ -406,10 +406,10 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
       onDrop={handleDrop}
     >
       <div
-        className={`relative flex flex-col gap-2 rounded-2xl border bg-white p-2 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(0,0,0,0.08)] transition focus-within:shadow-[0_1px_2px_rgba(0,0,0,0.04),0_12px_32px_-16px_rgba(0,204,255,0.35)] ${
+        className={`relative flex flex-col gap-2 rounded-2xl border bg-white p-2 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(0,0,0,0.08)] transition focus-within:shadow-[0_1px_2px_rgba(0,0,0,0.04),0_12px_32px_-16px_rgba(0,204,255,0.35)] dark:bg-[#2A2A2A] dark:shadow-none ${
           dragActive
-            ? 'border-[#00CCFF] bg-[#E6FAFF]/40'
-            : 'border-[#EAEAEC] focus-within:border-[#00CCFF]/60'
+            ? 'border-[#00CCFF] bg-[#E6FAFF]/40 dark:bg-[#0d3340]/40'
+            : 'border-neutral-200 focus-within:border-[#00CCFF]/60 dark:border-neutral-700 dark:focus-within:border-[#00CCFF]/60'
         }`}
       >
         {/* Attachments chip row */}
@@ -418,7 +418,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
             {files.map((f) => (
               <span
                 key={f.clientId}
-                className="flex items-center gap-1.5 rounded-full border border-[#EAEAEC] bg-[#F5F5F7] pl-2 pr-1 py-1 text-[11px] font-medium text-[#1D1D1F]"
+                className="flex items-center gap-1.5 rounded-full border border-neutral-200 bg-neutral-100 pl-2 pr-1 py-1 text-[11px] font-medium text-neutral-900 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100"
                 title={`${f.name} · ${Math.round(f.size / 1024)} KB${
                   f.parseMeta ? ` · ${f.parseMeta}` : ''
                 }`}
@@ -468,14 +468,14 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
 
         {/* URL field (inline, shown when toggled) */}
         {showUrl && (
-          <div className="flex items-center gap-2 rounded-lg border border-[#EAEAEC] bg-[#F9FAFB] px-3 py-2">
+          <div className="flex items-center gap-2 rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 dark:border-neutral-700 dark:bg-[#212121]">
             <Link2 className="h-3.5 w-3.5 shrink-0 text-[#00CCFF]" />
             <input
               type="url"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               placeholder="https://example.com  (URL for site analysis)"
-              className="flex-1 bg-transparent text-[13px] text-[#1D1D1F] placeholder:text-[#9b9ba3] focus:outline-none"
+              className="flex-1 bg-transparent text-[13px] text-neutral-900 placeholder:text-neutral-400 focus:outline-none dark:text-neutral-100 dark:placeholder:text-neutral-500"
             />
             <button
               type="button"
@@ -502,7 +502,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
               rows={1}
               disabled={disabled || voiceActive}
               readOnly={voiceActive}
-              className="w-full resize-none bg-transparent px-3 py-2.5 text-[15px] leading-6 text-[#1D1D1F] placeholder:text-[#9b9ba3] focus:outline-none disabled:opacity-50"
+              className="w-full resize-none bg-transparent px-3 py-2.5 text-[15px] leading-6 text-neutral-900 placeholder:text-neutral-400 focus:outline-none disabled:opacity-50 dark:text-neutral-100 dark:placeholder:text-neutral-500"
             />
             {interimVoice && (
               <div className="pointer-events-none px-3 pb-1 text-[13px] italic leading-5 text-[#00CCFF]">
@@ -553,7 +553,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
                 type="button"
                 onClick={onStop}
                 aria-label="Stop generation"
-                className="ml-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#1D1D1F] text-white transition hover:bg-[#2a2a30]"
+                className="ml-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-neutral-900 text-white transition hover:bg-neutral-700 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300"
               >
                 <Square className="h-4 w-4" fill="currentColor" />
               </button>
@@ -562,7 +562,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
                 type="submit"
                 disabled={!canSend}
                 aria-label="Send message"
-                className="ml-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#00CCFF] text-white transition hover:bg-[#00B8E6] disabled:cursor-not-allowed disabled:bg-[#D2D2D7]"
+                className="ml-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-neutral-900 text-white transition hover:bg-neutral-700 disabled:cursor-not-allowed disabled:bg-neutral-300 dark:bg-neutral-100 dark:text-neutral-900 dark:hover:bg-neutral-300 dark:disabled:bg-neutral-700 dark:disabled:text-neutral-500"
               >
                 <ArrowUp className="h-4 w-4" />
               </button>
@@ -583,13 +583,13 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
         </div>
       )}
 
-      <div className="mt-2 text-center text-[11px] text-[#9b9ba3]">
+      <div className="mt-2 text-center text-[11px] text-neutral-400 dark:text-neutral-500">
         Valhalla AI can make mistakes. Verify important output. Press{' '}
-        <kbd className="rounded border border-[#EAEAEC] bg-[#F5F5F7] px-1 py-0.5 font-mono text-[10px]">
+        <kbd className="rounded border border-neutral-200 bg-neutral-100 px-1 py-0.5 font-mono text-[10px] dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
           Enter
         </kbd>{' '}
         to send,{' '}
-        <kbd className="rounded border border-[#EAEAEC] bg-[#F5F5F7] px-1 py-0.5 font-mono text-[10px]">
+        <kbd className="rounded border border-neutral-200 bg-neutral-100 px-1 py-0.5 font-mono text-[10px] dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-300">
           Shift+Enter
         </kbd>{' '}
         for newline.
@@ -622,8 +622,8 @@ function IconButton({
       title={title}
       className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition disabled:cursor-not-allowed disabled:opacity-40 ${
         active
-          ? 'bg-[#E6FAFF] text-[#008FBF]'
-          : 'text-[#6E6E73] hover:bg-[#F5F5F7] hover:text-[#1D1D1F]'
+          ? 'bg-[#E6FAFF] text-[#008FBF] dark:bg-[#0d3340] dark:text-[#66ddff]'
+          : 'text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-100'
       }`}
     >
       {children}

@@ -7,13 +7,22 @@ import { buildSessionBundle, triggerBrowserDownload } from './bundle';
 import { buildValkyrieBundle } from './valkyrie';
 import { ShipModal } from './ShipModal';
 import { ChatInput, type ChatInputHandle } from './ChatInput';
+import { ChatSidebar } from './ChatSidebar';
 import { EivorMemoryPanel } from './EivorMemoryPanel';
 import { EmptyState } from './EmptyState';
 import { ForgePanel } from './ForgePanel';
 import { MessageBubble } from './MessageBubble';
-import { SwarmVisualizer } from './SwarmVisualizer';
+import { ThemeProvider } from './ThemeProvider';
 import { extractArtifacts, type Artifact, type ThoughtEvent } from './artifacts';
 import { extractMemory } from './memory';
+import {
+  loadActiveThreadId,
+  loadThreads,
+  saveActiveThreadId,
+  saveThreads,
+  titleFromMessage,
+  type ChatThread,
+} from './threadStore';
 import type { AttachedFile, ChatMessage, ChatSubmission } from './types';
 
 function makeId(): string {
@@ -128,7 +137,7 @@ function thoughtFromEvent(
   }
 }
 
-export function ChatContainer() {
+function ChatContainerInner() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -140,21 +149,91 @@ export function ChatContainer() {
   const [userId, setUserId] = useState<string>('valhalla-ssr');
   const [bundling, setBundling] = useState(false);
 
+  // Threads sidebar state
+  const [threads, setThreads] = useState<ChatThread[]>([]);
+  const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
   const userIdRef = useRef<string>('valhalla-ssr');
   const abortRef = useRef<AbortController | null>(null);
   const inputRef = useRef<ChatInputHandle>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const thoughtCounterRef = useRef(0);
+  const activeThreadIdRef = useRef<string | null>(null);
+  const conversationIdRef = useRef<string>('');
+  const hydratedRef = useRef(false);
 
+  // Hydrate user id + threads + sidebar state from localStorage once.
   useEffect(() => {
     const id = getOrCreateUserId();
     userIdRef.current = id;
     setUserId(id);
+
+    const stored = loadThreads();
+    setThreads(stored);
+
+    const lastActive = loadActiveThreadId();
+    const target = lastActive && stored.find((t) => t.id === lastActive);
+    if (target) {
+      setActiveThreadId(target.id);
+      activeThreadIdRef.current = target.id;
+      setMessages(target.messages);
+      setConversationId(target.conversationId);
+      conversationIdRef.current = target.conversationId;
+    }
+
+    try {
+      const collapsed = window.localStorage.getItem('valhalla.sidebar.collapsed');
+      if (collapsed === '1') setSidebarCollapsed(true);
+    } catch {
+      /* ignore */
+    }
+
+    hydratedRef.current = true;
   }, []);
 
+  // Keep the active-conversation-id ref in sync so the SSE handler
+  // resolves the right thread even if the user switches mid-stream.
+  useEffect(() => {
+    conversationIdRef.current = conversationId;
+  }, [conversationId]);
+  useEffect(() => {
+    activeThreadIdRef.current = activeThreadId;
+    saveActiveThreadId(activeThreadId);
+  }, [activeThreadId]);
+
+  // Auto-scroll the chat to the bottom whenever a new message or token arrives.
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [messages, isStreaming]);
+
+  // Persist the active thread's messages whenever they change. We only
+  // write AFTER initial hydration so we don't overwrite stored state
+  // with an empty initial render.
+  useEffect(() => {
+    if (!hydratedRef.current) return;
+    const activeId = activeThreadIdRef.current;
+    if (!activeId) return;
+    if (messages.length === 0) return;
+
+    setThreads((prev) => {
+      const existing = prev.find((t) => t.id === activeId);
+      if (!existing) return prev;
+      const title = existing.title === 'New chat'
+        ? titleFromMessage(messages[0]?.content ?? '')
+        : existing.title;
+      const updated: ChatThread = {
+        ...existing,
+        title,
+        messages,
+        conversationId: conversationIdRef.current,
+        updatedAt: Date.now(),
+      };
+      const next = [updated, ...prev.filter((t) => t.id !== activeId)];
+      saveThreads(next);
+      return next;
+    });
+  }, [messages]);
 
   const isEmpty = messages.length === 0 && !isStreaming;
 
@@ -207,9 +286,32 @@ export function ChatContainer() {
     [artifacts, messages, bundling],
   );
 
+  const ensureActiveThread = useCallback((): string => {
+    const existing = activeThreadIdRef.current;
+    if (existing) return existing;
+    const id = makeId();
+    const thread: ChatThread = {
+      id,
+      title: 'New chat',
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      conversationId: '',
+      messages: [],
+    };
+    activeThreadIdRef.current = id;
+    setActiveThreadId(id);
+    setThreads((prev) => {
+      const next = [thread, ...prev];
+      saveThreads(next);
+      return next;
+    });
+    return id;
+  }, []);
+
   const sendMessage = useCallback(
     async ({ text, files }: ChatSubmission): Promise<void> => {
       setError(null);
+      ensureActiveThread();
       const userMsg: ChatMessage = {
         id: makeId(),
         role: 'user',
@@ -246,7 +348,7 @@ export function ChatContainer() {
           body: JSON.stringify({
             query: text,
             user: userIdRef.current,
-            conversation_id: conversationId || undefined,
+            conversation_id: conversationIdRef.current || undefined,
             inputs: {},
             files: difyFiles,
           }),
@@ -385,7 +487,7 @@ export function ChatContainer() {
         setIsStreaming(false);
       }
     },
-    [conversationId],
+    [ensureActiveThread],
   );
 
   const handleStop = useCallback((): void => {
@@ -396,17 +498,66 @@ export function ChatContainer() {
     inputRef.current?.setValue(prompt);
   }, []);
 
-  const handleNewChat = useCallback((): void => {
+  const resetConversationState = useCallback((): void => {
     abortRef.current?.abort();
     abortRef.current = null;
     setMessages([]);
     setConversationId('');
+    conversationIdRef.current = '';
     setError(null);
     setIsStreaming(false);
     setThoughts([]);
     thoughtCounterRef.current = 0;
     setForgeOpen(false);
     setMemoryOpen(false);
+  }, []);
+
+  const handleNewChat = useCallback((): void => {
+    resetConversationState();
+    activeThreadIdRef.current = null;
+    setActiveThreadId(null);
+  }, [resetConversationState]);
+
+  const handleSelectThread = useCallback(
+    (id: string): void => {
+      const target = threads.find((t) => t.id === id);
+      if (!target) return;
+      resetConversationState();
+      activeThreadIdRef.current = id;
+      setActiveThreadId(id);
+      setMessages(target.messages);
+      setConversationId(target.conversationId);
+      conversationIdRef.current = target.conversationId;
+    },
+    [threads, resetConversationState],
+  );
+
+  const handleDeleteThread = useCallback(
+    (id: string): void => {
+      setThreads((prev) => {
+        const next = prev.filter((t) => t.id !== id);
+        saveThreads(next);
+        return next;
+      });
+      if (activeThreadIdRef.current === id) {
+        resetConversationState();
+        activeThreadIdRef.current = null;
+        setActiveThreadId(null);
+      }
+    },
+    [resetConversationState],
+  );
+
+  const handleToggleSidebar = useCallback((): void => {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      try {
+        window.localStorage.setItem('valhalla.sidebar.collapsed', next ? '1' : '0');
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
   }, []);
 
   const progressBar = useMemo(
@@ -440,161 +591,163 @@ export function ChatContainer() {
   const showForge = forgeOpen && (artifacts.length > 0 || thoughts.length > 0);
 
   return (
-    <div className="flex h-[100dvh] w-full flex-col bg-white text-[#1D1D1F]">
-      <header className="flex h-14 shrink-0 items-center justify-between border-b border-[#F0F0F2] bg-white/70 px-5 backdrop-blur-xl">
-        <div className="flex items-center gap-2">
-          <svg
-            width="22"
-            height="22"
-            viewBox="0 0 32 32"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            aria-hidden
-          >
-            <path
-              d="M16 3 L29 10 V22 L16 29 L3 22 V10 Z"
-              stroke="#1D1D1F"
-              strokeWidth="1.5"
-              strokeLinejoin="round"
-            />
-            <path
-              d="M16 9 L23 13 V19 L16 23 L9 19 V13 Z"
-              stroke="#00CCFF"
-              strokeWidth="1.5"
-              strokeLinejoin="round"
-            />
-          </svg>
-          <span className="text-sm font-semibold tracking-tight">Valhalla AI</span>
-          <span className="hidden text-xs text-[#9b9ba3] sm:inline">
-            · Forging Future Systems
-          </span>
-        </div>
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => setMemoryOpen(true)}
-            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-[#6E6E73] transition hover:bg-[#F5F5F7] hover:text-[#1D1D1F]"
-            title="EIVOR Memory"
-          >
-            <Brain className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Memory</span>
-          </button>
-          {artifacts.length > 0 && (
-            <>
-              <button
-                type="button"
-                onClick={() => void handleDownloadBundle('session')}
-                disabled={bundling}
-                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-[#6E6E73] transition hover:bg-[#F5F5F7] hover:text-[#1D1D1F] disabled:opacity-50"
-                title="Download session bundle (code + Mermaid + README + vercel.json)"
-              >
-                <Download className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">
-                  {bundling ? 'Bundling…' : 'Download'}
-                </span>
-              </button>
-              <button
-                type="button"
-                onClick={() => void handleDownloadBundle('valkyrie')}
-                disabled={bundling}
-                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-[#008FBF] transition hover:bg-[#E6FAFF]/60 disabled:opacity-50"
-                title="Valkyrie bundle — session zip + GH Actions + Cloudflare Worker + Supabase migration + deploy.sh"
-              >
-                <Shield className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Valkyrie</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setShipOpen(true)}
-                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-white transition bg-[#008FBF] hover:bg-[#0077A3]"
-                title="Ship — create a new GitHub repo and commit the entire Valkyrie bundle in one atomic commit"
-              >
-                <Ship className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Ship</span>
-              </button>
-            </>
-          )}
-          {(artifacts.length > 0 || thoughts.length > 0) && !forgeOpen && (
+    <div className="flex h-[100dvh] w-full bg-white text-neutral-900 dark:bg-[#212121] dark:text-neutral-100">
+      <ChatSidebar
+        threads={threads}
+        activeThreadId={activeThreadId}
+        collapsed={sidebarCollapsed}
+        onToggleCollapsed={handleToggleSidebar}
+        onNewChat={handleNewChat}
+        onSelectThread={handleSelectThread}
+        onDeleteThread={handleDeleteThread}
+      />
+
+      <div className="flex min-h-0 flex-1 flex-col">
+        <header className="flex h-14 shrink-0 items-center justify-between border-b border-neutral-200 bg-white/70 px-5 backdrop-blur-xl dark:border-neutral-800 dark:bg-[#212121]/80">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold tracking-tight">Valhalla AI</span>
+            <span className="hidden text-xs text-neutral-500 dark:text-neutral-400 sm:inline">
+              · Forging Future Systems
+            </span>
+          </div>
+          <div className="flex items-center gap-1">
             <button
               type="button"
-              onClick={() => setForgeOpen(true)}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-[#6E6E73] transition hover:bg-[#F5F5F7] hover:text-[#1D1D1F]"
+              onClick={() => setMemoryOpen(true)}
+              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-neutral-500 transition hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-100"
+              title="EIVOR Memory"
             >
-              <PanelRightOpen className="h-3.5 w-3.5" />
-              Open Forge
+              <Brain className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Memory</span>
             </button>
-          )}
-          <button
-            type="button"
-            onClick={handleNewChat}
-            className="rounded-lg px-3 py-1.5 text-xs font-medium text-[#6E6E73] transition hover:bg-[#F5F5F7] hover:text-[#1D1D1F]"
+            {artifacts.length > 0 && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => void handleDownloadBundle('session')}
+                  disabled={bundling}
+                  className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-neutral-500 transition hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-100 disabled:opacity-50"
+                  title="Download session bundle (code + Mermaid + README + vercel.json)"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">
+                    {bundling ? 'Bundling…' : 'Download'}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleDownloadBundle('valkyrie')}
+                  disabled={bundling}
+                  className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-[#008FBF] transition hover:bg-[#E6FAFF]/60 dark:text-[#66ddff] dark:hover:bg-[#0d3340]/40 disabled:opacity-50"
+                  title="Valkyrie bundle — session zip + GH Actions + Cloudflare Worker + Supabase migration + deploy.sh"
+                >
+                  <Shield className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Valkyrie</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShipOpen(true)}
+                  className="flex items-center gap-1.5 rounded-lg bg-[#008FBF] px-3 py-1.5 text-xs font-medium text-white transition hover:bg-[#0077A3]"
+                  title="Ship — create a new GitHub repo and commit the entire Valkyrie bundle in one atomic commit"
+                >
+                  <Ship className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Ship</span>
+                </button>
+              </>
+            )}
+            {(artifacts.length > 0 || thoughts.length > 0) && !forgeOpen && (
+              <button
+                type="button"
+                onClick={() => setForgeOpen(true)}
+                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-neutral-500 transition hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-100"
+              >
+                <PanelRightOpen className="h-3.5 w-3.5" />
+                Open Forge
+              </button>
+            )}
+          </div>
+        </header>
+
+        <div className="flex min-h-0 flex-1">
+          <section
+            className={`relative flex min-h-0 flex-1 flex-col ${
+              showForge ? 'lg:min-w-0' : ''
+            }`}
           >
-            New chat
-          </button>
-        </div>
-      </header>
+            {progressBar}
 
-      <div className="flex min-h-0 flex-1">
-        <section
-          className={`relative flex min-h-0 flex-1 flex-col ${
-            showForge ? 'lg:min-w-0' : ''
-          }`}
-        >
-          {progressBar}
-
-          <div className="flex-1 overflow-y-auto">
-            {isEmpty ? (
-              <EmptyState onSelect={handleQuickStart} />
-            ) : (
-              <div className="mx-auto flex w-full max-w-[800px] flex-col gap-5 px-4 py-8">
-                {messages.map((m, i) => (
-                  <MessageBubble
-                    key={m.id}
-                    message={m}
-                    isStreaming={
-                      isStreaming &&
-                      i === messages.length - 1 &&
-                      m.role === 'assistant'
-                    }
-                    userId={userId}
-                    onFeedback={handleFeedback}
-                  />
-                ))}
-                <div ref={bottomRef} />
-              </div>
-            )}
-          </div>
-
-          <div className="shrink-0 border-t border-[#F0F0F2] bg-white/80 backdrop-blur-xl">
-            <div className="mx-auto w-full max-w-[800px] px-4 pt-3">
-              <SwarmVisualizer active={isStreaming} />
-            </div>
-            <ChatInput
-              ref={inputRef}
-              onSubmit={sendMessage}
-              onStop={handleStop}
-              isStreaming={isStreaming}
-              userId={userId}
-            />
-            {error && !isStreaming && (
-              <div className="mx-auto mb-3 w-full max-w-[800px] px-4">
-                <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-                  {error}
+            <div className="flex-1 overflow-y-auto">
+              {isEmpty ? (
+                <EmptyState onSelect={handleQuickStart} />
+              ) : (
+                <div className="mx-auto flex w-full max-w-[800px] flex-col gap-5 px-4 py-8">
+                  {messages.map((m, i) => (
+                    <MessageBubble
+                      key={m.id}
+                      message={m}
+                      isStreaming={
+                        isStreaming &&
+                        i === messages.length - 1 &&
+                        m.role === 'assistant'
+                      }
+                      userId={userId}
+                      onFeedback={handleFeedback}
+                    />
+                  ))}
+                  <div ref={bottomRef} />
                 </div>
-              </div>
-            )}
-          </div>
-        </section>
+              )}
+            </div>
 
-        <AnimatePresence initial={false}>
+            <div className="shrink-0 border-t border-neutral-200 bg-white/80 backdrop-blur-xl dark:border-neutral-800 dark:bg-[#212121]/80">
+              <ChatInput
+                ref={inputRef}
+                onSubmit={sendMessage}
+                onStop={handleStop}
+                isStreaming={isStreaming}
+                userId={userId}
+              />
+              {error && !isStreaming && (
+                <div className="mx-auto mb-3 w-full max-w-[800px] px-4">
+                  <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-800/50 dark:bg-red-900/20 dark:text-red-300">
+                    {error}
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+
+          <AnimatePresence initial={false}>
+            {showForge && (
+              <motion.section
+                key="forge"
+                initial={{ x: 40, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                exit={{ x: 40, opacity: 0 }}
+                transition={{ duration: 0.22, ease: 'easeOut' }}
+                className="hidden min-h-0 w-full max-w-[620px] shrink-0 lg:flex lg:w-[48%]"
+              >
+                <ForgePanel
+                  artifacts={artifacts}
+                  thoughts={thoughts}
+                  isStreaming={isStreaming}
+                  onClose={() => setForgeOpen(false)}
+                />
+              </motion.section>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Mobile Forge: slide-over over the chat */}
+        <AnimatePresence>
           {showForge && (
-            <motion.section
-              key="forge"
-              initial={{ x: 40, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: 40, opacity: 0 }}
+            <motion.div
+              key="forge-mobile"
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
               transition={{ duration: 0.22, ease: 'easeOut' }}
-              className="hidden min-h-0 w-full max-w-[560px] shrink-0 lg:flex lg:w-[48%]"
+              className="fixed inset-x-0 bottom-0 top-14 z-30 flex lg:hidden"
             >
               <ForgePanel
                 artifacts={artifacts}
@@ -602,44 +755,31 @@ export function ChatContainer() {
                 isStreaming={isStreaming}
                 onClose={() => setForgeOpen(false)}
               />
-            </motion.section>
+            </motion.div>
           )}
         </AnimatePresence>
+
+        <EivorMemoryPanel
+          open={memoryOpen}
+          memory={memory}
+          onClose={() => setMemoryOpen(false)}
+        />
+
+        <ShipModal
+          open={shipOpen}
+          artifacts={artifacts}
+          messages={messages}
+          onClose={() => setShipOpen(false)}
+        />
       </div>
-
-      {/* Mobile Forge: slide-over over the chat */}
-      <AnimatePresence>
-        {showForge && (
-          <motion.div
-            key="forge-mobile"
-            initial={{ y: '100%' }}
-            animate={{ y: 0 }}
-            exit={{ y: '100%' }}
-            transition={{ duration: 0.22, ease: 'easeOut' }}
-            className="fixed inset-x-0 bottom-0 top-14 z-30 flex lg:hidden"
-          >
-            <ForgePanel
-              artifacts={artifacts}
-              thoughts={thoughts}
-              isStreaming={isStreaming}
-              onClose={() => setForgeOpen(false)}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <EivorMemoryPanel
-        open={memoryOpen}
-        memory={memory}
-        onClose={() => setMemoryOpen(false)}
-      />
-
-      <ShipModal
-        open={shipOpen}
-        artifacts={artifacts}
-        messages={messages}
-        onClose={() => setShipOpen(false)}
-      />
     </div>
+  );
+}
+
+export function ChatContainer() {
+  return (
+    <ThemeProvider>
+      <ChatContainerInner />
+    </ThemeProvider>
   );
 }
