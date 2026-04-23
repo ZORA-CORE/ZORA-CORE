@@ -146,8 +146,22 @@ function pickPreviewable(artifacts: Artifact[]): PreviewPlan | NotPreviewable {
     // change its error-handling semantics.
     const starterRe = /^\s*(import|export)(\s|\{)/;
     const isComplete = (buf: string): boolean => {
-      // Balance braces and parens across the buffer; we only treat the
-      // statement as complete once every opening has closed.
+      // Fast path: a statement that matched `starterRe` on a single line
+      // is always a complete declaration. We short-circuit BEFORE doing
+      // any brace counting because the counter below is not lexer-aware
+      // — it counts `{`/`}` inside strings, template literals, regex
+      // bodies, and comments. Inputs like `export const re = /\{/;` or
+      // `export const msg = 'missing {';` would otherwise report
+      // depth !== 0 and cause the outer loop to greedily swallow the
+      // rest of the file into topLevel, leaving body empty.
+      if (!buf.includes('\n')) return true;
+      // Balance braces and parens across the buffer; for multi-line
+      // statements we only treat it as complete once every opening has
+      // closed. This is still lexer-naive, but the only remaining way
+      // to trigger a miscount is a multi-line declaration that ALSO
+      // contains an unbalanced brace inside a string/regex — vanishingly
+      // rare for top-level imports/exports, and the subsequent `;` /
+      // `from '…'` / function-class checks catch the common cases.
       let depth = 0;
       for (const ch of buf) {
         if (ch === '{' || ch === '(') depth += 1;
@@ -155,15 +169,6 @@ function pickPreviewable(artifacts: Artifact[]): PreviewPlan | NotPreviewable {
       }
       if (depth !== 0) return false;
       const trimmed = buf.trimEnd();
-      // A single-line balanced declaration is always complete. This
-      // catches the ASI-style (semicolon-less) cases where the old
-      // regex checks fell through and the loop then greedily swallowed
-      // the rest of the file: `export const API = 'https://…'`,
-      // `import './side-effect'`, `export default 42`, etc. Any
-      // multi-line continuation would already have bumped depth > 0
-      // (unmatched `{` / `(`) or have survived this branch — because
-      // by then `buf` contains a `\n`.
-      if (!buf.includes('\n')) return true;
       if (/;\s*$/.test(trimmed)) return true;
       if (/from\s+['"][^'"]+['"]\s*;?\s*$/.test(trimmed)) return true;
       // `export function f() { … }` / `export class C { … }` /

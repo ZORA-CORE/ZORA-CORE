@@ -12,6 +12,7 @@
  */
 
 import { NextRequest } from 'next/server';
+import { lookup } from 'node:dns/promises';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -125,6 +126,48 @@ function isAllowedUrl(raw: string): URL | null {
   return u;
 }
 
+/**
+ * Resolve the hostname via the OS resolver and verify every returned
+ * address is in a public range. This closes the DNS-rebinding SSRF
+ * bypass where `evil.example.com` resolves to 169.254.169.254: the
+ * hostname-only blocklist in `isAllowedUrl` would pass it, but the
+ * fetch would then connect to the metadata endpoint. We resolve here
+ * and reject if ANY returned address is private / link-local / loopback
+ * / multicast / IPv4-mapped private.
+ *
+ * Note on TOCTOU: a truly adversarial DNS server could return a public
+ * IP to this lookup and a private IP to the subsequent fetch. Fully
+ * closing that requires a custom `undici` connect callback that checks
+ * the actually-connected socket address. This implementation raises
+ * the bar to "cooperative attacker with a compliant DNS record" which
+ * matches the threat model of a user-pasted URL on a non-critical
+ * read-only extractor.
+ */
+async function hostResolvesToAllowed(hostname: string): Promise<boolean> {
+  // If the hostname is already an IP literal, `isAllowedUrl` handled it.
+  const stripped = hostname.replace(/^\[|\]$/g, '');
+  if (parseIPv4(stripped)) return true;
+  if (stripped.includes(':')) return true; //  already an IPv6 literal
+  try {
+    const addrs = await lookup(hostname, { all: true });
+    if (addrs.length === 0) return false;
+    for (const a of addrs) {
+      if (a.family === 4) {
+        const v4 = parseIPv4(a.address);
+        if (!v4) return false; //  unparseable, treat as unsafe
+        if (isPrivateIPv4(v4)) return false;
+      } else if (a.family === 6) {
+        if (isDisallowedIPv6(a.address.toLowerCase())) return false;
+      } else {
+        return false;
+      }
+    }
+    return true;
+  } catch {
+    return false; //  NXDOMAIN / DNS failure → refuse the fetch
+  }
+}
+
 function extractReadable(html: string): { title: string; text: string } {
   // Strip <script>/<style>/<noscript>/<template> blocks entirely.
   let cleaned = html
@@ -190,6 +233,15 @@ export async function POST(req: NextRequest): Promise<Response> {
   try {
     let redirects = 0;
     for (;;) {
+      // DNS-rebinding guard: verify the hostname resolves to a public
+      // address before each fetch, including after every redirect hop.
+      const dnsOk = await hostResolvesToAllowed(currentUrl.hostname);
+      if (!dnsOk) {
+        return jsonError(
+          'Hostname resolves to a disallowed address (SSRF guard).',
+          400,
+        );
+      }
       response = await fetch(currentUrl.toString(), {
         method: 'GET',
         headers: {
