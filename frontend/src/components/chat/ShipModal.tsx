@@ -70,20 +70,35 @@ export function ShipModal({
   const [error, setError] = useState<ShipError | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const prevOpenRef = useRef<boolean>(false);
+  const messagesRef = useRef<ChatMessage[]>(messages);
 
+  // Keep a live ref to the latest messages so the open-transition effect
+  // can read them without depending on the messages array identity
+  // (which changes on every stream/feedback tick).
   useEffect(() => {
-    if (open) {
-      setRepo(defaultRepoName(messages));
+    messagesRef.current = messages;
+  }, [messages]);
+
+  // Reset form state only on the closed→open transition. Depending on
+  // `messages` here would re-run on every stream tick, clobbering the
+  // user's edits and — worse — flipping `busy` back to false mid-request
+  // and letting a second click create a duplicate GitHub repo.
+  useEffect(() => {
+    const wasOpen = prevOpenRef.current;
+    prevOpenRef.current = open;
+    if (open && !wasOpen) {
+      setRepo(defaultRepoName(messagesRef.current));
       setDescription('Forged by Valhalla AI — Valkyrie 2.0');
       setResult(null);
       setError(null);
       setBusy(false);
       setTimeout(() => inputRef.current?.focus(), 50);
-    } else if (abortRef.current) {
+    } else if (!open && wasOpen && abortRef.current) {
       abortRef.current.abort();
       abortRef.current = null;
     }
-  }, [open, messages]);
+  }, [open]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -154,12 +169,14 @@ export function ShipModal({
     }
   }
 
-  if (!open) return null;
-
   const codeCount = artifacts.filter((a) => a.kind === 'code').length;
 
+  // AnimatePresence must stay mounted across the open/closed toggle for
+  // the motion exit animations to run — the conditional has to live
+  // inside the wrapper, not before it.
   return (
     <AnimatePresence>
+      {open && (
       <motion.div
         key="ship-overlay"
         initial={{ opacity: 0 }}
@@ -327,6 +344,7 @@ export function ShipModal({
           </div>
         </motion.div>
       </motion.div>
+      )}
     </AnimatePresence>
   );
 }
