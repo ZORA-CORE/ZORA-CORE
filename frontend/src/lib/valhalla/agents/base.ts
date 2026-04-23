@@ -52,6 +52,33 @@ const STRUCTURED_RESPONSE_SCHEMA: Record<string, unknown> = {
         'use to decide whether this output is acceptable. Think pre/post ' +
         'conditions, invariants, tests.',
     },
+    flaws: {
+      type: 'array',
+      description:
+        'Flaws discovered by this agent. HEIMDALL fills this with security ' +
+        'and invariant violations; LOKI fills it with adversarial ' +
+        'counterexamples. Other agents leave it empty. A single flaw of ' +
+        'severity "high" forces another Plan→Critique→Counterexample cycle.',
+      items: {
+        type: 'object',
+        properties: {
+          severity: {
+            type: 'string',
+            enum: ['high', 'medium', 'low'],
+            description:
+              'high = blocks build; medium = must be addressed; low = nit.',
+          },
+          description: {
+            type: 'string',
+            description:
+              'Precise, actionable description of what is wrong. Include ' +
+              'the invariant violated or the concrete input that breaks it.',
+          },
+        },
+        required: ['severity', 'description'],
+        additionalProperties: false,
+      },
+    },
   },
   required: ['agent', 'reasoning', 'plan', 'verification_criteria'],
   additionalProperties: false,
