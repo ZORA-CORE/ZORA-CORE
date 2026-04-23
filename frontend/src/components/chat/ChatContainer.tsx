@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Brain, Download, PanelRightOpen } from 'lucide-react';
+import { Brain, Download, PanelRightOpen, Shield } from 'lucide-react';
 import { buildSessionBundle, triggerBrowserDownload } from './bundle';
+import { buildValkyrieBundle } from './valkyrie';
 import { ChatInput, type ChatInputHandle } from './ChatInput';
 import { EivorMemoryPanel } from './EivorMemoryPanel';
 import { EmptyState } from './EmptyState';
@@ -181,22 +182,28 @@ export function ChatContainer() {
     [],
   );
 
-  const handleDownloadBundle = useCallback(async (): Promise<void> => {
-    if (bundling) return;
-    setBundling(true);
-    try {
-      const { blob, filename } = await buildSessionBundle(artifacts, messages);
-      triggerBrowserDownload(blob, filename);
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? `Bundle failed: ${err.message}`
-          : 'Bundle failed.',
-      );
-    } finally {
-      setBundling(false);
-    }
-  }, [artifacts, messages, bundling]);
+  const handleDownloadBundle = useCallback(
+    async (variant: 'session' | 'valkyrie' = 'session'): Promise<void> => {
+      if (bundling) return;
+      setBundling(true);
+      try {
+        const { blob, filename } =
+          variant === 'valkyrie'
+            ? await buildValkyrieBundle(artifacts, messages)
+            : await buildSessionBundle(artifacts, messages);
+        triggerBrowserDownload(blob, filename);
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? `Bundle failed: ${err.message}`
+            : 'Bundle failed.',
+        );
+      } finally {
+        setBundling(false);
+      }
+    },
+    [artifacts, messages, bundling],
+  );
 
   const sendMessage = useCallback(
     async ({ text, files }: ChatSubmission): Promise<void> => {
@@ -471,18 +478,30 @@ export function ChatContainer() {
             <span className="hidden sm:inline">Memory</span>
           </button>
           {artifacts.length > 0 && (
-            <button
-              type="button"
-              onClick={() => void handleDownloadBundle()}
-              disabled={bundling}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-[#6E6E73] transition hover:bg-[#F5F5F7] hover:text-[#1D1D1F] disabled:opacity-50"
-              title="Download session bundle (code + Mermaid + README + vercel.json)"
-            >
-              <Download className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">
-                {bundling ? 'Bundling…' : 'Download'}
-              </span>
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => void handleDownloadBundle('session')}
+                disabled={bundling}
+                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-[#6E6E73] transition hover:bg-[#F5F5F7] hover:text-[#1D1D1F] disabled:opacity-50"
+                title="Download session bundle (code + Mermaid + README + vercel.json)"
+              >
+                <Download className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">
+                  {bundling ? 'Bundling…' : 'Download'}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleDownloadBundle('valkyrie')}
+                disabled={bundling}
+                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-[#008FBF] transition hover:bg-[#E6FAFF]/60 disabled:opacity-50"
+                title="Valkyrie bundle — session zip + GH Actions + Cloudflare Worker + Supabase migration + deploy.sh"
+              >
+                <Shield className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Valkyrie</span>
+              </button>
+            </>
           )}
           {(artifacts.length > 0 || thoughts.length > 0) && !forgeOpen && (
             <button
