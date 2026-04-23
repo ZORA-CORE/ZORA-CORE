@@ -40,6 +40,17 @@ export interface AttachedFile {
   difyId: string;
   /** Dify file kind, derived from mimeType. */
   kind: 'image' | 'document' | 'audio' | 'video' | 'custom';
+  /**
+   * Text extracted server-side (e.g. PDF → text via unpdf). When present,
+   * the chat composer prepends this as context for the next turn so the
+   * swarm can reason over document content without relying on Dify's
+   * multi-modal handling.
+   */
+  extractedText?: string;
+  /** Status of the extraction pipeline for this file. */
+  parseStatus?: 'parsing' | 'ok' | 'failed' | 'skipped';
+  /** Human-readable parse metadata, e.g. "12 pages · 38k chars". */
+  parseMeta?: string;
 }
 
 export interface ChatSubmission {

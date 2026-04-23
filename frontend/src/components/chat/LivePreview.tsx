@@ -124,7 +124,99 @@ function pickPreviewable(artifacts: Artifact[]): PreviewPlan | NotPreviewable {
     <script type="module" src="./index.ts"></script>
   </body>
 </html>`;
-    const wrap = `// Captured console output
+    // Split top-level `import` / `export` statements from the rest of the
+    // body. ES modules disallow those keywords inside block statements, so
+    // they must stay at the module top level (above the console wrapper).
+    //
+    // Imports can span multiple lines, e.g.
+    //   import {
+    //     foo,
+    //     bar,
+    //   } from 'baz';
+    // so we walk line-by-line tracking brace depth and consume continuation
+    // lines until the statement is balanced AND terminated (semicolon or
+    // the `from '…'` / `'…';` tail).
+    const lines = script.code.split('\n');
+    const topLevel: string[] = [];
+    const body: string[] = [];
+    // Match static `import …` / `export …` declarations only. We
+    // deliberately exclude `import(` because that's a dynamic import
+    // *expression* (valid inside block bodies), not a top-level
+    // declaration — hoisting it out of the try/catch wrapper would
+    // change its error-handling semantics.
+    const starterRe = /^\s*(import|export)(\s|\{)/;
+    const isComplete = (buf: string): boolean => {
+      // Walk the buffer and balance braces / parens. The counter is
+      // intentionally lexer-naive (no string / regex / comment state),
+      // so a stray `{` or `}` inside a literal will miscount depth —
+      // we rely on the terminator heuristics below to recover.
+      let depth = 0;
+      for (const ch of buf) {
+        if (ch === '{' || ch === '(') depth += 1;
+        else if (ch === '}' || ch === ')') depth -= 1;
+      }
+      const trimmed = buf.trimEnd();
+      const singleLine = !buf.includes('\n');
+      const endsWithSemicolon = /;\s*$/.test(trimmed);
+      const endsWithFromClause = /from\s+['"][^'"]+['"]\s*;?\s*$/.test(trimmed);
+      const isExportFnOrClass =
+        /^\s*export\b/.test(buf) &&
+        /\}\s*$/.test(trimmed) &&
+        /\b(function|class|async\s+function)\b/.test(buf);
+
+      if (depth === 0) {
+        // Braces balanced. Trust any standard terminator, including
+        // multi-line `export function` / `export class` / default
+        // function tails that end with `}` (not `;`).
+        if (endsWithSemicolon || endsWithFromClause || isExportFnOrClass) {
+          return true;
+        }
+        // Depth-zero single-line statements without a semicolon (e.g.
+        // `export const API_URL = '…'`, `export { foo }` with no
+        // trailing `;`) are complete — there is no continuation to
+        // accumulate.
+        if (singleLine) return true;
+        // Multi-line at depth 0 without a known tail is unusual; stay
+        // conservative and let the outer loop append the next line.
+        return false;
+      }
+
+      // depth !== 0. Two shapes land here:
+      //   (a) Genuinely multi-line declarations mid-accumulation such
+      //       as `import {` on its own line — we MUST return false so
+      //       the outer loop pulls in the continuation lines, otherwise
+      //       `import {` gets hoisted to topLevel while `useState,` /
+      //       `} from 'react';` fall into body and get wrapped in the
+      //       try/catch, producing a syntax error.
+      //   (b) A single-line statement whose stray `{` / `}` lives
+      //       inside a string or regex literal — e.g.
+      //       `export const re = /\{/;` or `export const msg = "{";`.
+      //       These are complete by construction, so we trust the
+      //       terminator heuristics to recover from the miscount.
+      if (singleLine && (endsWithSemicolon || endsWithFromClause)) {
+        return true;
+      }
+      return false;
+    };
+    let i = 0;
+    while (i < lines.length) {
+      const line = lines[i];
+      if (starterRe.test(line)) {
+        let buf = line;
+        let j = i + 1;
+        while (!isComplete(buf) && j < lines.length) {
+          buf += '\n' + lines[j];
+          j += 1;
+        }
+        topLevel.push(buf);
+        i = j;
+      } else {
+        body.push(line);
+        i += 1;
+      }
+    }
+    const wrap = `${topLevel.join('\n')}
+// Captured console output
 const __out = document.getElementById('out');
 const __log = (...args) => {
   const line = args.map(a => typeof a === 'string' ? a : JSON.stringify(a, null, 2)).join(' ');
@@ -133,7 +225,7 @@ const __log = (...args) => {
 const originalLog = console.log;
 console.log = (...a) => { __log(...a); originalLog(...a); };
 try {
-${script.code}
+${body.join('\n')}
 } catch (err) {
   __log('ERROR:', err instanceof Error ? err.message : String(err));
 }
