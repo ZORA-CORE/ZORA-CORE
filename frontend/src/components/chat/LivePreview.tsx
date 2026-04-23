@@ -124,7 +124,19 @@ function pickPreviewable(artifacts: Artifact[]): PreviewPlan | NotPreviewable {
     <script type="module" src="./index.ts"></script>
   </body>
 </html>`;
-    const wrap = `// Captured console output
+    // Split top-level `import` / `export` statements from the rest of the
+    // body. ES modules disallow those keywords inside block statements, so
+    // they must stay at the module top level (above the console wrapper).
+    const lines = script.code.split('\n');
+    const topLevel: string[] = [];
+    const body: string[] = [];
+    const importRe = /^\s*(import|export)(\s|\()/;
+    for (const line of lines) {
+      if (importRe.test(line)) topLevel.push(line);
+      else body.push(line);
+    }
+    const wrap = `${topLevel.join('\n')}
+// Captured console output
 const __out = document.getElementById('out');
 const __log = (...args) => {
   const line = args.map(a => typeof a === 'string' ? a : JSON.stringify(a, null, 2)).join(' ');
@@ -133,7 +145,7 @@ const __log = (...args) => {
 const originalLog = console.log;
 console.log = (...a) => { __log(...a); originalLog(...a); };
 try {
-${script.code}
+${body.join('\n')}
 } catch (err) {
   __log('ERROR:', err instanceof Error ? err.message : String(err));
 }

@@ -91,6 +91,50 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
     el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
   }, [value, interimVoice]);
 
+  const parsePdf = useCallback(
+    async (clientId: string, file: File): Promise<void> => {
+      try {
+        const form = new FormData();
+        form.append('file', file);
+        const res = await fetch('/api/chat/parse-pdf', {
+          method: 'POST',
+          body: form,
+        });
+        if (!res.ok) throw new Error(`PDF parse failed (${res.status})`);
+        const data = (await res.json()) as {
+          text?: string;
+          pages?: number;
+          characters?: number;
+          truncated?: boolean;
+        };
+        setFiles((prev) =>
+          prev.map((f) =>
+            f.clientId === clientId
+              ? {
+                  ...f,
+                  extractedText: data.text,
+                  parseStatus: 'ok',
+                  parseMeta: `${data.pages ?? 0} page${data.pages === 1 ? '' : 's'} · ${(
+                    data.characters ?? 0
+                  ).toLocaleString()} chars${data.truncated ? ' (truncated)' : ''}`,
+                }
+              : f,
+          ),
+        );
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        setFiles((prev) =>
+          prev.map((f) =>
+            f.clientId === clientId
+              ? { ...f, parseStatus: 'failed', parseMeta: msg }
+              : f,
+          ),
+        );
+      }
+    },
+    [],
+  );
+
   const uploadFiles = useCallback(
     async (incoming: File[]): Promise<void> => {
       if (incoming.length === 0) return;
@@ -101,7 +145,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
       setUploadError(null);
       setUploading(true);
       try {
-        const uploaded: AttachedFile[] = [];
+        const uploaded: { file: AttachedFile; raw: File; shouldParsePdf: boolean }[] = [];
         for (const file of incoming) {
           const form = new FormData();
           form.append('file', file);
@@ -131,23 +175,35 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
             mime_type?: string;
           };
           if (!data.id) throw new Error(`Upload response missing id for ${file.name}`);
+          const mime = data.mime_type || file.type || 'application/octet-stream';
+          const clientId = `f-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+          const isPdf = mime === 'application/pdf' || /\.pdf$/i.test(file.name);
           uploaded.push({
-            clientId: `f-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-            name: file.name,
-            size: file.size,
-            mimeType: data.mime_type || file.type || 'application/octet-stream',
-            difyId: data.id,
-            kind: kindFromMime(data.mime_type || file.type || ''),
+            file: {
+              clientId,
+              name: file.name,
+              size: file.size,
+              mimeType: mime,
+              difyId: data.id,
+              kind: kindFromMime(mime),
+              parseStatus: isPdf ? 'parsing' : 'skipped',
+            },
+            raw: file,
+            shouldParsePdf: isPdf,
           });
         }
-        setFiles((prev) => [...prev, ...uploaded]);
+        setFiles((prev) => [...prev, ...uploaded.map((u) => u.file)]);
+        // Kick off PDF text extraction in parallel; doesn't block upload UI.
+        for (const u of uploaded) {
+          if (u.shouldParsePdf) void parsePdf(u.file.clientId, u.raw);
+        }
       } catch (err) {
         setUploadError(err instanceof Error ? err.message : String(err));
       } finally {
         setUploading(false);
       }
     },
-    [files.length, userId],
+    [files.length, parsePdf, userId],
   );
 
   const handleFilePicked = (e: ChangeEvent<HTMLInputElement>): void => {
@@ -200,6 +256,82 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
     }
   }, [voiceActive]);
 
+  const composePrompt = useCallback(
+    async (
+      baseText: string,
+      baseUrl: string | null,
+      attachments: AttachedFile[],
+    ): Promise<string> => {
+      const blocks: string[] = [];
+
+      // Inject any extracted PDF text as system-style context.
+      const extracted = attachments.filter((f) => f.extractedText);
+      for (const f of extracted) {
+        blocks.push(
+          `--- Extracted from ${f.name} (${f.parseMeta ?? 'document'}) ---\n${
+            f.extractedText
+          }\n--- end ${f.name} ---`,
+        );
+      }
+
+      // Fetch URL content server-side if a URL is present.
+      if (baseUrl) {
+        try {
+          const res = await fetch('/api/chat/parse-url', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: baseUrl }),
+          });
+          if (res.ok) {
+            const data = (await res.json()) as {
+              title?: string;
+              text?: string;
+              characters?: number;
+              truncated?: boolean;
+            };
+            blocks.push(
+              `--- Extracted from ${baseUrl}${
+                data.title ? ` (“${data.title}”)` : ''
+              } — ${(data.characters ?? 0).toLocaleString()} chars${
+                data.truncated ? ' (truncated)' : ''
+              } ---\n${data.text ?? ''}\n--- end ${baseUrl} ---`,
+            );
+          } else {
+            blocks.push(
+              `--- Could not fetch ${baseUrl} (status ${res.status}); please analyse only the available context. ---`,
+            );
+          }
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          blocks.push(
+            `--- Could not fetch ${baseUrl}: ${msg}; please analyse only the available context. ---`,
+          );
+        }
+      }
+
+      // User-facing instruction.
+      let instruction: string;
+      if (baseUrl && baseText) {
+        instruction = `[Site analysis requested: ${baseUrl}]\n\n${baseText}`;
+      } else if (baseUrl) {
+        instruction = `Please analyse this URL: ${baseUrl}`;
+      } else if (baseText) {
+        instruction = baseText;
+      } else if (attachments.length > 0) {
+        instruction =
+          attachments.length === 1
+            ? 'Please review the attached file.'
+            : `Please review the ${attachments.length} attached files.`;
+      } else {
+        instruction = '';
+      }
+
+      if (blocks.length === 0) return instruction;
+      return `${blocks.join('\n\n')}\n\n${instruction}`;
+    },
+    [],
+  );
+
   const handleSubmit = (e: FormEvent): void => {
     e.preventDefault();
     const trimmedText = value.trim();
@@ -209,36 +341,27 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
     if (!trimmedText && !hasAttachments && !hasUrl) return;
     if (disabled || isStreaming || uploading) return;
 
-    // The Dify proxy requires a non-empty query. When the user has only
-    // attached files (no text, no URL), synthesize a minimal prompt so the
-    // request isn't rejected at the server.
-    const composed = (() => {
-      if (hasUrl && trimmedText) {
-        return `[Site analysis: ${trimmedUrl}]\n\n${trimmedText}`;
-      }
-      if (hasUrl) {
-        return `Please analyse this URL: ${trimmedUrl}`;
-      }
-      if (trimmedText) return trimmedText;
-      if (hasAttachments) {
-        return files.length === 1
-          ? 'Please review the attached file.'
-          : `Please review the ${files.length} attached files.`;
-      }
-      return '';
-    })();
-
-    onSubmit({
-      text: composed,
-      files,
-      url: hasUrl ? trimmedUrl : undefined,
-    });
+    // Snapshot current state before reset (async URL fetch below).
+    const snapshot = {
+      text: trimmedText,
+      url: hasUrl ? trimmedUrl : null,
+      files: [...files],
+    };
 
     setValue('');
     setFiles([]);
     setUrl('');
     setShowUrl(false);
     setUploadError(null);
+
+    void (async () => {
+      const composed = await composePrompt(snapshot.text, snapshot.url, snapshot.files);
+      onSubmit({
+        text: composed,
+        files: snapshot.files,
+        url: snapshot.url ?? undefined,
+      });
+    })();
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>): void => {
@@ -282,7 +405,9 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
               <span
                 key={f.clientId}
                 className="flex items-center gap-1.5 rounded-full border border-[#EAEAEC] bg-[#F5F5F7] pl-2 pr-1 py-1 text-[11px] font-medium text-[#1D1D1F]"
-                title={`${f.name} · ${Math.round(f.size / 1024)} KB`}
+                title={`${f.name} · ${Math.round(f.size / 1024)} KB${
+                  f.parseMeta ? ` · ${f.parseMeta}` : ''
+                }`}
               >
                 {f.kind === 'image' ? (
                   <ImageIcon className="h-3.5 w-3.5 text-[#6E6E73]" />
@@ -290,6 +415,21 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
                   <FileText className="h-3.5 w-3.5 text-[#6E6E73]" />
                 )}
                 <span className="max-w-[180px] truncate">{f.name}</span>
+                {f.parseStatus === 'parsing' && (
+                  <span className="text-[9px] uppercase tracking-wider text-[#008FBF]">
+                    parsing…
+                  </span>
+                )}
+                {f.parseStatus === 'ok' && f.extractedText && (
+                  <span className="text-[9px] uppercase tracking-wider text-[#008FBF]">
+                    parsed
+                  </span>
+                )}
+                {f.parseStatus === 'failed' && (
+                  <span className="text-[9px] uppercase tracking-wider text-red-500">
+                    parse failed
+                  </span>
+                )}
                 <button
                   type="button"
                   onClick={() => removeFile(f.clientId)}
