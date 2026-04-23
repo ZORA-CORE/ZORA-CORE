@@ -145,7 +145,7 @@ export function ForgeTerminal({ thoughts, isStreaming }: ForgeTerminalProps) {
   };
 
   return (
-    <div className="flex h-full min-h-[320px] flex-col overflow-hidden rounded-xl border border-neutral-800 bg-[#0a0a0a] text-[12px] text-neutral-200 shadow-inner">
+    <div className="relative flex h-full min-h-[320px] flex-col overflow-hidden rounded-xl border border-neutral-800 bg-[#0a0a0a] text-[12px] text-neutral-200 shadow-inner">
       <div className="flex items-center justify-between border-b border-neutral-800 bg-[#111] px-3 py-1.5">
         <div className="flex items-center gap-1.5 font-mono text-[11px] text-neutral-400">
           <span className="h-2 w-2 rounded-full bg-red-500/70" />
