@@ -149,8 +149,23 @@ function pickPreviewable(artifacts: Artifact[]): PreviewPlan | NotPreviewable {
         else if (ch === '}' || ch === ')') depth -= 1;
       }
       if (depth !== 0) return false;
+      const trimmed = buf.trimEnd();
       // `import 'foo'` / `import x from 'foo';` / `export default …;`
-      return /;\s*$/.test(buf.trimEnd()) || /from\s+['"][^'"]+['"]\s*;?\s*$/.test(buf.trimEnd());
+      if (/;\s*$/.test(trimmed)) return true;
+      if (/from\s+['"][^'"]+['"]\s*;?\s*$/.test(trimmed)) return true;
+      // `export function f() { … }` / `export class C { … }` /
+      // `export default function () { … }` — these end with `}` at depth 0,
+      // not with `;`. Without this branch the loop greedily consumes the
+      // next statement (e.g. `const x = helper();`) and hoists it to the
+      // module top level, producing garbage output.
+      if (
+        /^\s*export\b/.test(buf) &&
+        /\}\s*$/.test(trimmed) &&
+        /\b(function|class|async\s+function)\b/.test(buf)
+      ) {
+        return true;
+      }
+      return false;
     };
     let i = 0;
     while (i < lines.length) {

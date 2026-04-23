@@ -30,6 +30,61 @@ function jsonError(message: string, status = 500): Response {
   });
 }
 
+function isPrivateIPv4(octets: [number, number, number, number]): boolean {
+  const [a, b] = octets;
+  if (a === 10) return true; //  10.0.0.0/8
+  if (a === 127) return true; //  loopback
+  if (a === 0) return true; //  0.0.0.0/8
+  if (a === 169 && b === 254) return true; //  link-local / cloud metadata
+  if (a === 172 && b >= 16 && b <= 31) return true; //  172.16.0.0/12
+  if (a === 192 && b === 168) return true; //  192.168.0.0/16
+  return false;
+}
+
+function parseIPv4(s: string): [number, number, number, number] | null {
+  const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(s);
+  if (!m) return null;
+  const nums = [Number(m[1]), Number(m[2]), Number(m[3]), Number(m[4])] as const;
+  if (nums.some((n) => n < 0 || n > 255)) return null;
+  return nums as unknown as [number, number, number, number];
+}
+
+/**
+ * Best-effort block for IPv6 SSRF vectors. The WHATWG URL parser hands
+ * us bracketed hostnames like `"[::1]"` and `"[::ffff:a9fe:a9fe]"` — the
+ * latter is an IPv4-mapped address equivalent to 169.254.169.254 (cloud
+ * metadata). We check the stripped form against well-known unsafe
+ * prefixes and, for IPv4-mapped addresses, also run the inner IPv4
+ * through the private-range test.
+ */
+function isDisallowedIPv6(stripped: string): boolean {
+  const h = stripped.toLowerCase();
+  if (h === '::' || h === '::1' || h === '0:0:0:0:0:0:0:0' || h === '0:0:0:0:0:0:0:1') return true;
+  if (h.startsWith('fe80:')) return true; //  link-local
+  if (h.startsWith('fc') || h.startsWith('fd')) return true; //  unique-local (fc00::/7)
+  if (h.startsWith('ff')) return true; //  multicast
+  // IPv4-mapped (::ffff:x.x.x.x or ::ffff:aabb:ccdd)
+  if (h.startsWith('::ffff:') || h.startsWith('0:0:0:0:0:ffff:')) {
+    const tail = h.replace(/^::ffff:/, '').replace(/^0:0:0:0:0:ffff:/, '');
+    const dotted = parseIPv4(tail);
+    if (dotted && isPrivateIPv4(dotted)) return true;
+    // hex form like "a9fe:a9fe" → 169.254.169.254
+    const hex = /^([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(tail);
+    if (hex) {
+      const left = parseInt(hex[1], 16);
+      const right = parseInt(hex[2], 16);
+      const ipv4: [number, number, number, number] = [
+        (left >> 8) & 0xff,
+        left & 0xff,
+        (right >> 8) & 0xff,
+        right & 0xff,
+      ];
+      if (isPrivateIPv4(ipv4)) return true;
+    }
+  }
+  return false;
+}
+
 function isAllowedUrl(raw: string): URL | null {
   let u: URL;
   try {
@@ -38,24 +93,35 @@ function isAllowedUrl(raw: string): URL | null {
     return null;
   }
   if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
-  // Block private/loopback hostnames to prevent SSRF.
-  const host = u.hostname.toLowerCase();
+  // URL.hostname returns IPv6 addresses wrapped in brackets, e.g. "[::1]".
+  // Strip them before running string/IP checks so `host === '::1'` actually
+  // matches and we can run the IPv6 blocklist.
+  const rawHost = u.hostname.toLowerCase();
+  const host = rawHost.replace(/^\[|\]$/g, '');
+
+  // Named hosts we never want to reach.
   if (
     host === 'localhost' ||
     host.endsWith('.localhost') ||
-    host === '0.0.0.0' ||
-    host === '::1' ||
-    /^127\./.test(host) ||
-    /^10\./.test(host) ||
-    /^192\.168\./.test(host) ||
-    /^169\.254\./.test(host) ||
-    /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(host) ||
-    // Metadata endpoints
-    host === '169.254.169.254' ||
     host === 'metadata.google.internal'
   ) {
     return null;
   }
+
+  // IPv4 literal (including 0.0.0.0, 127.*, 10.*, 172.16-31.*, 192.168.*,
+  // 169.254.* which covers the EC2/GCP metadata endpoint 169.254.169.254).
+  const v4 = parseIPv4(host);
+  if (v4) {
+    if (isPrivateIPv4(v4)) return null;
+    return u;
+  }
+
+  // IPv6 literal (bracketed in the raw hostname). Covers ::1, ::ffff:…
+  // IPv4-mapped addresses, link-local, unique-local, multicast.
+  if (rawHost.startsWith('[') && rawHost.endsWith(']')) {
+    if (isDisallowedIPv6(host)) return null;
+  }
+
   return u;
 }
 
