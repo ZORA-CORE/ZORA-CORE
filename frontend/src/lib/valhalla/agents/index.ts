@@ -11,5 +11,19 @@ export type {
   AgentResponse,
   SwarmEvent,
   SwarmRunRequest,
+  ToolCallPayload,
+  ToolResultPayload,
 } from './types';
 export { runSwarm } from './orchestrator';
+export { runSwarmToolUse, isToolUseEnabled } from './tool-orchestrator';
+export { ToolUseAgent } from './tool-agent';
+export {
+  DEVIN_MODE_AGENTS,
+  EivorToolAgent,
+  OdinToolAgent,
+  HeimdallToolAgent,
+  LokiToolAgent,
+  ThorToolAgent,
+  FrejaToolAgent,
+} from './tool-classes';
+export type { ToolName, ValhallaTool } from './tools';
