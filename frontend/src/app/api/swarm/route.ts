@@ -97,10 +97,14 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   const encoder = new TextEncoder();
+  // Thread the request's AbortSignal through so Voyage / Supabase /
+  // Claude calls get cancelled the moment the browser disconnects
+  // (closing the tab, navigating away, refreshing). Without this the
+  // swarm would keep burning tokens after the client is gone.
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       try {
-        for await (const event of runSwarm(parsed)) {
+        for await (const event of runSwarm(parsed, { signal: req.signal })) {
           controller.enqueue(encoder.encode(encodeSSE(event)));
         }
       } catch (err) {
