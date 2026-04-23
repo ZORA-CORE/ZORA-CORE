@@ -139,7 +139,12 @@ function pickPreviewable(artifacts: Artifact[]): PreviewPlan | NotPreviewable {
     const lines = script.code.split('\n');
     const topLevel: string[] = [];
     const body: string[] = [];
-    const starterRe = /^\s*(import|export)(\s|\(|\{)/;
+    // Match static `import …` / `export …` declarations only. We
+    // deliberately exclude `import(` because that's a dynamic import
+    // *expression* (valid inside block bodies), not a top-level
+    // declaration — hoisting it out of the try/catch wrapper would
+    // change its error-handling semantics.
+    const starterRe = /^\s*(import|export)(\s|\{)/;
     const isComplete = (buf: string): boolean => {
       // Balance braces and parens across the buffer; we only treat the
       // statement as complete once every opening has closed.
@@ -150,14 +155,22 @@ function pickPreviewable(artifacts: Artifact[]): PreviewPlan | NotPreviewable {
       }
       if (depth !== 0) return false;
       const trimmed = buf.trimEnd();
-      // `import 'foo'` / `import x from 'foo';` / `export default …;`
+      // A single-line balanced declaration is always complete. This
+      // catches the ASI-style (semicolon-less) cases where the old
+      // regex checks fell through and the loop then greedily swallowed
+      // the rest of the file: `export const API = 'https://…'`,
+      // `import './side-effect'`, `export default 42`, etc. Any
+      // multi-line continuation would already have bumped depth > 0
+      // (unmatched `{` / `(`) or have survived this branch — because
+      // by then `buf` contains a `\n`.
+      if (!buf.includes('\n')) return true;
       if (/;\s*$/.test(trimmed)) return true;
       if (/from\s+['"][^'"]+['"]\s*;?\s*$/.test(trimmed)) return true;
       // `export function f() { … }` / `export class C { … }` /
-      // `export default function () { … }` — these end with `}` at depth 0,
-      // not with `;`. Without this branch the loop greedily consumes the
-      // next statement (e.g. `const x = helper();`) and hoists it to the
-      // module top level, producing garbage output.
+      // `export default function () { … }` — multi-line forms that
+      // end with `}` at depth 0, not with `;`. Without this branch the
+      // loop would greedily consume the next statement (e.g.
+      // `const x = helper();`) and hoist it to module top-level.
       if (
         /^\s*export\b/.test(buf) &&
         /\}\s*$/.test(trimmed) &&
