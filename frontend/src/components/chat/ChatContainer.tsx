@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Brain, Download, PanelRightOpen, Shield } from 'lucide-react';
+import { Brain, Download, PanelRightOpen, Ship, Shield } from 'lucide-react';
 import { buildSessionBundle, triggerBrowserDownload } from './bundle';
 import { buildValkyrieBundle } from './valkyrie';
+import { ShipModal } from './ShipModal';
 import { ChatInput, type ChatInputHandle } from './ChatInput';
 import { EivorMemoryPanel } from './EivorMemoryPanel';
 import { EmptyState } from './EmptyState';
@@ -135,6 +136,7 @@ export function ChatContainer() {
   const [thoughts, setThoughts] = useState<ThoughtEvent[]>([]);
   const [forgeOpen, setForgeOpen] = useState(false);
   const [memoryOpen, setMemoryOpen] = useState(false);
+  const [shipOpen, setShipOpen] = useState(false);
   const [userId, setUserId] = useState<string>('valhalla-ssr');
   const [bundling, setBundling] = useState(false);
 
@@ -501,6 +503,15 @@ export function ChatContainer() {
                 <Shield className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">Valkyrie</span>
               </button>
+              <button
+                type="button"
+                onClick={() => setShipOpen(true)}
+                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-white transition bg-[#008FBF] hover:bg-[#0077A3]"
+                title="Ship — create a new GitHub repo and commit the entire Valkyrie bundle in one atomic commit"
+              >
+                <Ship className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Ship</span>
+              </button>
             </>
           )}
           {(artifacts.length > 0 || thoughts.length > 0) && !forgeOpen && (
@@ -621,6 +632,13 @@ export function ChatContainer() {
         open={memoryOpen}
         memory={memory}
         onClose={() => setMemoryOpen(false)}
+      />
+
+      <ShipModal
+        open={shipOpen}
+        artifacts={artifacts}
+        messages={messages}
+        onClose={() => setShipOpen(false)}
       />
     </div>
   );
