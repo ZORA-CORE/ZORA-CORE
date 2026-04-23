@@ -31,7 +31,14 @@ import {
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const DIFY_BASE = process.env.DIFY_API_BASE || 'https://api.dify.ai/v1';
+// Match every other Dify route in this codebase: the env var is
+// `DIFY_API_BASE_URL` (see .env.example, chat/route.ts, chat/upload/route.ts,
+// chat/feedback/route.ts). A self-hosted Dify instance was silently bypassed
+// here because we were reading the wrong variable and falling through to the
+// SaaS default. Also strip trailing slashes so `https://dify.internal/v1/`
+// doesn't produce `…/v1//chat-messages`.
+const DIFY_BASE =
+  process.env.DIFY_API_BASE_URL?.replace(/\/+$/, '') || 'https://api.dify.ai/v1';
 
 interface VercelWebhookPayload {
   id?: string;
