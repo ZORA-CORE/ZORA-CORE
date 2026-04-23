@@ -1,18 +1,27 @@
-/* Zoracore Chat: Nordic Light surface override.
- * The global ZORA CORE theme is a dark Climate OS. The chat experience at
- * /chat uses a premium, Nordic-light aesthetic, so we locally reset the
- * body background and color hierarchy within this route. */
+/* Valhalla chat route: ChatGPT-style light/dark surface override.
+ *
+ * The global ZORA CORE theme is a dark Climate OS. The chat route at /chat
+ * has its own theming driven by <ThemeProvider> (adds/removes `dark` on
+ * <html>). We suppress the global dark-themed body::before/::after gradients
+ * inside the chat root so the ChatGPT-clone surface can own the background.
+ */
 
 .zoracore-chat-root {
-  background: #ffffff;
-  color: #1d1d1f;
   min-height: 100dvh;
 }
 
-html:has(.zoracore-chat-root),
-body:has(.zoracore-chat-root) {
+/* Light mode surface */
+html:not(.dark):has(.zoracore-chat-root),
+html:not(.dark) body:has(.zoracore-chat-root) {
   background: #ffffff !important;
-  color: #1d1d1f !important;
+  color: #171717 !important;
+}
+
+/* Dark mode surface (ChatGPT-like #212121) */
+html.dark:has(.zoracore-chat-root),
+html.dark body:has(.zoracore-chat-root) {
+  background: #212121 !important;
+  color: #ececec !important;
 }
 
 body:has(.zoracore-chat-root)::before,
