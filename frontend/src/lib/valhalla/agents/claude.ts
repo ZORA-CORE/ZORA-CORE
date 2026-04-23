@@ -27,8 +27,12 @@ export function getClaude(): Anthropic {
   return _client;
 }
 
-/** Default model. Claude 3.5 Sonnet is the best price/perf for coding. */
-export const DEFAULT_CLAUDE_MODEL = 'claude-3-5-sonnet-latest';
+/**
+ * Default model. Pinned to a dated version because Anthropic retired
+ * the `-latest` alias and now returns 404 for `claude-3-5-sonnet-latest`.
+ * Sonnet 4.5 is current SOTA for coding + tool use.
+ */
+export const DEFAULT_CLAUDE_MODEL = 'claude-sonnet-4-5-20250929';
 
 export interface ClaudeToolCallResult<T> {
   /** The parsed tool input, validated by Anthropic against the schema. */
