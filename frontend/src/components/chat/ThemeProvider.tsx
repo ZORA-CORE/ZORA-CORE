@@ -36,6 +36,31 @@ function readInitialTheme(): Theme {
   return 'dark';
 }
 
+interface PriorHtmlState {
+  hadDarkClass: boolean;
+  dataTheme: string | undefined;
+  colorScheme: string;
+}
+
+function snapshotHtml(): PriorHtmlState {
+  const root = document.documentElement;
+  return {
+    hadDarkClass: root.classList.contains('dark'),
+    dataTheme: root.dataset.theme,
+    colorScheme: root.style.colorScheme,
+  };
+}
+
+function restoreHtml(prior: PriorHtmlState): void {
+  if (typeof document === 'undefined') return;
+  const root = document.documentElement;
+  if (prior.hadDarkClass) root.classList.add('dark');
+  else root.classList.remove('dark');
+  if (prior.dataTheme === undefined) delete root.dataset.theme;
+  else root.dataset.theme = prior.dataTheme;
+  root.style.colorScheme = prior.colorScheme;
+}
+
 function applyTheme(theme: Theme): void {
   if (typeof document === 'undefined') return;
   const root = document.documentElement;
@@ -62,6 +87,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    // Snapshot <html>'s existing theme-related attributes so we can
+    // restore them on unmount. Without this, navigating away from the
+    // /chat route (where this provider lives) would leave
+    // `class="dark"`, `data-theme`, and `style.colorScheme` applied
+    // globally, breaking the look of other routes that manage their
+    // own theme state.
+    const prior = snapshotHtml();
     const initial = readInitialTheme();
     // The initial theme has to be read on the client (localStorage +
     // matchMedia aren't available during SSR), which unavoidably means
@@ -72,6 +104,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     applyTheme(initial);
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
+    return () => {
+      restoreHtml(prior);
+    };
   }, []);
 
   const setTheme = useCallback((next: Theme): void => {
