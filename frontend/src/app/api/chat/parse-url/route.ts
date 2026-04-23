@@ -115,17 +115,54 @@ export async function POST(req: NextRequest): Promise<Response> {
     FETCH_TIMEOUT_MS,
   );
 
+  // Manually follow redirects so each hop is re-validated against the SSRF
+  // blocklist (otherwise an attacker could return a 302 pointing at
+  // 169.254.169.254 or an RFC1918 host and bypass isAllowedUrl).
+  const MAX_REDIRECTS = 5;
   let response: Response;
+  let currentUrl = parsed;
   try {
-    response = await fetch(parsed.toString(), {
-      method: 'GET',
-      headers: {
-        'User-Agent': 'ValhallaAI-SiteAnalysis/1.0 (+https://zoracore.dk)',
-        Accept: 'text/html,application/xhtml+xml;q=0.9,*/*;q=0.8',
-      },
-      redirect: 'follow',
-      signal: controller.signal,
-    });
+    let redirects = 0;
+    for (;;) {
+      response = await fetch(currentUrl.toString(), {
+        method: 'GET',
+        headers: {
+          'User-Agent': 'ValhallaAI-SiteAnalysis/1.0 (+https://zoracore.dk)',
+          Accept: 'text/html,application/xhtml+xml;q=0.9,*/*;q=0.8',
+        },
+        redirect: 'manual',
+        signal: controller.signal,
+      });
+      if (response.status >= 300 && response.status < 400) {
+        const location = response.headers.get('location');
+        if (!location) {
+          return jsonError('Redirect response missing Location header.', 502);
+        }
+        redirects += 1;
+        if (redirects > MAX_REDIRECTS) {
+          return jsonError(
+            `Too many redirects (> ${MAX_REDIRECTS}).`,
+            502,
+          );
+        }
+        let nextUrl: URL;
+        try {
+          nextUrl = new URL(location, currentUrl);
+        } catch {
+          return jsonError('Redirect Location was not a valid URL.', 502);
+        }
+        const validated = isAllowedUrl(nextUrl.toString());
+        if (!validated) {
+          return jsonError(
+            'Redirect points to a disallowed host (SSRF guard).',
+            400,
+          );
+        }
+        currentUrl = validated;
+        continue;
+      }
+      break;
+    }
   } catch (err) {
     clearTimeout(timeout);
     const reason = err instanceof Error ? err.message : 'Unknown fetch error';

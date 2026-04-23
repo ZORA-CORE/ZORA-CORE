@@ -67,6 +67,11 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
   const [dragActive, setDragActive] = useState(false);
   const [voiceActive, setVoiceActive] = useState(false);
   const [voiceSupported, setVoiceSupported] = useState(false);
+  // Synchronous guard that closes the window between resetting the form
+  // and the parent flipping isStreaming=true inside the async onSubmit.
+  // Without this, a second submit could fire during composePrompt()'s
+  // URL fetch and start a duplicate stream.
+  const [submitting, setSubmitting] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -339,7 +344,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
     const hasAttachments = files.length > 0;
     const hasUrl = Boolean(trimmedUrl);
     if (!trimmedText && !hasAttachments && !hasUrl) return;
-    if (disabled || isStreaming || uploading) return;
+    if (disabled || isStreaming || uploading || submitting) return;
 
     // Snapshot current state before reset (async URL fetch below).
     const snapshot = {
@@ -348,6 +353,10 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
       files: [...files],
     };
 
+    // Set synchronously to close the race window — composePrompt may
+    // fetch /api/chat/parse-url (up to 10s) before onSubmit fires and
+    // the parent sets isStreaming=true.
+    setSubmitting(true);
     setValue('');
     setFiles([]);
     setUrl('');
@@ -355,12 +364,16 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
     setUploadError(null);
 
     void (async () => {
-      const composed = await composePrompt(snapshot.text, snapshot.url, snapshot.files);
-      onSubmit({
-        text: composed,
-        files: snapshot.files,
-        url: snapshot.url ?? undefined,
-      });
+      try {
+        const composed = await composePrompt(snapshot.text, snapshot.url, snapshot.files);
+        onSubmit({
+          text: composed,
+          files: snapshot.files,
+          url: snapshot.url ?? undefined,
+        });
+      } finally {
+        setSubmitting(false);
+      }
     })();
   };
 
@@ -375,6 +388,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
     !disabled &&
     !isStreaming &&
     !uploading &&
+    !submitting &&
     (value.trim().length > 0 || files.length > 0 || url.trim().length > 0);
 
   return (

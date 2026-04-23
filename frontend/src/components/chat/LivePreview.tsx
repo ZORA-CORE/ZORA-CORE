@@ -127,13 +127,47 @@ function pickPreviewable(artifacts: Artifact[]): PreviewPlan | NotPreviewable {
     // Split top-level `import` / `export` statements from the rest of the
     // body. ES modules disallow those keywords inside block statements, so
     // they must stay at the module top level (above the console wrapper).
+    //
+    // Imports can span multiple lines, e.g.
+    //   import {
+    //     foo,
+    //     bar,
+    //   } from 'baz';
+    // so we walk line-by-line tracking brace depth and consume continuation
+    // lines until the statement is balanced AND terminated (semicolon or
+    // the `from '…'` / `'…';` tail).
     const lines = script.code.split('\n');
     const topLevel: string[] = [];
     const body: string[] = [];
-    const importRe = /^\s*(import|export)(\s|\()/;
-    for (const line of lines) {
-      if (importRe.test(line)) topLevel.push(line);
-      else body.push(line);
+    const starterRe = /^\s*(import|export)(\s|\(|\{)/;
+    const isComplete = (buf: string): boolean => {
+      // Balance braces and parens across the buffer; we only treat the
+      // statement as complete once every opening has closed.
+      let depth = 0;
+      for (const ch of buf) {
+        if (ch === '{' || ch === '(') depth += 1;
+        else if (ch === '}' || ch === ')') depth -= 1;
+      }
+      if (depth !== 0) return false;
+      // `import 'foo'` / `import x from 'foo';` / `export default …;`
+      return /;\s*$/.test(buf.trimEnd()) || /from\s+['"][^'"]+['"]\s*;?\s*$/.test(buf.trimEnd());
+    };
+    let i = 0;
+    while (i < lines.length) {
+      const line = lines[i];
+      if (starterRe.test(line)) {
+        let buf = line;
+        let j = i + 1;
+        while (!isComplete(buf) && j < lines.length) {
+          buf += '\n' + lines[j];
+          j += 1;
+        }
+        topLevel.push(buf);
+        i = j;
+      } else {
+        body.push(line);
+        i += 1;
+      }
     }
     const wrap = `${topLevel.join('\n')}
 // Captured console output
