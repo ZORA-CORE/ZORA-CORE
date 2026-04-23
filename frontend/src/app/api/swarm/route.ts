@@ -15,7 +15,7 @@
  */
 
 import { NextRequest } from 'next/server';
-import { runSwarm } from '@/lib/valhalla/agents';
+import { runSwarm, runSwarmToolUse, isToolUseEnabled } from '@/lib/valhalla/agents';
 import type { SwarmEvent, SwarmRunRequest } from '@/lib/valhalla/agents';
 
 export const runtime = 'nodejs';
@@ -97,14 +97,21 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   const encoder = new TextEncoder();
+  // Dispatch: Devin-mode (E2B sandbox + Anthropic Tool Use per agent)
+  // when VALHALLA_TOOL_USE=1 AND E2B_API_KEY is set, else structured-
+  // output path from PR #113/#114. Both yield the same SwarmEvent
+  // shape so the frontend parser is identical.
+  const useToolUse = isToolUseEnabled();
+  const runner = useToolUse ? runSwarmToolUse : runSwarm;
   // Thread the request's AbortSignal through so Voyage / Supabase /
-  // Claude calls get cancelled the moment the browser disconnects
-  // (closing the tab, navigating away, refreshing). Without this the
-  // swarm would keep burning tokens after the client is gone.
+  // Claude / E2B calls get cancelled the moment the browser
+  // disconnects (closing the tab, navigating away, refreshing).
+  // Without this the swarm would keep burning tokens + sandbox time
+  // after the client is gone.
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       try {
-        for await (const event of runSwarm(parsed, { signal: req.signal })) {
+        for await (const event of runner(parsed, { signal: req.signal })) {
           controller.enqueue(encoder.encode(encodeSSE(event)));
         }
       } catch (err) {
