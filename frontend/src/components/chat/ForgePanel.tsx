@@ -2,12 +2,14 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Code2, GitBranch, ScrollText, X } from 'lucide-react';
+import { Code2, GitBranch, Play, ScrollText, Waypoints, X } from 'lucide-react';
 import { CodeBlock } from './CodeBlock';
 import { ForgeMermaid } from './ForgeMermaid';
+import { LivePreview } from './LivePreview';
+import { NeuralMap } from './NeuralMap';
 import type { Artifact, ThoughtEvent } from './artifacts';
 
-type ForgeTab = 'code' | 'architecture' | 'log';
+type ForgeTab = 'code' | 'preview' | 'architecture' | 'neural' | 'log';
 
 interface ForgePanelProps {
   artifacts: Artifact[];
@@ -18,7 +20,9 @@ interface ForgePanelProps {
 
 const TAB_META: Record<ForgeTab, { label: string; Icon: typeof Code2 }> = {
   code: { label: 'Code', Icon: Code2 },
+  preview: { label: 'Live Preview', Icon: Play },
   architecture: { label: 'Architecture', Icon: GitBranch },
+  neural: { label: 'Neural Map', Icon: Waypoints },
   log: { label: 'Execution Log', Icon: ScrollText },
 };
 
@@ -86,9 +90,13 @@ export function ForgePanel({
           const count =
             key === 'code'
               ? codeArtifacts.length
-              : key === 'architecture'
-                ? mermaidArtifacts.length
-                : thoughts.length;
+              : key === 'preview'
+                ? codeArtifacts.length
+                : key === 'architecture'
+                  ? mermaidArtifacts.length
+                  : key === 'neural'
+                    ? thoughts.length
+                    : thoughts.length;
           return (
             <button
               key={key}
@@ -153,6 +161,19 @@ export function ForgePanel({
             </motion.div>
           )}
 
+          {tab === 'preview' && (
+            <motion.div
+              key="preview"
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.18 }}
+              className="flex flex-col gap-3"
+            >
+              <LivePreview artifacts={artifacts} />
+            </motion.div>
+          )}
+
           {tab === 'architecture' && (
             <motion.div
               key="architecture"
@@ -177,6 +198,19 @@ export function ForgePanel({
                   />
                 ))
               )}
+            </motion.div>
+          )}
+
+          {tab === 'neural' && (
+            <motion.div
+              key="neural"
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.18 }}
+              className="flex flex-col gap-3"
+            >
+              <NeuralMap thoughts={thoughts} isStreaming={isStreaming} />
             </motion.div>
           )}
 
