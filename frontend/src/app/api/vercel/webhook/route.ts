@@ -18,7 +18,7 @@
  * want to block Phase 3 on infra. The ring is a UX-quality substitute.
  */
 
-import { NextRequest } from 'next/server';
+import { NextRequest, after } from 'next/server';
 import crypto from 'node:crypto';
 import {
   MAX_ATTEMPTS,
@@ -206,8 +206,12 @@ export async function POST(req: NextRequest): Promise<Response> {
   });
 
   // Kick off the Dify repair turn in the background; update the ring
-  // when the conversation id is available.
-  void (async () => {
+  // when the conversation id is available. `after()` ties the promise
+  // to the platform's waitUntil lifecycle so Vercel's serverless runtime
+  // keeps the function alive until Dify's blocking response returns —
+  // a bare `void (async () => …)()` would be abandoned after the HTTP
+  // response is flushed, leaving the recovery stuck at 'drafting-fix'.
+  after(async () => {
     const convId = await dispatchRepairTurn(
       projectName ?? 'valhalla-app',
       String(errorSummary),
@@ -217,7 +221,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       status: convId ? 'fix-ready' : 'failed-to-repair',
       difyConversationId: convId,
     });
-  })();
+  });
 
   return new Response(
     JSON.stringify({

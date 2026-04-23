@@ -290,7 +290,11 @@ export async function buildValkyrieBundle(
 
   zip.file('VALKYRIE.md', VALKYRIE_MD);
 
-  const blob = await zip.generateAsync({ type: 'blob' });
+  // platform: 'UNIX' is required for JSZip to encode unixPermissions
+  // into the zip's external file attributes. With the default ('DOS')
+  // the 0o755 mode on scripts/deploy.sh is silently discarded and the
+  // extracted file comes out without the executable bit set.
+  const blob = await zip.generateAsync({ type: 'blob', platform: 'UNIX' });
   const stamp = new Date().toISOString().replace(/[:T]/g, '-').slice(0, 19);
   return {
     blob,
