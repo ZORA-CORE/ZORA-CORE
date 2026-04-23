@@ -170,7 +170,13 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   const dep = payload.payload?.deployment;
-  const deploymentId = dep?.id ?? 'unknown';
+  // Per-deployment attempt counter key. When Vercel omits the deployment id
+  // we disambiguate with the webhook event id (also unique per event) so
+  // unrelated failed deploys never share a counter. Previously every
+  // id-less event collapsed onto the literal string 'unknown' and three
+  // of them would exhaust the limit for ALL subsequent id-less events.
+  const deploymentId =
+    dep?.id ?? (payload.id ? `event:${payload.id}` : `event:${crypto.randomUUID()}`);
   const projectName = payload.payload?.project?.name ?? dep?.name ?? null;
 
   if (hasExhaustedAttempts(deploymentId)) {
@@ -191,7 +197,9 @@ export async function POST(req: NextRequest): Promise<Response> {
       ? `errorCode: ${payload.payload.errorCode}`
       : 'Unknown deploy failure');
 
-  const logTail = deploymentId !== 'unknown' ? await fetchBuildLogTail(deploymentId) : '';
+  // Only hit the Vercel events API if we have a real deployment id;
+  // synthesized event: / uuid keys don't resolve to deployments.
+  const logTail = dep?.id ? await fetchBuildLogTail(dep.id) : '';
 
   // Record the attempt synchronously so the UI banner can appear
   // even while Dify is still drafting.
