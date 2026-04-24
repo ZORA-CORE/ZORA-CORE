@@ -13,6 +13,7 @@
  */
 import type Anthropic from '@anthropic-ai/sdk';
 import type { SandboxHandle, ScreenshotResult } from '../sandbox/e2b';
+import { storeGlobalMemory } from '../memory/store';
 
 export type ToolName =
   | 'read_file'
@@ -21,7 +22,24 @@ export type ToolName =
   | 'patch_file'
   | 'execute_bash'
   | 'screenshot_page'
+  | 'expose_port'
+  | 'store_global_memory'
   | 'finish';
+
+/**
+ * Context threaded into every tool call. Lets orchestration-aware
+ * tools (e.g. `store_global_memory`, `expose_port`) reach the user's
+ * identity and the SSE event bus without coupling them to a
+ * particular orchestrator.
+ */
+export interface ToolContext {
+  agent: string;
+  userId: string;
+  sessionId: string;
+  /** Emit a SwarmEvent payload. Returns void; errors are swallowed. */
+  emit(event: Record<string, unknown>): void;
+  signal?: AbortSignal;
+}
 
 export interface ValhallaTool {
   name: ToolName;
@@ -31,6 +49,7 @@ export interface ValhallaTool {
   run(
     sandbox: SandboxHandle,
     input: Record<string, unknown>,
+    ctx?: ToolContext,
   ): Promise<ToolResult>;
 }
 
@@ -355,6 +374,123 @@ const FINISH: ValhallaTool = {
   },
 };
 
+const EXPOSE_PORT: ValhallaTool = {
+  name: 'expose_port',
+  description:
+    'Expose a local TCP port inside the E2B sandbox as a public HTTPS ' +
+    'URL so the Valhalla Live Preview can render it. Use this after ' +
+    'starting a dev server (e.g. `npm run dev` on :3000) to hand the ' +
+    'frontend a "Waiting for localhost:PORT…" iframe target.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      port: {
+        type: 'number',
+        description:
+          'Sandbox-local TCP port the dev server is listening on (e.g. 3000).',
+      },
+    },
+    required: ['port'],
+    additionalProperties: false,
+  },
+  async run(sandbox, input, ctx) {
+    const rawPort = asOptionalNumber(input.port, 'port');
+    if (typeof rawPort !== 'number' || !Number.isInteger(rawPort) || rawPort < 1 || rawPort > 65535) {
+      throw new Error('`port` must be an integer in [1, 65535].');
+    }
+    const url = await sandbox.exposePort(rawPort);
+    if (ctx) {
+      ctx.emit({
+        type: 'preview_url',
+        agent: ctx.agent,
+        url,
+        port: rawPort,
+        at: Date.now(),
+      });
+    }
+    return {
+      content: `exposed port ${rawPort} at ${url}`,
+      payload: { port: rawPort, url },
+    };
+  },
+};
+
+const STORE_GLOBAL_MEMORY: ValhallaTool = {
+  name: 'store_global_memory',
+  description:
+    'EIVOR-only: persist a major architectural decision, standing ' +
+    'non-negotiable, or long-term user preference into the `global_user` ' +
+    'memory pool so it is auto-injected into every future ODIN boot ' +
+    'prompt. Use sparingly: only for context the user wants remembered ' +
+    'ACROSS chats. Never store per-task trivia, PII, or anything the ' +
+    'user asked us not to remember.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      content: {
+        type: 'string',
+        description:
+          'Concise, self-contained statement of the preference or ' +
+          'decision. Should make sense stripped of its original chat ' +
+          'context (e.g. "User prefers Cloudflare Workers over Lambda ' +
+          'for all HTTP APIs").',
+      },
+      kind: {
+        type: 'string',
+        enum: ['plan', 'code', 'critique', 'counterexample', 'turn'],
+        description:
+          'Memory kind. Defaults to "plan" since global memories are ' +
+          'usually architectural decisions.',
+      },
+    },
+    required: ['content'],
+    additionalProperties: false,
+  },
+  async run(_sandbox, input, ctx) {
+    const content = asString(input.content, 'content');
+    const kindRaw = typeof input.kind === 'string' ? input.kind : 'plan';
+    const allowedKinds = ['plan', 'code', 'critique', 'counterexample', 'turn'] as const;
+    type KindTuple = typeof allowedKinds;
+    const kind: KindTuple[number] = (allowedKinds as readonly string[]).includes(kindRaw)
+      ? (kindRaw as KindTuple[number])
+      : 'plan';
+    if (!ctx) {
+      // Without a ToolContext we cannot identify the user — refuse
+      // rather than silently writing an orphaned row.
+      throw new Error(
+        'store_global_memory requires a ToolContext with userId. ' +
+          'Tool-agent did not supply one.',
+      );
+    }
+    const id = await storeGlobalMemory(
+      {
+        userId: ctx.userId,
+        sessionId: ctx.sessionId,
+        kind,
+        content,
+      },
+      ctx.signal,
+    );
+    ctx.emit({
+      type: 'global_memory_stored',
+      agent: ctx.agent,
+      snippet: content.length > 160 ? `${content.slice(0, 160)}…` : content,
+      at: Date.now(),
+    });
+    return {
+      content: id
+        ? `stored global memory ${id} (${content.length} chars)`
+        : 'memory store is not configured; no-op',
+      payload: {
+        id: id ?? null,
+        bytes: content.length,
+        scope: 'global_user',
+        kind,
+      },
+    };
+  },
+};
+
 export const ALL_TOOLS: Record<ToolName, ValhallaTool> = {
   read_file: READ_FILE,
   list_dir: LIST_DIR,
@@ -362,6 +498,8 @@ export const ALL_TOOLS: Record<ToolName, ValhallaTool> = {
   patch_file: PATCH_FILE,
   execute_bash: EXECUTE_BASH,
   screenshot_page: SCREENSHOT_PAGE,
+  expose_port: EXPOSE_PORT,
+  store_global_memory: STORE_GLOBAL_MEMORY,
   finish: FINISH,
 };
 

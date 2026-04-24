@@ -70,6 +70,14 @@ export interface SandboxHandle {
     waitMs?: number;
     fullPage?: boolean;
   }): Promise<ScreenshotResult>;
+  /**
+   * Expose a sandbox-local TCP port as a public HTTPS URL. Used by the
+   * Valhalla Live Preview to render `localhost:<port>` running inside
+   * the E2B microVM. Some SDK versions expose this as
+   * `getHost(port)` (returning a host string) rather than a full URL,
+   * so the wrapper normalizes both shapes to an `https://…` URL.
+   */
+  exposePort(port: number): Promise<string>;
   kill(): Promise<void>;
 }
 
@@ -285,6 +293,32 @@ function buildHandle(
       return { base64: run.stdout.trim(), viewport };
     },
 
+    async exposePort(port: number): Promise<string> {
+      if (!Number.isInteger(port) || port < 1 || port > 65535) {
+        throw new Error(`exposePort: invalid port ${port}`);
+      }
+      // The E2B SDK has evolved: older clients expose `sandbox.getHost(port)`
+      // which returns a bare hostname; newer SDKs may expose
+      // `sandbox.getPublicUrl(port)` returning a full URL. We tolerate
+      // both and fall back to building the URL ourselves from the
+      // sandbox id + port (the E2B public URL scheme is
+      // `https://<port>-<sandboxId>.e2b.app`).
+      const dynamicSandbox = sandbox as unknown as {
+        getHost?: (p: number) => string | Promise<string>;
+        getPublicUrl?: (p: number) => string | Promise<string>;
+      };
+      if (typeof dynamicSandbox.getPublicUrl === 'function') {
+        const raw = await dynamicSandbox.getPublicUrl(port);
+        return normalizeExposedUrl(raw, port);
+      }
+      if (typeof dynamicSandbox.getHost === 'function') {
+        const raw = await dynamicSandbox.getHost(port);
+        return normalizeExposedUrl(raw, port);
+      }
+      // Fallback: synthesize the canonical URL from the sandbox id.
+      return `https://${port}-${sandbox.sandboxId}.e2b.app`;
+    },
+
     async kill() {
       try {
         await sandbox.kill();
@@ -293,4 +327,21 @@ function buildHandle(
       }
     },
   };
+}
+
+/**
+ * Normalize whatever `getHost` / `getPublicUrl` returned into a
+ * fully-qualified `https://…` URL the browser can embed in an iframe.
+ */
+function normalizeExposedUrl(raw: string, port: number): string {
+  const trimmed = raw.trim();
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  // `raw` is a bare host. E2B hosts already encode the port in the
+  // subdomain, but older clients returned just the base host — in
+  // that case we prepend the port as a prefix. We heuristically
+  // detect whether the port is already present to avoid double-encoding.
+  if (trimmed.startsWith(`${port}-`)) {
+    return `https://${trimmed}`;
+  }
+  return `https://${port}-${trimmed}`;
 }

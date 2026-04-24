@@ -18,6 +18,7 @@ import { DEVIN_MODE_AGENTS } from './tool-classes';
 import type { ToolUseAgent } from './tool-agent';
 import {
   isMemoryEnabled,
+  recallGlobalMemories,
   recallTopK,
   storeMemory,
   type MemoryRecord,
@@ -36,30 +37,63 @@ function stringifyPrior(response: AgentResponse): string {
 }
 
 interface RecalledSection {
-  memories: MemoryRecord[];
+  session: MemoryRecord[];
+  global: MemoryRecord[];
   markdown: string;
+}
+
+function renderMemoryBlock(title: string, memories: MemoryRecord[]): string {
+  const blocks = memories.map((m, i) => {
+    const sim = typeof m.similarity === 'number' ? m.similarity.toFixed(3) : 'n/a';
+    const snippet = m.content.length > 500 ? `${m.content.slice(0, 500)}…` : m.content;
+    return `### ${title} ${i + 1} — kind=${m.kind}, similarity=${sim}\n${snippet}`;
+  });
+  return [`## ${title}`, ...blocks].join('\n\n');
 }
 
 async function loadRecalled(
   req: SwarmRunRequest,
   signal: AbortSignal,
 ): Promise<RecalledSection> {
-  if (!isMemoryEnabled()) return { memories: [], markdown: '' };
-  let memories: MemoryRecord[];
+  if (!isMemoryEnabled())
+    return { session: [], global: [], markdown: '' };
+  // Load BOTH pools in parallel. `global_user` is the Omni-Memory
+  // Forever Context that gets auto-injected into every ODIN boot
+  // prompt; `session` is the episodic recall for this chat only.
+  let sessionMemories: MemoryRecord[] = [];
+  let globalMemories: MemoryRecord[] = [];
   try {
-    memories = await recallTopK({ userId: req.userId, query: req.query, k: 8, signal });
+    const [s, g] = await Promise.all([
+      recallTopK({
+        userId: req.userId,
+        query: req.query,
+        k: 8,
+        scope: 'session',
+        signal,
+      }),
+      recallGlobalMemories({
+        userId: req.userId,
+        query: req.query,
+        k: 8,
+        signal,
+      }),
+    ]);
+    sessionMemories = s;
+    globalMemories = g;
   } catch {
-    return { memories: [], markdown: '' };
+    return { session: [], global: [], markdown: '' };
   }
-  if (memories.length === 0) return { memories, markdown: '' };
-  const blocks = memories.map((m, i) => {
-    const sim = typeof m.similarity === 'number' ? m.similarity.toFixed(3) : 'n/a';
-    const snippet = m.content.length > 500 ? `${m.content.slice(0, 500)}…` : m.content;
-    return `### Memory ${i + 1} — kind=${m.kind}, similarity=${sim}\n${snippet}`;
-  });
+  const parts: string[] = [];
+  if (globalMemories.length > 0) {
+    parts.push(renderMemoryBlock('Global user preferences', globalMemories));
+  }
+  if (sessionMemories.length > 0) {
+    parts.push(renderMemoryBlock('Recalled memories', sessionMemories));
+  }
   return {
-    memories,
-    markdown: ['## Recalled memories', ...blocks].join('\n\n'),
+    session: sessionMemories,
+    global: globalMemories,
+    markdown: parts.join('\n\n'),
   };
 }
 
@@ -98,6 +132,7 @@ async function* runOneAgent(
   agent: ToolUseAgent,
   userPrompt: string,
   signal: AbortSignal,
+  req: SwarmRunRequest,
 ): AsyncGenerator<SwarmEvent, AgentResponse | null, void> {
   yield { type: 'agent_start', agent: agent.name, at: Date.now() };
   let sandbox: SandboxHandle | null = null;
@@ -118,6 +153,8 @@ async function* runOneAgent(
       userPrompt,
       signal,
       maxSteps: MAX_STEPS_PER_AGENT,
+      userId: req.userId,
+      sessionId: req.sessionId,
     });
     for (const e of events) yield e;
     yield {
@@ -168,13 +205,16 @@ export async function* runSwarmToolUse(
 ): AsyncGenerator<SwarmEvent, void, void> {
   const signal = opts.signal ?? new AbortController().signal;
 
-  // Memory recall (identical to structured-output path).
+  // Memory recall: pull BOTH `session` and `global_user` pools.
+  // Global memories are the Omni-Memory "Forever Context" that gets
+  // auto-injected into every ODIN boot prompt.
   const recalled = await loadRecalled(req, signal);
-  if (recalled.memories.length > 0) {
+  const combined = [...recalled.global, ...recalled.session];
+  if (combined.length > 0) {
     yield {
       type: 'memory_recall',
-      count: recalled.memories.length,
-      summaries: recalled.memories.map((m) => ({
+      count: combined.length,
+      summaries: combined.map((m) => ({
         kind: m.kind,
         snippet: m.content.length > 160 ? `${m.content.slice(0, 160)}…` : m.content,
         similarity: m.similarity ?? 0,
@@ -188,7 +228,7 @@ export async function* runSwarmToolUse(
 
   // EIVOR
   const eivor = new DEVIN_MODE_AGENTS.eivor();
-  const eivorResponse = yield* runOneAgent(eivor, basePrompt, signal);
+  const eivorResponse = yield* runOneAgent(eivor, basePrompt, signal, req);
   if (!eivorResponse) {
     yield { type: 'swarm_done', at: Date.now() };
     return;
@@ -227,7 +267,7 @@ export async function* runSwarmToolUse(
 
     for (const agent of cycleAgents) {
       const prompt = composeWithPriors(basePrompt, priors);
-      const resp = yield* runOneAgent(agent, prompt, signal);
+      const resp = yield* runOneAgent(agent, prompt, signal, req);
       if (!resp) {
         cycleFailed = true;
         break;
@@ -287,7 +327,7 @@ export async function* runSwarmToolUse(
   // THOR forges code
   const thor = new DEVIN_MODE_AGENTS.thor();
   const thorPrompt = composeWithPriors(basePrompt, priors);
-  const thorResponse = yield* runOneAgent(thor, thorPrompt, signal);
+  const thorResponse = yield* runOneAgent(thor, thorPrompt, signal, req);
   if (!thorResponse) {
     yield { type: 'swarm_done', at: Date.now() };
     return;

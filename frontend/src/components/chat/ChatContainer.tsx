@@ -137,7 +137,18 @@ function thoughtFromEvent(
   }
 }
 
-function ChatContainerInner() {
+interface ChatContainerInnerProps {
+  /**
+   * Optional chat_id from the URL (`/chat/[chatId]`). When provided
+   * and present in localStorage, the container hydrates to that
+   * thread instead of the most-recently-active one. When provided
+   * but NOT present, it is reserved as the id for the next `New
+   * chat` action (so the URL survives the navigation + hydrate).
+   */
+  initialChatId?: string;
+}
+
+function ChatContainerInner({ initialChatId }: ChatContainerInnerProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -172,14 +183,32 @@ function ChatContainerInner() {
     const stored = loadThreads();
     setThreads(stored);
 
-    const lastActive = loadActiveThreadId();
-    const target = lastActive && stored.find((t) => t.id === lastActive);
-    if (target) {
-      setActiveThreadId(target.id);
-      activeThreadIdRef.current = target.id;
-      setMessages(target.messages);
-      setConversationId(target.conversationId);
-      conversationIdRef.current = target.conversationId;
+    // Hydration priority:
+    //   1. URL chat_id (deep-link or refresh) if it matches a stored thread.
+    //   2. URL chat_id reserved for a not-yet-created thread (keeps URL stable).
+    //   3. Most-recently-active thread from localStorage.
+    const byUrl =
+      initialChatId && stored.find((t) => t.id === initialChatId);
+    if (byUrl) {
+      setActiveThreadId(byUrl.id);
+      activeThreadIdRef.current = byUrl.id;
+      setMessages(byUrl.messages);
+      setConversationId(byUrl.conversationId);
+      conversationIdRef.current = byUrl.conversationId;
+    } else if (initialChatId) {
+      // Reserve the id; the first send will materialize the thread.
+      setActiveThreadId(initialChatId);
+      activeThreadIdRef.current = initialChatId;
+    } else {
+      const lastActive = loadActiveThreadId();
+      const target = lastActive && stored.find((t) => t.id === lastActive);
+      if (target) {
+        setActiveThreadId(target.id);
+        activeThreadIdRef.current = target.id;
+        setMessages(target.messages);
+        setConversationId(target.conversationId);
+        conversationIdRef.current = target.conversationId;
+      }
     }
 
     try {
@@ -776,10 +805,14 @@ function ChatContainerInner() {
   );
 }
 
-export function ChatContainer() {
+export function ChatContainer({
+  initialChatId,
+}: {
+  initialChatId?: string;
+} = {}) {
   return (
     <ThemeProvider>
-      <ChatContainerInner />
+      <ChatContainerInner initialChatId={initialChatId} />
     </ThemeProvider>
   );
 }

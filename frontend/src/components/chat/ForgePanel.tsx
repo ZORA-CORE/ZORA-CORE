@@ -2,20 +2,36 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Code2, GitBranch, Play, Terminal, X } from 'lucide-react';
+import { Code2, GitBranch, Play, SquareTerminal, Terminal, X } from 'lucide-react';
 import { ForgeMermaid } from './ForgeMermaid';
 import { ForgeMonaco } from './ForgeMonaco';
 import { ForgeTerminal } from './ForgeTerminal';
 import { LivePreview } from './LivePreview';
+import { E2BPreviewFrame } from './E2BPreviewFrame';
+import { XtermConsole } from './XtermConsole';
 import type { Artifact, ThoughtEvent } from './artifacts';
 
-type ForgeTab = 'code' | 'preview' | 'architecture' | 'terminal';
+type ForgeTab =
+  | 'code'
+  | 'preview'
+  | 'architecture'
+  | 'terminal'
+  | 'console';
 
 interface ForgePanelProps {
   artifacts: Artifact[];
   thoughts: ThoughtEvent[];
   isStreaming: boolean;
   onClose?: () => void;
+  /**
+   * Public HTTPS URL exposed by an `expose_port` tool call inside the
+   * E2B sandbox. When set, the Preview tab renders a live iframe on
+   * this URL instead of the Sandpack fallback. When null, Preview
+   * falls back to Sandpack for static artifacts.
+   */
+  previewUrl?: string | null;
+  /** Port number reported by `expose_port`, for the waiting-state copy. */
+  previewPort?: number;
 }
 
 const TAB_META: Record<ForgeTab, { label: string; Icon: typeof Code2 }> = {
@@ -23,6 +39,7 @@ const TAB_META: Record<ForgeTab, { label: string; Icon: typeof Code2 }> = {
   preview: { label: 'Preview', Icon: Play },
   architecture: { label: 'Architecture', Icon: GitBranch },
   terminal: { label: 'Terminal', Icon: Terminal },
+  console: { label: 'Console', Icon: SquareTerminal },
 };
 
 export function ForgePanel({
@@ -30,6 +47,8 @@ export function ForgePanel({
   thoughts,
   isStreaming,
   onClose,
+  previewUrl,
+  previewPort,
 }: ForgePanelProps) {
   const codeArtifacts = useMemo(
     () => artifacts.filter((a) => a.kind === 'code'),
@@ -104,10 +123,18 @@ export function ForgePanel({
             key === 'code'
               ? codeArtifacts.length
               : key === 'preview'
-                ? codeArtifacts.length
+                ? previewUrl
+                  ? 1
+                  : codeArtifacts.length
                 : key === 'architecture'
                   ? mermaidArtifacts.length
-                  : thoughts.length;
+                  : key === 'console'
+                    ? thoughts.filter((t) =>
+                        /bash|execute_bash/i.test(
+                          `${t.event} ${t.label} ${t.detail ?? ''}`,
+                        ),
+                      ).length
+                    : thoughts.length;
           return (
             <button
               key={key}
@@ -172,9 +199,13 @@ export function ForgePanel({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -4 }}
               transition={{ duration: 0.18 }}
-              className="flex flex-col gap-3"
+              className="flex h-full min-h-[320px] flex-col gap-3"
             >
-              <LivePreview artifacts={artifacts} />
+              {previewUrl !== undefined ? (
+                <E2BPreviewFrame url={previewUrl ?? null} port={previewPort} />
+              ) : (
+                <LivePreview artifacts={artifacts} />
+              )}
             </motion.div>
           )}
 
@@ -215,6 +246,19 @@ export function ForgePanel({
               className="h-full min-h-[320px]"
             >
               <ForgeTerminal thoughts={thoughts} isStreaming={isStreaming} />
+            </motion.div>
+          )}
+
+          {tab === 'console' && (
+            <motion.div
+              key="console"
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.18 }}
+              className="h-full min-h-[320px]"
+            >
+              <XtermConsole thoughts={thoughts} isStreaming={isStreaming} />
             </motion.div>
           )}
         </AnimatePresence>
