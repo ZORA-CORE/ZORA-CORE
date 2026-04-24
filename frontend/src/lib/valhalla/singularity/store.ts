@@ -47,31 +47,78 @@ export function isSingularityStoreEnabled(): boolean {
 // ---------------------------------------------------------------------
 
 export interface AstGraphSummary {
+  /** Total AST node rows (files + exports + classes + functions + ...). */
   nodeCount: number;
+  /** Subset of `nodeCount` where `kind = 'file'`. */
+  fileCount: number;
   edgeCount: number;
   topFanIn: Array<{ path: string; in: number }>;
   topFanOut: Array<{ path: string; out: number }>;
   recentFiles: Array<{ path: string; updatedAt: string }>;
 }
 
+/**
+ * Extract the total-row count from PostgREST's `content-range` header.
+ * The header looks like `0-24/1946` when rows are returned, or
+ * `(star)/1946` when the query only wanted the count.
+ */
+function parseContentRange(res: Response): number {
+  const header = res.headers.get('content-range');
+  if (!header) return 0;
+  const total = header.split('/')[1];
+  if (!total || total === '*') return 0;
+  const n = Number(total);
+  return Number.isFinite(n) ? n : 0;
+}
+
+async function failIfNotOk(res: Response, label: string): Promise<void> {
+  if (res.ok) return;
+  // PostgREST returns a JSON error object on failure; we include a
+  // truncated body so operators can see the underlying cause rather
+  // than letting a downstream consumer trip on `for (const …)` over
+  // a non-iterable object.
+  const body = await res.text().catch(() => '');
+  throw new Error(`${label} failed ${res.status}: ${body.slice(0, 400)}`);
+}
+
 export async function fetchAstSummary(repo: string): Promise<AstGraphSummary> {
   const cfg = supabaseConfig();
   if (!cfg) {
-    return { nodeCount: 0, edgeCount: 0, topFanIn: [], topFanOut: [], recentFiles: [] };
+    return {
+      nodeCount: 0,
+      fileCount: 0,
+      edgeCount: 0,
+      topFanIn: [],
+      topFanOut: [],
+      recentFiles: [],
+    };
   }
 
-  const countNodes = await fetch(
+  // 1) Unfiltered total node count. `select=id&limit=0` keeps the body
+  //    empty while still populating the `content-range` header.
+  const totalNodesRes = await fetch(
+    `${cfg.url}/rest/v1/valhalla_ast_nodes?repo=eq.${encodeURIComponent(repo)}&select=id&limit=0`,
+    { headers: { ...cfg.headers, Prefer: 'count=exact' } },
+  );
+  await failIfNotOk(totalNodesRes, 'fetchAstSummary total-nodes query');
+  const nodeCount = parseContentRange(totalNodesRes);
+
+  // 2) Recent-file listing (also returns the file-kind count).
+  const recentFilesRes = await fetch(
     `${cfg.url}/rest/v1/valhalla_ast_nodes?repo=eq.${encodeURIComponent(repo)}&kind=eq.file&select=path,updated_at&order=updated_at.desc&limit=25`,
     { headers: { ...cfg.headers, Prefer: 'count=exact' } },
   );
-  const recentRows = (await countNodes.json()) as Array<{ path: string; updated_at: string }>;
-  const nodeCount = Number(countNodes.headers.get('content-range')?.split('/')[1] ?? 0);
+  await failIfNotOk(recentFilesRes, 'fetchAstSummary recent-files query');
+  const recentRows = (await recentFilesRes.json()) as Array<{ path: string; updated_at: string }>;
+  const fileCount = parseContentRange(recentFilesRes);
 
-  const countEdges = await fetch(
+  // 3) All edges (capped at 20k — the cron prompt is size-bounded anyway).
+  const edgesRes = await fetch(
     `${cfg.url}/rest/v1/valhalla_ast_edges?repo=eq.${encodeURIComponent(repo)}&select=source_path,target_path&limit=20000`,
     { headers: cfg.headers },
   );
-  const edgeRows = (await countEdges.json()) as Array<{ source_path: string; target_path: string }>;
+  await failIfNotOk(edgesRes, 'fetchAstSummary edges query');
+  const edgeRows = (await edgesRes.json()) as Array<{ source_path: string; target_path: string }>;
 
   const inCount = new Map<string, number>();
   const outCount = new Map<string, number>();
@@ -90,6 +137,7 @@ export async function fetchAstSummary(repo: string): Promise<AstGraphSummary> {
 
   return {
     nodeCount,
+    fileCount,
     edgeCount: edgeRows.length,
     topFanIn,
     topFanOut,

@@ -85,7 +85,7 @@ export interface PulseResult {
 function formatSummary(repo: string, s: AstGraphSummary): string {
   const lines: string[] = [];
   lines.push(`Repository: ${repo}`);
-  lines.push(`Total AST nodes: ${s.nodeCount}`);
+  lines.push(`Total AST nodes: ${s.nodeCount} (files: ${s.fileCount})`);
   lines.push(`Total import edges: ${s.edgeCount}`);
   lines.push('');
   lines.push('Top fan-in (imported BY many files):');
