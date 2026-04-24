@@ -1,0 +1,16 @@
+{
+  "name": "@valhalla/scripts",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Operational scripts for Valhalla AI (AST indexer, Pulse utilities).",
+  "type": "module",
+  "scripts": {
+    "ast:index": "node ast-index.mjs"
+  },
+  "dependencies": {
+    "ts-morph": "^24.0.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
