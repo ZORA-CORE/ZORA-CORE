@@ -16,12 +16,14 @@ import { createSandbox, isSandboxEnabled, type SandboxHandle } from '../sandbox/
 import type { AgentResponse, Flaw, SwarmEvent, SwarmRunRequest } from './types';
 import { DEVIN_MODE_AGENTS } from './tool-classes';
 import type { ToolUseAgent } from './tool-agent';
+import type { AgentToolContext } from './tools';
 import {
   isMemoryEnabled,
   recallTopK,
   storeMemory,
   type MemoryRecord,
 } from '../memory/store';
+import { fetchGlobalUserContext } from '../memory/omni';
 
 export const MAX_CYCLES = 3;
 /** Hard cap on tool-use steps per agent. Safety net against runaway loops. */
@@ -98,6 +100,7 @@ async function* runOneAgent(
   agent: ToolUseAgent,
   userPrompt: string,
   signal: AbortSignal,
+  toolContext: AgentToolContext,
 ): AsyncGenerator<SwarmEvent, AgentResponse | null, void> {
   yield { type: 'agent_start', agent: agent.name, at: Date.now() };
   let sandbox: SandboxHandle | null = null;
@@ -118,6 +121,7 @@ async function* runOneAgent(
       userPrompt,
       signal,
       maxSteps: MAX_STEPS_PER_AGENT,
+      toolContext: { ...toolContext, agent: agent.name },
     });
     for (const e of events) yield e;
     yield {
@@ -167,8 +171,36 @@ export async function* runSwarmToolUse(
   opts: { signal?: AbortSignal } = {},
 ): AsyncGenerator<SwarmEvent, void, void> {
   const signal = opts.signal ?? new AbortController().signal;
+  const toolContext: AgentToolContext = {
+    userId: req.userId,
+    sessionId: req.sessionId,
+    agent: 'orchestrator',
+  };
 
-  // Memory recall (identical to structured-output path).
+  // EIVOR Omni-Memory: global-user context is pulled BEFORE session
+  // recall so it's available to prepend to ODIN's cached system prompt.
+  // When the Omni store is unconfigured, `markdown` is '' and this
+  // becomes a zero-cost no-op — the swarm runs exactly as before.
+  const globalCtx = await fetchGlobalUserContext({
+    userId: req.userId,
+    query: req.query,
+    signal,
+  });
+  if (globalCtx.memories.length > 0) {
+    yield {
+      type: 'memory_recall',
+      count: globalCtx.memories.length,
+      summaries: globalCtx.memories.map((m) => ({
+        kind: m.kind,
+        snippet:
+          m.content.length > 160 ? `${m.content.slice(0, 160)}…` : m.content,
+        similarity: m.similarity ?? 0,
+      })),
+      at: Date.now(),
+    };
+  }
+
+  // Session memory recall (identical to structured-output path).
   const recalled = await loadRecalled(req, signal);
   if (recalled.memories.length > 0) {
     yield {
@@ -184,11 +216,20 @@ export async function* runSwarmToolUse(
   }
 
   const basePrompt = composeBasePrompt(req, recalled);
+  const globalBlock = globalCtx.markdown
+    ? `${globalCtx.markdown}\n\n---\n\n`
+    : '';
+  const promptWithGlobal = globalBlock + basePrompt;
   const priors: Array<{ agent: string; response: AgentResponse }> = [];
 
   // EIVOR
   const eivor = new DEVIN_MODE_AGENTS.eivor();
-  const eivorResponse = yield* runOneAgent(eivor, basePrompt, signal);
+  const eivorResponse = yield* runOneAgent(
+    eivor,
+    promptWithGlobal,
+    signal,
+    toolContext,
+  );
   if (!eivorResponse) {
     yield { type: 'swarm_done', at: Date.now() };
     return;
@@ -226,8 +267,8 @@ export async function* runSwarmToolUse(
     let cycleFailed = false;
 
     for (const agent of cycleAgents) {
-      const prompt = composeWithPriors(basePrompt, priors);
-      const resp = yield* runOneAgent(agent, prompt, signal);
+      const prompt = composeWithPriors(promptWithGlobal, priors);
+      const resp = yield* runOneAgent(agent, prompt, signal, toolContext);
       if (!resp) {
         cycleFailed = true;
         break;
@@ -286,8 +327,8 @@ export async function* runSwarmToolUse(
 
   // THOR forges code
   const thor = new DEVIN_MODE_AGENTS.thor();
-  const thorPrompt = composeWithPriors(basePrompt, priors);
-  const thorResponse = yield* runOneAgent(thor, thorPrompt, signal);
+  const thorPrompt = composeWithPriors(promptWithGlobal, priors);
+  const thorResponse = yield* runOneAgent(thor, thorPrompt, signal, toolContext);
   if (!thorResponse) {
     yield { type: 'swarm_done', at: Date.now() };
     return;

@@ -137,7 +137,17 @@ function thoughtFromEvent(
   }
 }
 
-function ChatContainerInner() {
+interface ChatContainerInnerProps {
+  /**
+   * Optional thread id provided by the `/chat/[chatId]` dynamic route.
+   * When set, the component hydrates with this thread instead of the
+   * last-active one in localStorage. Unknown ids fall back to an empty
+   * chat so the user can start typing immediately.
+   */
+  initialChatId?: string;
+}
+
+function ChatContainerInner({ initialChatId }: ChatContainerInnerProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -172,14 +182,26 @@ function ChatContainerInner() {
     const stored = loadThreads();
     setThreads(stored);
 
+    // Route-driven hydration wins when /chat/[chatId] is open. If the
+    // thread exists locally we flash it in synchronously; otherwise
+    // the component boots empty and the user can send a message that
+    // will bind to this id.
+    const routedId =
+      initialChatId && typeof initialChatId === 'string' && initialChatId.length > 0
+        ? initialChatId
+        : null;
     const lastActive = loadActiveThreadId();
-    const target = lastActive && stored.find((t) => t.id === lastActive);
+    const targetId = routedId ?? lastActive;
+    const target = targetId ? stored.find((t) => t.id === targetId) : null;
     if (target) {
       setActiveThreadId(target.id);
       activeThreadIdRef.current = target.id;
       setMessages(target.messages);
       setConversationId(target.conversationId);
       conversationIdRef.current = target.conversationId;
+    } else if (routedId) {
+      setActiveThreadId(routedId);
+      activeThreadIdRef.current = routedId;
     }
 
     try {
@@ -776,10 +798,18 @@ function ChatContainerInner() {
   );
 }
 
-export function ChatContainer() {
+export interface ChatContainerProps {
+  initialChatId?: string;
+}
+
+export function ChatContainer(props: ChatContainerProps = {}) {
+  // `ThemeProvider` is now a pass-through shim — actual theming is
+  // owned by the root `ValhallaThemeProvider` in `src/app/layout.tsx`.
+  // We keep the wrapper for call-site compatibility but no longer
+  // establish a nested context here.
   return (
     <ThemeProvider>
-      <ChatContainerInner />
+      <ChatContainerInner initialChatId={props.initialChatId} />
     </ThemeProvider>
   );
 }

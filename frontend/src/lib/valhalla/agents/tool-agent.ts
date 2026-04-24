@@ -29,6 +29,7 @@ import { getClaude, DEFAULT_CLAUDE_MODEL } from './claude';
 import {
   selectTools,
   toolsForAnthropic,
+  type AgentToolContext,
   type ToolName,
   type ToolResult,
   type ValhallaTool,
@@ -62,6 +63,13 @@ export interface ToolUseRunParams {
   model?: string;
   /** Override the default 16-step cap. */
   maxSteps?: number;
+  /**
+   * Per-agent-run context piped into tool dispatchers that need to
+   * reach out of the sandbox (e.g. `store_global_memory` writing to
+   * Supabase under this user's id). Omitting this makes such tools
+   * no-op gracefully.
+   */
+  toolContext?: AgentToolContext;
 }
 
 /** Random, short call id — stable enough within a stream. */
@@ -124,6 +132,7 @@ export abstract class ToolUseAgent {
       signal,
       model = DEFAULT_CLAUDE_MODEL,
       maxSteps = MAX_STEPS,
+      toolContext,
     } = params;
     const tools = selectTools([...this.allowedTools, 'finish']);
     const toolByName = new Map<string, ValhallaTool>(
@@ -257,6 +266,7 @@ export abstract class ToolUseAgent {
           const result = await tool.run(
             sandbox,
             (use.input ?? {}) as Record<string, unknown>,
+            toolContext,
           );
           const durationMs = Date.now() - startedAt;
           const resultPayload: ToolResultPayload = {
