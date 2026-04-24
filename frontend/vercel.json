@@ -10,6 +10,10 @@
     {
       "path": "/api/cron/yggdrasil",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/swarm/cron",
+      "schedule": "0 */12 * * *"
     }
   ],
   "headers": [

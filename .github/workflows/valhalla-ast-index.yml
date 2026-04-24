@@ -1,0 +1,43 @@
+name: Valhalla AST Indexer
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'frontend/src/**'
+      - 'workers/**/src/**'
+      - 'scripts/valhalla/**'
+      - '.github/workflows/valhalla-ast-index.yml'
+  workflow_dispatch: {}
+
+concurrency:
+  group: valhalla-ast-index
+  cancel-in-progress: true
+
+jobs:
+  index:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: scripts/valhalla/package.json
+
+      - name: Install ts-morph
+        working-directory: scripts/valhalla
+        run: npm install --no-audit --no-fund
+
+      - name: Run AST indexer
+        working-directory: scripts/valhalla
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          VALHALLA_REPO_NAME: ${{ github.repository }}
+        run: node ast-index.mjs
