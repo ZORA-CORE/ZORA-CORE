@@ -132,6 +132,32 @@ export type SwarmEvent =
     }
   /** Emitted when an E2B sandbox is torn down. */
   | { type: 'sandbox_end'; agent: AgentName; sandboxId: string; at: number }
+  /**
+   * Emitted when an agent's sandbox exposes a local port (e.g. a dev
+   * server started via `execute_bash`). The frontend uses this to
+   * render the Live Preview iframe with the "Waiting for
+   * localhost:3000…" loading state until the URL responds.
+   */
+  | {
+      type: 'preview_url';
+      agent: AgentName;
+      /** Public HTTPS URL that tunnels to the sandbox's `port`. */
+      url: string;
+      /** The sandbox-local port that was exposed. */
+      port: number;
+      at: number;
+    }
+  /**
+   * Emitted when EIVOR consolidates an architectural decision into
+   * the persistent `global_user` memory pool (Omni-Memory).
+   */
+  | {
+      type: 'global_memory_stored';
+      agent: AgentName;
+      /** First ~160 chars of what was saved. */
+      snippet: string;
+      at: number;
+    }
   | { type: 'swarm_done'; at: number };
 
 /** Input to the orchestrator's `run()` method. */

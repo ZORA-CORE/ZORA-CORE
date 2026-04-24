@@ -29,6 +29,7 @@ import { getClaude, DEFAULT_CLAUDE_MODEL } from './claude';
 import {
   selectTools,
   toolsForAnthropic,
+  type ToolContext,
   type ToolName,
   type ToolResult,
   type ValhallaTool,
@@ -62,6 +63,21 @@ export interface ToolUseRunParams {
   model?: string;
   /** Override the default 16-step cap. */
   maxSteps?: number;
+  /**
+   * User identity threaded through to orchestration-aware tools
+   * (e.g. `store_global_memory`). Required when the agent has a tool
+   * that depends on a user, otherwise optional.
+   */
+  userId?: string;
+  /** Session identity (chat id). Optional — defaults to 'ephemeral'. */
+  sessionId?: string;
+  /**
+   * SwarmEvent sink for tools that emit additional events (e.g.
+   * `expose_port` → `preview_url`, `store_global_memory` →
+   * `global_memory_stored`). Events go into the same `events[]`
+   * returned from this run.
+   */
+  onEvent?: (event: SwarmEvent) => void;
 }
 
 /** Random, short call id — stable enough within a stream. */
@@ -102,10 +118,28 @@ function summarizeResult(toolName: string, result: ToolResult): string {
       return `captured ${(result.payload.viewport as { width: number; height: number }).width}x${(result.payload.viewport as { width: number; height: number }).height} screenshot`;
     case 'finish':
       return 'agent finished';
+    case 'expose_port':
+      return `exposed :${result.payload.port as number} → ${result.payload.url as string}`;
+    case 'store_global_memory':
+      return `stored global memory (${result.payload.bytes as number} chars)`;
     default:
       return `${toolName} done`;
   }
 }
+
+/**
+ * Non-apology enforcement: when a tool errors, we append an explicit
+ * instruction to the next user-role turn telling Claude to re-read
+ * the stderr, diagnose in a `<think>` block, and retry — never to
+ * apologize and stop. This mirrors the system-prompt directive but
+ * also reaches agents whose system prompts predate the hotfix.
+ */
+const AUTONOMOUS_RETRY_DIRECTIVE =
+  'The tool call above errored. DO NOT apologize and stop. Re-read the ' +
+  'stderr you just received, emit a `<think>…</think>` block that ' +
+  'analyzes the root cause, form a concrete hypothesis, and invoke the ' +
+  'appropriate tool again with a corrected input. Keep iterating until ' +
+  'the verifying command exits 0 or you have exhausted your step budget.';
 
 export abstract class ToolUseAgent {
   abstract readonly name: AgentName;
@@ -124,6 +158,9 @@ export abstract class ToolUseAgent {
       signal,
       model = DEFAULT_CLAUDE_MODEL,
       maxSteps = MAX_STEPS,
+      userId = 'anonymous',
+      sessionId = 'ephemeral',
+      onEvent,
     } = params;
     const tools = selectTools([...this.allowedTools, 'finish']);
     const toolByName = new Map<string, ValhallaTool>(
@@ -132,6 +169,24 @@ export abstract class ToolUseAgent {
     const anthropicTools = toolsForAnthropic(tools);
     const client = getClaude();
     const events: SwarmEvent[] = [];
+
+    // Build the ToolContext once — it is stateless apart from its
+    // event emitter. Every tool.run() receives the same reference.
+    const toolCtx: ToolContext = {
+      agent: this.name,
+      userId,
+      sessionId,
+      signal,
+      emit: (event) => {
+        // The emit() signature is `Record<string, unknown>` so tools
+        // can stay decoupled from SwarmEvent's discriminated union.
+        // Since we fully control what the in-repo tools emit, we can
+        // safely upcast here.
+        const typed = event as SwarmEvent;
+        events.push(typed);
+        onEvent?.(typed);
+      },
+    };
 
     const systemBlocks: Anthropic.Messages.TextBlockParam[] = [
       this.cacheable
@@ -257,6 +312,7 @@ export abstract class ToolUseAgent {
           const result = await tool.run(
             sandbox,
             (use.input ?? {}) as Record<string, unknown>,
+            toolCtx,
           );
           const durationMs = Date.now() - startedAt;
           const resultPayload: ToolResultPayload = {
@@ -343,7 +399,41 @@ export abstract class ToolUseAgent {
         }
       }
 
-      messages.push({ role: 'user', content: toolResultBlocks });
+      // Autonomous-retry reinforcement: if ANY tool call in this step
+      // errored (either by throwing or by returning a non-zero exit
+      // from execute_bash), append an extra text block to the
+      // tool_result user turn telling Claude to diagnose + retry
+      // rather than apologize and stop. This survives system-prompt
+      // drift and directly backs the "no apology, no stop" rule.
+      //
+      // The directive lives as a trailing `{type: 'text', text: …}`
+      // block on the same user message so Anthropic's alternating
+      // role invariant is preserved.
+      const anyErrored = toolResultBlocks.some(
+        (b) => b.is_error === true,
+      );
+      const anyNonZeroExit = toolUses.some((use) => {
+        if (use.name !== 'execute_bash') return false;
+        const ev = events.find(
+          (e) =>
+            e.type === 'agent_tool_result' &&
+            e.result.callId === use.id,
+        );
+        if (!ev || ev.type !== 'agent_tool_result') return false;
+        const payload = ev.result.payload as { exitCode?: number };
+        return typeof payload.exitCode === 'number' && payload.exitCode !== 0;
+      });
+
+      const nextUserContent: Anthropic.Messages.ContentBlockParam[] = [
+        ...toolResultBlocks,
+      ];
+      if (anyErrored || anyNonZeroExit) {
+        nextUserContent.push({
+          type: 'text',
+          text: AUTONOMOUS_RETRY_DIRECTIVE,
+        });
+      }
+      messages.push({ role: 'user', content: nextUserContent });
 
       if (finishResponse) break;
     }

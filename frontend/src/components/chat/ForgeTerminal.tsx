@@ -1,8 +1,26 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowDownCircle, ChevronRight, Pause, Play } from 'lucide-react';
+import {
+  ArrowDownCircle,
+  Brain,
+  ChevronRight,
+  Code,
+  FileSearch,
+  Folder,
+  Globe,
+  Loader2,
+  Pause,
+  PenTool,
+  Play,
+  ShieldCheck,
+  Sparkles,
+  Terminal as TerminalIcon,
+} from 'lucide-react';
+import type { ComponentType, SVGProps } from 'react';
 import type { ThoughtEvent } from './artifacts';
+
+type IconType = ComponentType<SVGProps<SVGSVGElement>>;
 
 interface ForgeTerminalProps {
   thoughts: ThoughtEvent[];
@@ -24,6 +42,8 @@ interface LogLine {
   agent: string;
   message: string;
   detail?: string;
+  /** Raw SSE event name, used to pick the dynamic state icon. */
+  event: string;
 }
 
 const AGENT_COLOR: Record<string, string> = {
@@ -44,6 +64,72 @@ const KIND_COLOR: Record<LogKind, string> = {
   info: 'text-neutral-400',
   success: 'text-emerald-400',
 };
+
+/**
+ * Dynamic state icon for a log line. Keyed off the raw SSE event name
+ * (and — for `agent_tool_call` — the specific tool being invoked)
+ * so the user can see what the agent is DOING at a glance:
+ *
+ *   - thinking             → Loader2 (spinning) / Brain
+ *   - execute_bash         → Terminal  (pulses while streaming)
+ *   - write_file           → PenTool
+ *   - patch_file           → Code
+ *   - read_file            → FileSearch
+ *   - list_dir             → Folder
+ *   - screenshot_page      → Globe
+ *   - expose_port          → Globe
+ *   - store_global_memory  → Sparkles
+ *   - security audit       → ShieldCheck
+ */
+function iconFor(line: {
+  event: string;
+  label: string;
+  kind: LogKind;
+  agent: string;
+  isStreaming: boolean;
+}): { Icon: IconType; className: string } {
+  const hay = `${line.event} ${line.label}`.toLowerCase();
+
+  if (line.event === 'agent_thought' || line.kind === 'think') {
+    return line.isStreaming
+      ? { Icon: Loader2, className: 'animate-spin text-neutral-400' }
+      : { Icon: Brain, className: 'text-neutral-400' };
+  }
+  if (hay.includes('execute_bash') || hay.includes('bash') || hay.includes('$ ')) {
+    return {
+      Icon: TerminalIcon,
+      className: line.isStreaming
+        ? 'animate-pulse text-cyan-300'
+        : 'text-cyan-300',
+    };
+  }
+  if (hay.includes('write_file') || hay.includes('wrote ')) {
+    return { Icon: PenTool, className: 'text-sky-300' };
+  }
+  if (hay.includes('patch_file') || hay.includes('patched ')) {
+    return { Icon: Code, className: 'text-sky-300' };
+  }
+  if (hay.includes('read_file') || hay.includes('read ')) {
+    return { Icon: FileSearch, className: 'text-neutral-400' };
+  }
+  if (hay.includes('list_dir') || hay.includes('listed ')) {
+    return { Icon: Folder, className: 'text-neutral-400' };
+  }
+  if (
+    hay.includes('screenshot') ||
+    hay.includes('expose_port') ||
+    hay.includes('preview_url')
+  ) {
+    return { Icon: Globe, className: 'text-sky-300' };
+  }
+  if (hay.includes('store_global_memory') || hay.includes('global memory')) {
+    return { Icon: Sparkles, className: 'text-violet-300' };
+  }
+  if (line.agent === 'HEIMDALL' || hay.includes('audit') || hay.includes('rls')) {
+    return { Icon: ShieldCheck, className: 'text-emerald-400' };
+  }
+  return { Icon: ChevronRight, className: 'text-neutral-500' };
+}
 
 function inferAgent(hay: string): string {
   const s = hay.toLowerCase();
@@ -74,6 +160,18 @@ function thoughtToLog(t: ThoughtEvent): LogLine {
     case 'agent_thought':
       kind = 'think';
       break;
+    case 'agent_tool_call':
+      kind = 'tool';
+      break;
+    case 'agent_tool_result':
+      kind = t.label.toLowerCase().includes('error') ? 'error' : 'success';
+      break;
+    case 'preview_url':
+      kind = 'success';
+      break;
+    case 'global_memory_stored':
+      kind = 'success';
+      break;
     case 'workflow_started':
       kind = 'action';
       message = `workflow_started — ${t.detail ?? 'workflow'}`;
@@ -103,6 +201,7 @@ function thoughtToLog(t: ThoughtEvent): LogLine {
     kind,
     message,
     detail: t.detail,
+    event: t.event,
   };
 }
 
@@ -201,11 +300,19 @@ export function ForgeTerminal({ thoughts, isStreaming }: ForgeTerminalProps) {
           </div>
         ) : (
           <ul className="space-y-0.5">
-            {logs.map((line) => {
+            {logs.map((line, idx) => {
               const isOpen = expanded.has(line.id);
               const hasDetail = Boolean(line.detail && line.detail.length > 0);
               const agentClass = AGENT_COLOR[line.agent] ?? 'text-neutral-400';
               const kindClass = KIND_COLOR[line.kind];
+              const isLive = isStreaming && idx === logs.length - 1;
+              const { Icon: StateIcon, className: stateIconClass } = iconFor({
+                event: line.event,
+                label: line.message,
+                kind: line.kind,
+                agent: line.agent,
+                isStreaming: isLive,
+              });
               return (
                 <li key={line.id} className="group">
                   <button
@@ -228,6 +335,10 @@ export function ForgeTerminal({ thoughts, isStreaming }: ForgeTerminalProps) {
                     ) : (
                       <span className="w-3" aria-hidden />
                     )}
+                    <StateIcon
+                      className={`mt-0.5 h-3 w-3 shrink-0 ${stateIconClass}`}
+                      aria-hidden
+                    />
                     <span className={`shrink-0 font-semibold ${agentClass}`}>
                       {line.agent}
                     </span>

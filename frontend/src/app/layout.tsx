@@ -5,6 +5,7 @@ import { AuthProvider } from "@/lib/AuthContext";
 import { BillingProvider } from "@/lib/BillingContext";
 import { I18nProvider } from "@/lib/I18nProvider";
 import { CommandPaletteProvider } from "@/components/CommandPaletteProvider";
+import { RootThemeProvider } from "@/components/RootThemeProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -27,19 +28,21 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <I18nProvider>
-          <AuthProvider>
-            <BillingProvider>
-              <CommandPaletteProvider>
-                {children}
-              </CommandPaletteProvider>
-            </BillingProvider>
-          </AuthProvider>
-        </I18nProvider>
+        <RootThemeProvider>
+          <I18nProvider>
+            <AuthProvider>
+              <BillingProvider>
+                <CommandPaletteProvider>
+                  {children}
+                </CommandPaletteProvider>
+              </BillingProvider>
+            </AuthProvider>
+          </I18nProvider>
+        </RootThemeProvider>
       </body>
     </html>
   );
