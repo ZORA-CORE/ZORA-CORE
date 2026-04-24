@@ -13,6 +13,7 @@
  */
 import type Anthropic from '@anthropic-ai/sdk';
 import type { SandboxHandle, ScreenshotResult } from '../sandbox/e2b';
+import { storeOmniMemory } from '../memory/omni';
 
 export type ToolName =
   | 'read_file'
@@ -21,7 +22,20 @@ export type ToolName =
   | 'patch_file'
   | 'execute_bash'
   | 'screenshot_page'
+  | 'store_global_memory'
   | 'finish';
+
+/**
+ * Context injected by the tool-use orchestrator when running an agent.
+ * Tools that need to reach OUT of the sandbox (e.g. store_global_memory
+ * writing to Supabase) read this via the `agentContext` argument.
+ * Omitted tools ignore it.
+ */
+export interface AgentToolContext {
+  userId: string;
+  sessionId: string;
+  agent: string;
+}
 
 export interface ValhallaTool {
   name: ToolName;
@@ -31,6 +45,7 @@ export interface ValhallaTool {
   run(
     sandbox: SandboxHandle,
     input: Record<string, unknown>,
+    context?: AgentToolContext,
   ): Promise<ToolResult>;
 }
 
@@ -355,6 +370,91 @@ const FINISH: ValhallaTool = {
   },
 };
 
+// ────────────────────────────────────────────────────────────────────
+// STORE_GLOBAL_MEMORY — EIVOR-only: promote a durable insight into
+// the cross-session global-user memory pool. See
+// `lib/valhalla/memory/omni.ts` for the scope semantics.
+// ────────────────────────────────────────────────────────────────────
+const STORE_GLOBAL_MEMORY: ValhallaTool = {
+  name: 'store_global_memory',
+  description:
+    'EIVOR-only: promote a concise, self-contained insight into the ' +
+    'user\u2019s GLOBAL memory pool. Use sparingly and ONLY for enduring ' +
+    'architectural decisions, coding preferences, or project schemas that ' +
+    'should shape every future chat. Never store transient prompts, ' +
+    'one-off tasks, or questions. Returns the stored memory id.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      content: {
+        type: 'string',
+        description:
+          'Self-contained insight, written in third person, 1\u20134 sentences. ' +
+          'Must stand on its own when read months later in an unrelated chat.',
+      },
+      kind: {
+        type: 'string',
+        enum: ['plan', 'code', 'critique', 'counterexample', 'turn'],
+        description:
+          'Memory kind. Use "plan" for architectural decisions, "code" for ' +
+          'coding preferences, "turn" for general user-state facts.',
+      },
+      rationale: {
+        type: 'string',
+        description:
+          'Why this is GLOBAL-worthy (1 short sentence). Used for audit only.',
+      },
+    },
+    required: ['content', 'kind', 'rationale'],
+    additionalProperties: false,
+  },
+  async run(_sandbox, input, context) {
+    const content = asString(input.content, 'content');
+    const kind = asString(input.kind, 'kind');
+    const rationale = asString(input.rationale, 'rationale');
+    if (!context) {
+      return {
+        content: 'store_global_memory is unavailable in this context.',
+        payload: { error: 'no-context', scope: 'global_user' },
+      };
+    }
+    const validKinds = ['plan', 'code', 'critique', 'counterexample', 'turn'] as const;
+    type Kind = (typeof validKinds)[number];
+    if (!(validKinds as readonly string[]).includes(kind)) {
+      return {
+        content: `invalid kind: ${kind}`,
+        payload: { error: 'invalid-kind', kind, scope: 'global_user' },
+      };
+    }
+    try {
+      const id = await storeOmniMemory({
+        userId: context.userId,
+        sessionId: context.sessionId,
+        kind: kind as Kind,
+        content,
+        scope: 'global_user',
+      });
+      if (!id) {
+        return {
+          content:
+            'global memory store is not configured on the server; no-op.',
+          payload: { stored: false, scope: 'global_user', rationale },
+        };
+      }
+      return {
+        content: `stored global memory id=${id}`,
+        payload: { stored: true, id, scope: 'global_user', rationale, kind },
+      };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return {
+        content: `failed to store global memory: ${message}`,
+        payload: { error: message, scope: 'global_user' },
+      };
+    }
+  },
+};
+
 export const ALL_TOOLS: Record<ToolName, ValhallaTool> = {
   read_file: READ_FILE,
   list_dir: LIST_DIR,
@@ -362,6 +462,7 @@ export const ALL_TOOLS: Record<ToolName, ValhallaTool> = {
   patch_file: PATCH_FILE,
   execute_bash: EXECUTE_BASH,
   screenshot_page: SCREENSHOT_PAGE,
+  store_global_memory: STORE_GLOBAL_MEMORY,
   finish: FINISH,
 };
 

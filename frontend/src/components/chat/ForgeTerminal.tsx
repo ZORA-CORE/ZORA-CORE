@@ -1,7 +1,21 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowDownCircle, ChevronRight, Pause, Play } from 'lucide-react';
+import {
+  ArrowDownCircle,
+  Brain,
+  ChevronRight,
+  Code,
+  Loader2,
+  Pause,
+  PenTool,
+  Play,
+  Shield,
+  ShieldAlert,
+  Sparkles,
+  Terminal as TerminalIcon,
+  type LucideIcon,
+} from 'lucide-react';
 import type { ThoughtEvent } from './artifacts';
 
 interface ForgeTerminalProps {
@@ -44,6 +58,48 @@ const KIND_COLOR: Record<LogKind, string> = {
   info: 'text-neutral-400',
   success: 'text-emerald-400',
 };
+
+/**
+ * Devin-grade dynamic status icons. Mapped from `(kind, message)` to a
+ * lucide glyph so viewers can track swarm state at a glance:
+ *   thinking          → animated Brain (Loader2 fallback while streaming)
+ *   execute_bash      → pulsing Terminal
+ *   write_file/patch  → Code (patch) / PenTool (write)
+ *   read_file/list    → muted Sparkles (observational)
+ *   error             → ShieldAlert
+ *   success           → Shield
+ */
+function iconFor(
+  kind: LogKind,
+  message: string,
+): { Icon: LucideIcon; className: string } {
+  const m = message.toLowerCase();
+  if (kind === 'think') {
+    return { Icon: Brain, className: 'text-neutral-400 animate-pulse' };
+  }
+  if (kind === 'error') {
+    return { Icon: ShieldAlert, className: 'text-red-400' };
+  }
+  if (kind === 'success') {
+    return { Icon: Shield, className: 'text-emerald-400' };
+  }
+  if (m.includes('execute_bash') || m.startsWith('tool:execute_bash')) {
+    return { Icon: TerminalIcon, className: 'text-sky-300 animate-pulse' };
+  }
+  if (m.includes('write_file')) {
+    return { Icon: PenTool, className: 'text-fuchsia-300' };
+  }
+  if (m.includes('patch_file')) {
+    return { Icon: Code, className: 'text-fuchsia-300' };
+  }
+  if (m.includes('read_file') || m.includes('list_dir') || m.includes('screenshot')) {
+    return { Icon: Sparkles, className: 'text-neutral-500' };
+  }
+  if (kind === 'tool' || kind === 'action') {
+    return { Icon: Loader2, className: 'text-cyan-300 animate-spin' };
+  }
+  return { Icon: Sparkles, className: 'text-neutral-500' };
+}
 
 function inferAgent(hay: string): string {
   const s = hay.toLowerCase();
@@ -228,12 +284,27 @@ export function ForgeTerminal({ thoughts, isStreaming }: ForgeTerminalProps) {
                     ) : (
                       <span className="w-3" aria-hidden />
                     )}
+                    {(() => {
+                      const { Icon, className } = iconFor(line.kind, line.message);
+                      return (
+                        <Icon
+                          className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${className}`}
+                          aria-hidden
+                        />
+                      );
+                    })()}
                     <span className={`shrink-0 font-semibold ${agentClass}`}>
                       {line.agent}
                     </span>
                     <span className="shrink-0 text-neutral-600">·</span>
                     <span className={`shrink-0 text-[10px] uppercase ${kindClass}`}>
-                      {line.kind}
+                      {line.kind === 'think' ? (
+                        <span className="inline-flex items-center gap-1">
+                          {line.agent} is thinking
+                        </span>
+                      ) : (
+                        line.kind
+                      )}
                     </span>
                     <span className="min-w-0 flex-1 break-words text-neutral-200">
                       {line.message}
