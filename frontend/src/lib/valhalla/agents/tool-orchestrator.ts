@@ -325,7 +325,7 @@ export async function* runSwarmToolUse(
     };
   }
 
-  // THOR forges code
+  // THOR forges backend code
   const thor = new DEVIN_MODE_AGENTS.thor();
   const thorPrompt = composeWithPriors(promptWithGlobal, priors);
   const thorResponse = yield* runOneAgent(thor, thorPrompt, signal, toolContext);
@@ -334,6 +334,17 @@ export async function* runSwarmToolUse(
     return;
   }
   priors.push({ agent: thor.name, response: thorResponse });
+
+  // FREJA forges the frontend / Tailwind component against THOR's API.
+  // Sequential after THOR so she can target the verified API contract.
+  // FREJA failures are non-fatal: the swarm has already produced a
+  // usable backend, so we surface the error and continue to memory.
+  const freja = new DEVIN_MODE_AGENTS.freja();
+  const frejaPrompt = composeWithPriors(promptWithGlobal, priors);
+  const frejaResponse = yield* runOneAgent(freja, frejaPrompt, signal, toolContext);
+  if (frejaResponse) {
+    priors.push({ agent: freja.name, response: frejaResponse });
+  }
 
   // Persist episodic memory (best effort, same contract as structured path).
   if (thorResponse && isMemoryEnabled()) {
