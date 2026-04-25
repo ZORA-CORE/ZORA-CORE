@@ -43,8 +43,19 @@ import {
   type MemoryRecord,
 } from '../memory/store';
 
-/** Max number of Plan→Critique→Counterexample cycles before forcing THOR. */
-export const MAX_CYCLES = 3;
+/**
+ * Max number of Plan→Critique→Counterexample cycles before forcing
+ * THOR + FREJA. HEIMDALL and LOKI are persona-tuned to find flaws
+ * aggressively, so cycle counts of 3+ almost always exhaust their
+ * full budget. Combined with FREJA being added after THOR, that
+ * blows past Vercel's 300 s Pro `maxDuration`. Empirical 290 s probes
+ * with `MAX_CYCLES = 3` exited mid-cycle-3 HEIMDALL with zero
+ * THOR/FREJA reach. Capping at 2 keeps the design gate (one revision
+ * round) while leaving ~140 s for the build phase.
+ *
+ * Background-job decoupling in Prometheus PR 1 will lift this cap.
+ */
+export const MAX_CYCLES = 2;
 
 /** Small helper: filter flaws by severity. */
 function highFlaws(flaws: Flaw[] | undefined): Flaw[] {

@@ -25,7 +25,12 @@ import {
 } from '../memory/store';
 import { fetchGlobalUserContext } from '../memory/omni';
 
-export const MAX_CYCLES = 3;
+// See orchestrator.ts for the full rationale: HEIMDALL+LOKI are
+// persona-tuned to find flaws aggressively, so 3 cycles + THOR + FREJA
+// exhausts Vercel's 300 s Pro maxDuration. Capping at 2 keeps the
+// design gate (one revision round) while leaving budget for the build
+// phase. Background-job decoupling in Prometheus PR 1 will lift this.
+export const MAX_CYCLES = 2;
 /** Hard cap on tool-use steps per agent. Safety net against runaway loops. */
 export const MAX_STEPS_PER_AGENT = 16;
 
