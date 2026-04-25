@@ -12,7 +12,8 @@
  *     │  LOKI     (counterexamples, emits flaws[])  │
  *     │  break early when zero `high`-severity flaws│
  *     └──────────────────────────────────────────────┘
- *   THOR   (forges code against the final, clean plan)
+ *   THOR   (forges backend code against the final, clean plan)
+ *   FREJA  (forges the frontend / Tailwind component against THOR's API)
  *   storeMemory(final turn)  — persists plan+code for future recall
  *
  * Cycles terminate when either (a) HEIMDALL and LOKI both return with
@@ -28,6 +29,7 @@ import { Odin } from './odin';
 import { Heimdall } from './heimdall';
 import { Loki } from './loki';
 import { Thor } from './thor';
+import { Freja } from './freja';
 import type {
   AgentResponse,
   Flaw,
@@ -281,7 +283,7 @@ export async function* runSwarm(
   // Suppress unused-var warning while keeping the value for future logging.
   void cycleTerminationReason;
 
-  // ───── Step 4: THOR forges code ─────────────────────────────────────
+  // ───── Step 4: THOR forges backend code ────────────────────────────
   const thor = new Thor();
   yield { type: 'agent_start', agent: thor.name, at: Date.now() };
   let thorResponse: AgentResponse | null = null;
@@ -306,7 +308,33 @@ export async function* runSwarm(
     return;
   }
 
-  // ───── Step 5: persist turn into episodic memory (best effort) ──────
+  // ───── Step 5: FREJA forges the frontend (component / UX) ──────────
+  // Sequential after THOR so FREJA can target THOR's actual API contract
+  // and shape state around the verified backend. FREJA failures are
+  // non-fatal — the swarm has already produced a usable backend at this
+  // point; an error here surfaces to the UI but doesn't void the turn.
+  const freja = new Freja();
+  yield { type: 'agent_start', agent: freja.name, at: Date.now() };
+  try {
+    const prompt = composeWithPriors(basePrompt, priors);
+    const frejaResponse = await freja.run(prompt);
+    priors.push({ agent: freja.name, response: frejaResponse });
+    yield {
+      type: 'agent_response',
+      agent: freja.name,
+      response: frejaResponse,
+      at: Date.now(),
+    };
+  } catch (err) {
+    yield {
+      type: 'agent_error',
+      agent: freja.name,
+      message: err instanceof Error ? err.message : String(err),
+      at: Date.now(),
+    };
+  }
+
+  // ───── Step 6: persist turn into episodic memory (best effort) ──────
   if (thorResponse && isMemoryEnabled()) {
     const planText = priors
       .filter((p) => p.agent === 'odin')
