@@ -15,6 +15,7 @@ import { MessageBubble } from './MessageBubble';
 import { ThemeProvider } from './ThemeProvider';
 import { extractArtifacts, type Artifact, type ThoughtEvent } from './artifacts';
 import { extractMemory } from './memory';
+import { isClientSwarmEnabled, streamSwarm } from './swarmStream';
 import {
   loadActiveThreadId,
   loadThreads,
@@ -166,6 +167,13 @@ function ChatContainerInner({ initialChatId }: ChatContainerInnerProps) {
 
   const userIdRef = useRef<string>('valhalla-ssr');
   const abortRef = useRef<AbortController | null>(null);
+  // Snapshot of the live message list. The native swarm path needs
+  // the chat history at send-time, but reading `messages` directly
+  // inside the `sendMessage` callback would either force `messages`
+  // into the callback deps (causing it to be recreated on every
+  // streamed token) or capture a stale closure. The ref keeps
+  // `sendMessage` stable while still seeing the latest history.
+  const messagesRef = useRef<ChatMessage[]>([]);
   const inputRef = useRef<ChatInputHandle>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const thoughtCounterRef = useRef(0);
@@ -228,6 +236,12 @@ function ChatContainerInner({ initialChatId }: ChatContainerInnerProps) {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [messages, isStreaming]);
+
+  // Keep the messages ref in sync so the native swarm path can read
+  // history without forcing `sendMessage` to depend on `messages`.
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
 
   // Persist the active thread's messages whenever they change. We only
   // write AFTER initial hydration so we don't overwrite stored state
@@ -359,6 +373,61 @@ function ChatContainerInner({ initialChatId }: ChatContainerInnerProps) {
       abortRef.current = controller;
 
       try {
+        // Native Valhalla swarm path. Gated behind
+        // `NEXT_PUBLIC_VALHALLA_NATIVE_SWARM=1` so the build is a
+        // no-op on prod until the flag flips. If the server-side
+        // `VALHALLA_NATIVE_SWARM` is off the route returns 503 and
+        // we silently fall back to the Dify proxy below.
+        if (isClientSwarmEnabled()) {
+          let swarmAccumulated = '';
+          const result = await streamSwarm({
+            query: text,
+            userId: userIdRef.current,
+            sessionId: activeThreadIdRef.current ?? userIdRef.current,
+            history: messagesRef.current
+              .filter((m) => m.content && m.id !== assistantId)
+              .map((m) => ({
+                role: m.role === 'user' ? 'user' : 'assistant',
+                content: m.content,
+              })),
+            signal: controller.signal,
+            onContent: (delta) => {
+              swarmAccumulated += delta;
+              const snapshot = swarmAccumulated;
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === assistantId ? { ...m, content: snapshot } : m,
+                ),
+              );
+            },
+            onThought: (thought) => {
+              thoughtCounterRef.current += 1;
+              setThoughts((prev) => [...prev, thought]);
+            },
+          });
+
+          if (result.ok) {
+            // Finalize the assistant bubble with a fallback string if
+            // the orchestrator produced nothing user-visible.
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantId && m.content === ''
+                  ? {
+                      ...m,
+                      content:
+                        '_(Swarm finished without a user-visible response.)_',
+                    }
+                  : m,
+              ),
+            );
+            return;
+          }
+          if (result.reason === 'error') {
+            throw new Error(result.message);
+          }
+          // result.reason === 'disabled' → fall through to Dify proxy.
+        }
+
         const difyFiles = files.map((f: AttachedFile) => ({
           type: f.kind,
           transfer_method: 'local_file',
