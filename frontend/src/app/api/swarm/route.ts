@@ -20,6 +20,13 @@ import type { SwarmEvent, SwarmRunRequest } from '@/lib/valhalla/agents';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+// A full Plan→Critique→Counterexample cycle plus THOR's E2B forge can
+// take 3–4 minutes end-to-end on a non-trivial prompt (each Anthropic
+// turn is 30–60 s). Vercel's default Node function timeout truncates
+// the SSE stream long before THOR finishes, so the browser sees the
+// connection drop mid-cycle and the assistant bubble freezes at the
+// last `agent_response` it received. 300 s is the Pro-plan ceiling.
+export const maxDuration = 300;
 
 function jsonError(message: string, status = 500): Response {
   return new Response(JSON.stringify({ error: message }), {
@@ -110,6 +117,22 @@ export async function POST(req: NextRequest): Promise<Response> {
   // after the client is gone.
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
+      // Anthropic blocking calls inside a single agent take 30–60 s with
+      // no intermediate writes to the wire. Some intermediate proxies
+      // (and some browser/network stacks) treat that as an idle stream
+      // and close the connection, so the browser sees the SSE drop
+      // mid-cycle. A 10 s heartbeat (`: keepalive` SSE comment) keeps
+      // the socket warm without producing user-visible events. The
+      // ticker is cleared in `finally` to avoid writing after close.
+      let closed = false;
+      const heartbeat = setInterval(() => {
+        if (closed) return;
+        try {
+          controller.enqueue(encoder.encode(`: keepalive ${Date.now()}\n\n`));
+        } catch {
+          // Controller already closed (e.g. client disconnect): swallow.
+        }
+      }, 10_000);
       try {
         for await (const event of runner(parsed, { signal: req.signal })) {
           controller.enqueue(encoder.encode(encodeSSE(event)));
@@ -127,6 +150,8 @@ export async function POST(req: NextRequest): Promise<Response> {
           ),
         );
       } finally {
+        closed = true;
+        clearInterval(heartbeat);
         controller.close();
       }
     },
