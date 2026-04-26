@@ -321,10 +321,21 @@ export async function* runSwarmToolUse(
       },
     });
 
+    // Non-clean cycle: HEIMDALL or LOKI surfaced high-severity flaws.
+    // The previous emission labelled this `'clean'` (or `'max_cycles'` on
+    // the final iteration), which the UI rendered as `Cycle N clean` —
+    // misleading the user into believing the flaws were resolved when in
+    // reality another cycle was being queued (or the cycle budget had
+    // been exhausted with flaws still open). Mirroring the streaming
+    // orchestrator: emit `'flaws_remaining'` so this cycle's outcome is
+    // accurately reflected in the timeline. The `cycleTerminationReason`
+    // (max_cycles vs clean) is owned at the outer loop level by the
+    // streaming orchestrator; this tool-runner doesn't propagate one
+    // outwards beyond the per-cycle event.
     yield {
       type: 'cycle_end',
       cycle,
-      reason: cycle === MAX_CYCLES ? 'max_cycles' : 'clean',
+      reason: 'flaws_remaining',
       high_flaws: lastHighFlaws,
       at: Date.now(),
     };
