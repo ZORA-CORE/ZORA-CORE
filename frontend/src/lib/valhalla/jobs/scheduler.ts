@@ -10,6 +10,16 @@
  * `setImmediate` to push the kick past the response flush.
  */
 import type { NextRequest } from 'next/server';
+import { listStalledJobs } from './store';
+
+// Heartbeats refresh every HEARTBEAT_TICK_MS = 20s in the worker.
+// 90s = three missed ticks. Matches the SSE stream endpoint's
+// stale-heartbeat threshold so the sweep never preempts a worker
+// that is still alive.
+const SWEEP_STALE_SECONDS = 90;
+// Per-sweep cap so a runaway insert can never explode into hundreds
+// of parallel kicks from one request.
+const SWEEP_MAX_KICKS = 10;
 
 /** Best-effort base URL of the deployment, derived from request headers. */
 export function deploymentBaseUrl(req: NextRequest): string {
@@ -66,5 +76,37 @@ export function kickWorker(
     }).catch(() => {
       /* swallow — stream endpoint will retry */
     });
+  });
+}
+
+/**
+ * Fire-and-forget sweep of stalled swarm jobs. Replaces the Vercel
+ * Cron we couldn't ship on Hobby (daily-only schedules). Called from
+ * POST /api/swarm and the SSE stream endpoint so any active user
+ * organically pumps the watchdog for everyone's stalled jobs.
+ *
+ * "Stalled" = status='running', last_heartbeat_at older than
+ * SWEEP_STALE_SECONDS, completed_at IS NULL. The worker's claimJob
+ * RPC routes through the stale-running branch and grants ownership
+ * to the new worker; the run resumes from `current_stage`.
+ *
+ * Safe to call concurrently: claimJob is atomic so duplicate sweeps
+ * within the same stale window don't produce duplicate workers.
+ */
+export function sweepStalledJobs(req: NextRequest): void {
+  setImmediate(() => {
+    void (async () => {
+      try {
+        const stalled = await listStalledJobs({
+          staleSeconds: SWEEP_STALE_SECONDS,
+          limit: SWEEP_MAX_KICKS,
+        });
+        for (const job of stalled) {
+          kickWorker(req, job.id);
+        }
+      } catch {
+        /* swallow — best-effort sweep */
+      }
+    })();
   });
 }

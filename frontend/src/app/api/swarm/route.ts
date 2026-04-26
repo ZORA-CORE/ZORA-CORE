@@ -36,7 +36,7 @@ import {
   createJob,
   isJobsStoreEnabled,
 } from '@/lib/valhalla/jobs/store';
-import { kickWorker } from '@/lib/valhalla/jobs/scheduler';
+import { kickWorker, sweepStalledJobs } from '@/lib/valhalla/jobs/scheduler';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -255,6 +255,16 @@ export async function POST(req: NextRequest): Promise<Response> {
   // re-kicks on stale heartbeat so a missed kick here recovers
   // automatically when the client opens the SSE.
   kickWorker(req, job.id);
+
+  // Inline watchdog: best-effort sweep of any other stalled jobs in
+  // the cluster. Replaces the Vercel Cron we couldn't ship on Hobby
+  // (daily-only schedules). Every new chat request becomes an
+  // organic watchdog tick — covers the common stall scenario where
+  // a user closed a tab mid-run and the worker had no SSE client
+  // refreshing the heartbeat. Safe to fire on every request because
+  // claimJob is atomic and listStalledJobs filter excludes anything
+  // that has heartbeated within the last 90s.
+  sweepStalledJobs(req);
 
   return new Response(
     JSON.stringify({
