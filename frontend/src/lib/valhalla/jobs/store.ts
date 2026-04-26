@@ -264,6 +264,41 @@ export async function updateJob(
   return Array.isArray(rows) && rows.length > 0;
 }
 
+/**
+ * Read jobs whose worker has gone silent: status is `running`, the
+ * heartbeat hasn't been refreshed in `staleSeconds`, and the job is
+ * not yet terminal (no `completed_at`). The watchdog cron uses this
+ * to find jobs that need a kick after an SSE disconnect mid-flight.
+ */
+export async function listStalledJobs(params: {
+  staleSeconds: number;
+  limit?: number;
+}): Promise<SwarmJobRow[]> {
+  const cfg = supabaseConfig();
+  if (!cfg) return [];
+  const cutoff = new Date(Date.now() - params.staleSeconds * 1000).toISOString();
+  const qs = new URLSearchParams({
+    status: 'eq.running',
+    last_heartbeat_at: `lt.${cutoff}`,
+    completed_at: 'is.null',
+    select: '*',
+    order: 'last_heartbeat_at.asc',
+    limit: String(params.limit ?? 25),
+  });
+  const res = await fetch(
+    `${cfg.url}/rest/v1/valhalla_swarm_jobs?${qs.toString()}`,
+    { headers: cfg.headers },
+  );
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(
+      `Supabase swarm-job stalled-list failed ${res.status}: ${body.slice(0, 400)}`,
+    );
+  }
+  const rows = (await res.json()) as SupabaseJobShape[];
+  return rows.map(rowFromSupabase);
+}
+
 /** Append a single SwarmEvent to the durable event log. */
 export async function appendEvent(
   jobId: string,
