@@ -39,11 +39,14 @@ export function deploymentBaseUrl(req: NextRequest): string {
 export function kickWorker(
   req: NextRequest,
   jobId: string,
-  opts: { continuation?: boolean } = {},
+  opts: { continuation?: boolean; parentToken?: string } = {},
 ): void {
   const base = deploymentBaseUrl(req);
   if (!base) return;
-  const qs = opts.continuation ? '?continuation=1' : '';
+  const params = new URLSearchParams();
+  if (opts.continuation) params.set('continuation', '1');
+  if (opts.parentToken) params.set('parentToken', opts.parentToken);
+  const qs = params.toString() ? `?${params.toString()}` : '';
   const url = `${base}/api/swarm/run/${encodeURIComponent(jobId)}${qs}`;
   // Defer the actual fetch one tick so the calling response can be
   // flushed first; helps Vercel keep the lambda warm long enough
