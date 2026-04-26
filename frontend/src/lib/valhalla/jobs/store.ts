@@ -161,10 +161,54 @@ export async function getJob(jobId: string): Promise<SwarmJobRow | null> {
 }
 
 /**
+ * Atomically claim ownership of a swarm job. Returns true if this
+ * caller now owns the job (worker_token matches `newToken`), false
+ * if another worker holds a fresh claim.
+ *
+ * `parentToken` is set when the caller is itself a worker chaining
+ * a continuation kick (PR #132 SOFT_BUDGET handoff): if it matches
+ * the row's current worker_token the claim is granted unconditionally,
+ * so our own self-chain isn't mistaken for a collision.
+ */
+export async function claimJob(params: {
+  jobId: string;
+  newToken: string;
+  staleSeconds: number;
+  parentToken?: string | null;
+}): Promise<boolean> {
+  const cfg = supabaseConfig();
+  if (!cfg) return true;
+  const res = await fetch(`${cfg.url}/rest/v1/rpc/valhalla_claim_swarm_job`, {
+    method: 'POST',
+    headers: cfg.headers,
+    body: JSON.stringify({
+      p_job_id: params.jobId,
+      p_new_token: params.newToken,
+      p_stale_seconds: params.staleSeconds,
+      p_parent_token: params.parentToken ?? null,
+    }),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(
+      `Supabase claim_swarm_job failed ${res.status}: ${text.slice(0, 400)}`,
+    );
+  }
+  const body = (await res.json()) as boolean;
+  return body === true;
+}
+
+/**
  * Update the job state. The continuation worker uses this between
  * stages to (a) advance `current_stage`, (b) bump `last_heartbeat_at`
  * so the watchdog knows the worker is alive, and (c) flip status to
  * `completed`/`failed` at the terminal stage.
+ *
+ * When `expectedWorkerToken` is provided, the PATCH is fenced on
+ * `worker_token = expectedWorkerToken` and returns false if zero rows
+ * matched — meaning a different worker has taken ownership and this
+ * worker should exit immediately to prevent the post-terminal race
+ * we observed in Live Fire 2.
  */
 export async function updateJob(
   jobId: string,
@@ -174,9 +218,10 @@ export async function updateJob(
     errorMessage: string | null;
     completedAt: string | null;
   }>,
-): Promise<void> {
+  options: { expectedWorkerToken?: string } = {},
+): Promise<boolean> {
   const cfg = supabaseConfig();
-  if (!cfg) return;
+  if (!cfg) return true;
   const body: Record<string, unknown> = {
     last_heartbeat_at: new Date().toISOString(),
   };
@@ -185,11 +230,18 @@ export async function updateJob(
   if (patch.errorMessage !== undefined) body.error_message = patch.errorMessage;
   if (patch.completedAt !== undefined) body.completed_at = patch.completedAt;
 
+  const filters = [`id=eq.${encodeURIComponent(jobId)}`];
+  if (options.expectedWorkerToken) {
+    filters.push(
+      `worker_token=eq.${encodeURIComponent(options.expectedWorkerToken)}`,
+    );
+  }
+
   const res = await fetch(
-    `${cfg.url}/rest/v1/valhalla_swarm_jobs?id=eq.${encodeURIComponent(jobId)}`,
+    `${cfg.url}/rest/v1/valhalla_swarm_jobs?${filters.join('&')}`,
     {
       method: 'PATCH',
-      headers: { ...cfg.headers, Prefer: 'return=minimal' },
+      headers: { ...cfg.headers, Prefer: 'return=representation' },
       body: JSON.stringify(body),
     },
   );
@@ -199,6 +251,8 @@ export async function updateJob(
       `Supabase swarm-job update failed ${res.status}: ${text.slice(0, 400)}`,
     );
   }
+  const rows = (await res.json().catch(() => [])) as unknown[];
+  return Array.isArray(rows) && rows.length > 0;
 }
 
 /** Append a single SwarmEvent to the durable event log. */

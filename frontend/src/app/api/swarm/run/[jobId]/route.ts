@@ -13,9 +13,11 @@
  * each stage gets its own fresh 300 s budget — eliminating the
  * Vercel ceiling as a constraint on swarm completeness.
  */
+import { randomUUID } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import {
   appendEvent,
+  claimJob,
   getJob,
   listEvents,
   updateJob,
@@ -65,36 +67,33 @@ async function loadAllEvents(jobId: string): Promise<SwarmEvent[]> {
 async function processJob(
   req: NextRequest,
   jobId: string,
-  isContinuation: boolean,
+  parentToken: string | null,
 ): Promise<void> {
   const startedAt = Date.now();
+  const workerToken = randomUUID();
 
-  // Acquire-or-skip: only on the FIRST iteration. If another worker
-  // has updated the row inside the last STALE_HEARTBEAT_MS, assume
-  // it's still alive and back off so we don't double-run stages.
-  // Continuation kicks (from our own SOFT_BUDGET handoff) bypass
-  // this check because the outgoing worker just refreshed the
-  // heartbeat with its final updateJob — we're explicitly resuming
-  // the same chain.
-  if (!isContinuation) {
-    const initial = await getJob(jobId);
-    if (!initial) return;
-    if (initial.status === 'completed' || initial.status === 'failed') return;
-    if (initial.status === 'running') {
-      const age = Date.now() - new Date(initial.lastHeartbeatAt).getTime();
-      if (age < STALE_HEARTBEAT_MS) {
-        // Another worker is alive; do nothing.
-        return;
-      }
-    }
-  }
+  // Atomic claim. The RPC handles three cases:
+  //   * row is queued or stale-running → take ownership
+  //   * row is fresh-running and parentToken matches → continuation
+  //     handoff, take ownership
+  //   * otherwise → another worker is alive; back off
+  // Replaces PR #132's read-then-update acquire which had a window
+  // where the SSE kickTimer + a slow stage could let two workers
+  // race on the same job (the artifact observed in Live Fire 2).
+  const claimed = await claimJob({
+    jobId,
+    newToken: workerToken,
+    staleSeconds: Math.floor(STALE_HEARTBEAT_MS / 1000),
+    parentToken,
+  });
+  if (!claimed) return;
 
-  // Claim the job: refresh heartbeat + flip to running. From this
-  // point we own the chain and drive it forward without further
-  // collision checks (the per-iteration check we used to do here
-  // would refuse iteration 2+ because we'd just bumped our own
-  // heartbeat in iteration 1's updateJob).
-  await updateJob(jobId, { status: 'running' });
+  // Once claimed, every write is fenced on `worker_token = our token`.
+  // If a write returns "0 rows updated" the job has been stolen by
+  // another worker (e.g. our heartbeat went stale during a slow
+  // Anthropic call and the SSE endpoint re-kicked); we exit
+  // immediately to prevent post-terminal duplicates.
+  const fence = { expectedWorkerToken: workerToken };
 
   while (true) {
     const job = await getJob(jobId);
@@ -104,15 +103,17 @@ async function processJob(
     const stage = job.currentStage as SwarmStage;
     if (stage === 'done') {
       // Idempotent finalization. Emit swarm_done if it isn't already
-      // present, then mark completed.
+      // present, then mark completed (fenced — a preempted worker
+      // can't flip the row back to running here).
       const events = await loadAllEvents(jobId);
       if (!events.some((e) => e.type === 'swarm_done')) {
         await appendEvent(jobId, { type: 'swarm_done', at: Date.now() });
       }
-      await updateJob(jobId, {
-        status: 'completed',
-        completedAt: new Date().toISOString(),
-      });
+      await updateJob(
+        jobId,
+        { status: 'completed', completedAt: new Date().toISOString() },
+        fence,
+      );
       return;
     }
 
@@ -151,11 +152,15 @@ async function processJob(
         at: Date.now(),
       });
       await appendEvent(jobId, { type: 'swarm_done', at: Date.now() });
-      await updateJob(jobId, {
-        status: 'failed',
-        errorMessage: message,
-        completedAt: new Date().toISOString(),
-      });
+      await updateJob(
+        jobId,
+        {
+          status: 'failed',
+          errorMessage: message,
+          completedAt: new Date().toISOString(),
+        },
+        fence,
+      );
       return;
     }
 
@@ -169,23 +174,35 @@ async function processJob(
     }
 
     if (result.terminal === 'failed') {
-      await updateJob(jobId, {
-        currentStage: result.nextStage,
-        status: 'failed',
-        errorMessage: result.errorMessage ?? null,
-        completedAt: new Date().toISOString(),
-      });
+      await updateJob(
+        jobId,
+        {
+          currentStage: result.nextStage,
+          status: 'failed',
+          errorMessage: result.errorMessage ?? null,
+          completedAt: new Date().toISOString(),
+        },
+        fence,
+      );
       return;
     }
 
     // Advance the job's stage pointer (and refresh heartbeat).
-    await updateJob(jobId, {
-      currentStage: result.nextStage,
-      status: result.terminal === 'completed' ? 'completed' : 'running',
-      ...(result.terminal === 'completed'
-        ? { completedAt: new Date().toISOString() }
-        : {}),
-    });
+    // If we've been preempted the fenced PATCH 0-rows and we exit
+    // before kicking off the next stage, so a duplicate worker
+    // can't extend the pipeline past `swarm_done`.
+    const stillOwn = await updateJob(
+      jobId,
+      {
+        currentStage: result.nextStage,
+        status: result.terminal === 'completed' ? 'completed' : 'running',
+        ...(result.terminal === 'completed'
+          ? { completedAt: new Date().toISOString() }
+          : {}),
+      },
+      fence,
+    );
+    if (!stillOwn) return;
 
     if (result.terminal === 'completed') return;
 
@@ -193,7 +210,10 @@ async function processJob(
     // continuation worker. This keeps a single chain of invocations
     // moving the job forward without any one of them exceeding 300 s.
     if (Date.now() - startedAt > SOFT_BUDGET_MS) {
-      kickWorker(req, jobId, { continuation: true });
+      kickWorker(req, jobId, {
+        continuation: true,
+        parentToken: workerToken,
+      });
       return;
     }
   }
@@ -208,11 +228,15 @@ export async function POST(
     return NextResponse.json({ error: 'Missing jobId.' }, { status: 400 });
   }
 
-  const isContinuation =
-    new URL(req.url).searchParams.get('continuation') === '1';
+  const url = new URL(req.url);
+  // Continuation kicks (PR #132 SOFT_BUDGET handoff) carry the
+  // outgoing worker's token. The claim RPC matches it to grant
+  // ownership without a collision check; an empty/mismatched token
+  // is treated as a fresh kick from the SSE endpoint.
+  const parentToken = url.searchParams.get('parentToken');
 
   try {
-    await processJob(req, jobId, isContinuation);
+    await processJob(req, jobId, parentToken);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return NextResponse.json(
