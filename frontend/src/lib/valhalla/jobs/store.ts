@@ -35,6 +35,13 @@ export interface SwarmJobRow {
   createdAt: string;
   updatedAt: string;
   completedAt: string | null;
+  /**
+   * UUID written by `valhalla_claim_swarm_job`; the worker reads this
+   * back and exits if it doesn't match the token it generated at
+   * claim time (defence-in-depth alongside the fenced PATCH writes).
+   * Null until migration 006 has been applied.
+   */
+  workerToken: string | null;
 }
 
 interface SupabaseHeaders extends Record<string, string> {
@@ -80,6 +87,7 @@ interface SupabaseJobShape {
   created_at: string;
   updated_at: string;
   completed_at: string | null;
+  worker_token?: string | null;
 }
 
 function rowFromSupabase(r: SupabaseJobShape): SwarmJobRow {
@@ -98,6 +106,7 @@ function rowFromSupabase(r: SupabaseJobShape): SwarmJobRow {
     createdAt: r.created_at,
     updatedAt: r.updated_at,
     completedAt: r.completed_at,
+    workerToken: r.worker_token ?? null,
   };
 }
 
