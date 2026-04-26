@@ -29,11 +29,22 @@ export function deploymentBaseUrl(req: NextRequest): string {
  * own response without waiting on the kick. Errors are swallowed —
  * if the kick is missed, the SSE stream endpoint will retry it on
  * its next heartbeat poll.
+ *
+ * Pass `{ continuation: true }` when the caller is itself a worker
+ * handing off at the soft-budget boundary; the continuation invocation
+ * bypasses the heartbeat-fresh acquire check (which would otherwise
+ * refuse to take over because the outgoing worker just refreshed the
+ * heartbeat with its final updateJob).
  */
-export function kickWorker(req: NextRequest, jobId: string): void {
+export function kickWorker(
+  req: NextRequest,
+  jobId: string,
+  opts: { continuation?: boolean } = {},
+): void {
   const base = deploymentBaseUrl(req);
   if (!base) return;
-  const url = `${base}/api/swarm/run/${encodeURIComponent(jobId)}`;
+  const qs = opts.continuation ? '?continuation=1' : '';
+  const url = `${base}/api/swarm/run/${encodeURIComponent(jobId)}${qs}`;
   // Defer the actual fetch one tick so the calling response can be
   // flushed first; helps Vercel keep the lambda warm long enough
   // for the request to leave.

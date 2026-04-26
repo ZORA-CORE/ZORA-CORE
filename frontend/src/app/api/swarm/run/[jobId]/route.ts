@@ -62,26 +62,44 @@ async function loadAllEvents(jobId: string): Promise<SwarmEvent[]> {
   return events;
 }
 
-async function processJob(req: NextRequest, jobId: string): Promise<void> {
+async function processJob(
+  req: NextRequest,
+  jobId: string,
+  isContinuation: boolean,
+): Promise<void> {
   const startedAt = Date.now();
+
+  // Acquire-or-skip: only on the FIRST iteration. If another worker
+  // has updated the row inside the last STALE_HEARTBEAT_MS, assume
+  // it's still alive and back off so we don't double-run stages.
+  // Continuation kicks (from our own SOFT_BUDGET handoff) bypass
+  // this check because the outgoing worker just refreshed the
+  // heartbeat with its final updateJob — we're explicitly resuming
+  // the same chain.
+  if (!isContinuation) {
+    const initial = await getJob(jobId);
+    if (!initial) return;
+    if (initial.status === 'completed' || initial.status === 'failed') return;
+    if (initial.status === 'running') {
+      const age = Date.now() - new Date(initial.lastHeartbeatAt).getTime();
+      if (age < STALE_HEARTBEAT_MS) {
+        // Another worker is alive; do nothing.
+        return;
+      }
+    }
+  }
+
+  // Claim the job: refresh heartbeat + flip to running. From this
+  // point we own the chain and drive it forward without further
+  // collision checks (the per-iteration check we used to do here
+  // would refuse iteration 2+ because we'd just bumped our own
+  // heartbeat in iteration 1's updateJob).
+  await updateJob(jobId, { status: 'running' });
 
   while (true) {
     const job = await getJob(jobId);
     if (!job) return;
     if (job.status === 'completed' || job.status === 'failed') return;
-
-    // Acquire-or-skip: if another worker has updated the row in the
-    // last STALE_HEARTBEAT_MS, assume it's still alive and back off.
-    if (job.status === 'running') {
-      const heartbeatAge = Date.now() - new Date(job.lastHeartbeatAt).getTime();
-      if (heartbeatAge < STALE_HEARTBEAT_MS) {
-        // Another worker is alive; do nothing.
-        return;
-      }
-    }
-
-    // Mark running (and refresh heartbeat) before invoking the stage.
-    await updateJob(jobId, { status: 'running' });
 
     const stage = job.currentStage as SwarmStage;
     if (stage === 'done') {
@@ -114,6 +132,22 @@ async function processJob(req: NextRequest, jobId: string): Promise<void> {
         type: 'agent_error',
         agent: 'odin',
         message,
+        at: Date.now(),
+      });
+      // Synthesize an agent_response so the bubble actually shows the
+      // failure text. Without this the chat UI renders the useless
+      // "(Swarm finished without a user-visible response.)" fallback
+      // because agent_error events go to the inner-monologue panel,
+      // not the bubble content stream.
+      await appendEvent(jobId, {
+        type: 'agent_response',
+        agent: 'odin',
+        response: {
+          agent: 'odin',
+          reasoning: `Swarm crashed during stage \`${stage}\`: ${message}`,
+          plan: {},
+          verification_criteria: '',
+        },
         at: Date.now(),
       });
       await appendEvent(jobId, { type: 'swarm_done', at: Date.now() });
@@ -159,7 +193,7 @@ async function processJob(req: NextRequest, jobId: string): Promise<void> {
     // continuation worker. This keeps a single chain of invocations
     // moving the job forward without any one of them exceeding 300 s.
     if (Date.now() - startedAt > SOFT_BUDGET_MS) {
-      kickWorker(req, jobId);
+      kickWorker(req, jobId, { continuation: true });
       return;
     }
   }
@@ -174,8 +208,11 @@ export async function POST(
     return NextResponse.json({ error: 'Missing jobId.' }, { status: 400 });
   }
 
+  const isContinuation =
+    new URL(req.url).searchParams.get('continuation') === '1';
+
   try {
-    await processJob(req, jobId);
+    await processJob(req, jobId, isContinuation);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return NextResponse.json(

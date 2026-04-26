@@ -174,12 +174,15 @@ export async function GET(
               safeEnqueue(encodeSSE(r.event));
               cursor = r.id;
             }
-            // If terminal but no swarm_done emitted (failure path),
-            // synthesize one so the client closes cleanly.
+            // If terminal but no swarm_done emitted, synthesize one
+            // so the client closes cleanly. We do this for both
+            // `completed` and `failed` because in either case the
+            // worker has stopped and the client must be told the
+            // stream is over (otherwise it sits in MAX_RECONNECTS
+            // limbo and shows the useless "(Swarm finished without
+            // a user-visible response.)" fallback).
             const sawDone = tail.some((r) => r.event.type === 'swarm_done');
-            const allEvents = await listEvents(jobId, 0, 1).catch(() => []);
-            void allEvents;
-            if (!sawDone && job2.status !== 'completed') {
+            if (!sawDone) {
               safeEnqueue(encodeSSE({ type: 'swarm_done', at: Date.now() }));
             }
             cleanup();
