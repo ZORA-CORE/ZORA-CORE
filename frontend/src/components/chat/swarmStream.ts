@@ -59,7 +59,7 @@ type SwarmEvent =
   | {
       type: 'cycle_end';
       cycle: number;
-      reason: 'clean' | 'max_cycles' | 'aborted';
+      reason: 'clean' | 'flaws_remaining' | 'max_cycles' | 'aborted';
       high_flaws: number;
       at: number;
     }
@@ -272,10 +272,136 @@ export type StreamSwarmResult =
   | { ok: false; reason: 'error'; message: string };
 
 /**
+ * Pump SSE frames from a `Response` body through `applyEvent`. Used
+ * by both the legacy synchronous /api/swarm path and the new
+ * /api/swarm/stream/[jobId] replay endpoint. Returns whether the
+ * stream observed an explicit `swarm_done` event and the highest
+ * `seq` id observed (encoded as `: seq <id>` SSE comments by the
+ * stream replay endpoint) so the caller can resume cleanly across
+ * reconnects.
+ */
+async function pumpSseStream(
+  res: Response,
+  opts: StreamSwarmOptions,
+  startCounter: number,
+): Promise<{ done: boolean; counter: number; lastSeq: number }> {
+  if (!res.body) return { done: false, counter: startCounter, lastSeq: 0 };
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let counter = startCounter;
+  let done = false;
+  let lastSeq = 0;
+
+  while (true) {
+    const { value, done: readDone } = await reader.read();
+    if (readDone) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    let separator: number;
+    while ((separator = buffer.indexOf('\n\n')) !== -1) {
+      const frame = buffer.slice(0, separator);
+      buffer = buffer.slice(separator + 2);
+
+      // Capture seq cursors emitted by /api/swarm/stream/[jobId] so
+      // we can resume with `?afterId=N` if Vercel closes the SSE.
+      for (const line of frame.split('\n')) {
+        if (line.startsWith(': seq ')) {
+          const n = Number(line.slice(6).trim());
+          if (Number.isFinite(n) && n > lastSeq) lastSeq = n;
+        }
+      }
+
+      const dataStr = frame
+        .split('\n')
+        .filter((line) => line.startsWith('data:'))
+        .map((line) => line.slice(5).trim())
+        .join('\n');
+
+      if (!dataStr || dataStr === '[DONE]') continue;
+
+      let evt: SwarmEvent;
+      try {
+        evt = JSON.parse(dataStr) as SwarmEvent;
+      } catch {
+        continue;
+      }
+
+      const { done: streamDone } = applyEvent(
+        evt,
+        counter++,
+        opts.onContent,
+        opts.onThought,
+      );
+      if (streamDone) done = true;
+    }
+  }
+
+  return { done, counter, lastSeq };
+}
+
+/** Auto-reconnecting SSE consumer for the durable replay endpoint. */
+async function consumeReplayStream(
+  streamUrl: string,
+  opts: StreamSwarmOptions,
+): Promise<StreamSwarmResult> {
+  let counter = 0;
+  let lastSeq = 0;
+  // Vercel can close the SSE at the 300 s ceiling; the worker may
+  // still be running. Reconnect up to N times with `?afterId=` so
+  // the user perceives a continuous stream. Once the orchestrator
+  // emits `swarm_done` the loop breaks regardless of remaining
+  // attempts.
+  const MAX_RECONNECTS = 4;
+  for (let attempt = 0; attempt <= MAX_RECONNECTS; attempt++) {
+    const url = lastSeq > 0 ? `${streamUrl}?afterId=${lastSeq}` : streamUrl;
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        method: 'GET',
+        headers: { Accept: 'text/event-stream' },
+        signal: opts.signal,
+      });
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') throw err;
+      // Brief pause before retrying network errors.
+      await new Promise<void>((resolve) => setTimeout(resolve, 1500));
+      continue;
+    }
+
+    if (!res.ok || !res.body) {
+      const text = await res.text().catch(() => '');
+      return {
+        ok: false,
+        reason: 'error',
+        message: text || `Swarm stream failed with status ${res.status}`,
+      };
+    }
+
+    const result = await pumpSseStream(res, opts, counter);
+    counter = result.counter;
+    lastSeq = Math.max(lastSeq, result.lastSeq);
+    if (result.done) return { ok: true };
+    // Stream closed without `swarm_done` — likely Vercel hit its
+    // 300 s ceiling on this connection. Reconnect with the cursor.
+  }
+  // Exhausted reconnects without an explicit swarm_done. Treat as
+  // success so the bubble finalizes with whatever it already has.
+  return { ok: true };
+}
+
+/**
  * Open an SSE connection to `/api/swarm` and pump events through
  * `onContent` / `onThought` until the stream closes or `signal`
  * aborts. The caller is responsible for falling back to the Dify
  * proxy when the result is `{ok:false, reason:'disabled'}`.
+ *
+ * Two server flavors are handled transparently:
+ *   - Legacy `text/event-stream` response (no Supabase configured):
+ *     pump frames inline.
+ *   - New `application/json` enqueue response with `{jobId, streamUrl}`:
+ *     open the durable replay stream and reconnect on Vercel
+ *     timeouts using the `seq` cursor.
  */
 export async function streamSwarm(
   opts: StreamSwarmOptions,
@@ -312,14 +438,14 @@ export async function streamSwarm(
     return { ok: false, reason: 'disabled', message: text };
   }
 
-  if (!res.ok || !res.body) {
+  if (!res.ok) {
     const text = await res.text().catch(() => '');
     let message = text;
     try {
       const parsed = JSON.parse(text) as { error?: string; message?: string };
       message = parsed.error || parsed.message || text;
     } catch {
-      /* not JSON, use raw text */
+      /* not JSON */
     }
     return {
       ok: false,
@@ -328,55 +454,35 @@ export async function streamSwarm(
     };
   }
 
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = '';
-  let counter = 0;
-  let finishedCleanly = false;
-
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-
-    let separator: number;
-    while ((separator = buffer.indexOf('\n\n')) !== -1) {
-      const frame = buffer.slice(0, separator);
-      buffer = buffer.slice(separator + 2);
-
-      const dataStr = frame
-        .split('\n')
-        .filter((line) => line.startsWith('data:'))
-        .map((line) => line.slice(5).trim())
-        .join('\n');
-
-      if (!dataStr || dataStr === '[DONE]') continue;
-
-      let evt: SwarmEvent;
-      try {
-        evt = JSON.parse(dataStr) as SwarmEvent;
-      } catch {
-        continue;
-      }
-
-      const { done: streamDone } = applyEvent(
-        evt,
-        counter++,
-        opts.onContent,
-        opts.onThought,
-      );
-      if (streamDone) {
-        finishedCleanly = true;
-      }
+  const contentType = res.headers.get('content-type') ?? '';
+  if (contentType.includes('application/json')) {
+    // Enqueue mode (Prometheus PR 1): durable job + SSE replay.
+    const body = (await res.json().catch(() => ({}))) as {
+      jobId?: string;
+      streamUrl?: string;
+      error?: string;
+    };
+    if (!body.jobId || !body.streamUrl) {
+      return {
+        ok: false,
+        reason: 'error',
+        message: body.error ?? 'Swarm enqueue returned an invalid response.',
+      };
     }
+    return consumeReplayStream(body.streamUrl, opts);
   }
 
-  if (!finishedCleanly) {
-    // Stream closed without an explicit swarm_done — still treat as
-    // success because the orchestrator may have terminated normally
-    // after the last event. The caller will finalize an empty content
-    // bubble with the existing fallback message.
+  if (!res.body) {
+    return {
+      ok: false,
+      reason: 'error',
+      message: 'Swarm response had no body.',
+    };
   }
+
+  // Legacy synchronous SSE path.
+  const result = await pumpSseStream(res, opts, 0);
+  void result;
   return { ok: true };
 }
 

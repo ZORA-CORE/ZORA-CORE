@@ -118,7 +118,11 @@ export type SwarmEvent =
   | {
       type: 'cycle_end';
       cycle: number;
-      reason: 'clean' | 'max_cycles' | 'aborted';
+      // 'clean'           — zero high-severity flaws; advance to THOR
+      // 'flaws_remaining' — high-severity flaws found; another cycle queued
+      // 'max_cycles'      — cycle budget exhausted with flaws still present
+      // 'aborted'         — client disconnect / fatal error
+      reason: 'clean' | 'flaws_remaining' | 'max_cycles' | 'aborted';
       high_flaws: number;
       at: number;
     }
