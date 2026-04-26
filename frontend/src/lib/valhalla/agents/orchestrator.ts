@@ -280,10 +280,16 @@ export async function* runSwarm(
       },
     });
 
+    // Non-clean cycle: emit `flaws_remaining` so the UI doesn't
+    // mislabel a flawed cycle as "clean". When we're at the cycle
+    // budget the loop exits and `cycleTerminationReason` is
+    // `max_cycles`; the per-cycle `cycle_end` event still records
+    // why THIS cycle ended (flaws found), which is more useful for
+    // the timeline than overwriting it with `max_cycles`.
     yield {
       type: 'cycle_end',
       cycle,
-      reason: cycle === MAX_CYCLES ? 'max_cycles' : 'clean',
+      reason: 'flaws_remaining',
       high_flaws: lastHighFlaws,
       at: Date.now(),
     };
