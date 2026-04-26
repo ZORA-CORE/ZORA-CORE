@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Code2, GitBranch, Play, Terminal, X } from 'lucide-react';
 import { ForgeMermaid } from './ForgeMermaid';
 import { ForgeMonaco } from './ForgeMonaco';
-import { ForgeTerminal } from './ForgeTerminal';
+import { ForgeXterm } from './ForgeXterm';
 import { LivePreview } from './LivePreview';
 import type { Artifact, ThoughtEvent } from './artifacts';
 
@@ -214,7 +214,7 @@ export function ForgePanel({
               transition={{ duration: 0.18 }}
               className="h-full min-h-[320px]"
             >
-              <ForgeTerminal thoughts={thoughts} isStreaming={isStreaming} />
+              <ForgeXterm thoughts={thoughts} isStreaming={isStreaming} />
             </motion.div>
           )}
         </AnimatePresence>

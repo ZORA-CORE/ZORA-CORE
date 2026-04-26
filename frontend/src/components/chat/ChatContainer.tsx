@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Brain, Download, PanelRightOpen, Ship, Shield } from 'lucide-react';
 import { buildSessionBundle, triggerBrowserDownload } from './bundle';
@@ -15,6 +16,7 @@ import { MessageBubble } from './MessageBubble';
 import { ThemeProvider } from './ThemeProvider';
 import { extractArtifacts, type Artifact, type ThoughtEvent } from './artifacts';
 import { extractMemory } from './memory';
+import { createRafBatcher } from './rafBatcher';
 import { isClientSwarmEnabled, streamSwarm } from './swarmStream';
 import {
   loadActiveThreadId,
@@ -149,6 +151,7 @@ interface ChatContainerInnerProps {
 }
 
 function ChatContainerInner({ initialChatId }: ChatContainerInnerProps) {
+  const router = useRouter();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -324,7 +327,23 @@ function ChatContainerInner({ initialChatId }: ChatContainerInnerProps) {
 
   const ensureActiveThread = useCallback((): string => {
     const existing = activeThreadIdRef.current;
-    if (existing) return existing;
+    if (existing) {
+      // Even when the thread already exists, make sure the URL is
+      // bound to it. This covers the case where the user lands on
+      // `/` with a thread restored from localStorage but the
+      // address bar wasn't updated by a previous render.
+      try {
+        if (
+          typeof window !== 'undefined' &&
+          window.location.pathname !== `/chat/${existing}`
+        ) {
+          router.replace(`/chat/${existing}`, { scroll: false });
+        }
+      } catch {
+        /* ignore router errors during SSR / first paint */
+      }
+      return existing;
+    }
     const id = makeId();
     const thread: ChatThread = {
       id,
@@ -341,8 +360,16 @@ function ChatContainerInner({ initialChatId }: ChatContainerInnerProps) {
       saveThreads(next);
       return next;
     });
+    // Bind the URL to the new thread so a hard reload (or copy/paste)
+    // hydrates the same conversation. `replace` keeps the back-stack
+    // clean — sending a message on `/` should not push history.
+    try {
+      router.replace(`/chat/${id}`, { scroll: false });
+    } catch {
+      /* ignore router errors during SSR */
+    }
     return id;
-  }, []);
+  }, [router]);
 
   const sendMessage = useCallback(
     async ({ text, files }: ChatSubmission): Promise<void> => {
@@ -380,19 +407,15 @@ function ChatContainerInner({ initialChatId }: ChatContainerInnerProps) {
         // we silently fall back to the Dify proxy below.
         if (isClientSwarmEnabled()) {
           let swarmAccumulated = '';
-          const result = await streamSwarm({
-            query: text,
-            userId: userIdRef.current,
-            sessionId: activeThreadIdRef.current ?? userIdRef.current,
-            history: messagesRef.current
-              .filter((m) => m.content && m.id !== assistantId)
-              .map((m) => ({
-                role: m.role === 'user' ? 'user' : 'assistant',
-                content: m.content,
-              })),
-            signal: controller.signal,
-            onContent: (delta) => {
-              swarmAccumulated += delta;
+          // Coalesce token deltas + thought pushes into rAF flushes.
+          // The orchestrator can fire ~hundreds of agent_delta events
+          // per second; without batching React reconciles each one
+          // and the message bubble janks. The rAF batcher caps state
+          // updates at one per frame (~60 Hz) which is the smoothness
+          // ceiling the screen can render anyway.
+          const contentBatcher = createRafBatcher<string>({
+            onFlush: (deltas) => {
+              for (const d of deltas) swarmAccumulated += d;
               const snapshot = swarmAccumulated;
               setMessages((prev) =>
                 prev.map((m) =>
@@ -400,11 +423,35 @@ function ChatContainerInner({ initialChatId }: ChatContainerInnerProps) {
                 ),
               );
             },
-            onThought: (thought) => {
-              thoughtCounterRef.current += 1;
-              setThoughts((prev) => [...prev, thought]);
+          });
+          const thoughtBatcher = createRafBatcher<ThoughtEvent>({
+            onFlush: (events) => {
+              thoughtCounterRef.current += events.length;
+              setThoughts((prev) => [...prev, ...events]);
             },
           });
+          let result;
+          try {
+            result = await streamSwarm({
+              query: text,
+              userId: userIdRef.current,
+              sessionId: activeThreadIdRef.current ?? userIdRef.current,
+              history: messagesRef.current
+                .filter((m) => m.content && m.id !== assistantId)
+                .map((m) => ({
+                  role: m.role === 'user' ? 'user' : 'assistant',
+                  content: m.content,
+                })),
+              signal: controller.signal,
+              onContent: (delta) => contentBatcher.push(delta),
+              onThought: (thought) => thoughtBatcher.push(thought),
+            });
+          } finally {
+            // Drain whatever's still queued so the bubble shows the
+            // last few tokens even if the stream ends mid-rAF tick.
+            contentBatcher.flush();
+            thoughtBatcher.flush();
+          }
 
           if (result.ok) {
             // Finalize the assistant bubble with a fallback string if
@@ -607,7 +654,12 @@ function ChatContainerInner({ initialChatId }: ChatContainerInnerProps) {
     resetConversationState();
     activeThreadIdRef.current = null;
     setActiveThreadId(null);
-  }, [resetConversationState]);
+    try {
+      router.replace('/', { scroll: false });
+    } catch {
+      /* ignore router errors */
+    }
+  }, [resetConversationState, router]);
 
   const handleSelectThread = useCallback(
     (id: string): void => {
@@ -619,8 +671,13 @@ function ChatContainerInner({ initialChatId }: ChatContainerInnerProps) {
       setMessages(target.messages);
       setConversationId(target.conversationId);
       conversationIdRef.current = target.conversationId;
+      try {
+        router.replace(`/chat/${id}`, { scroll: false });
+      } catch {
+        /* ignore router errors */
+      }
     },
-    [threads, resetConversationState],
+    [threads, resetConversationState, router],
   );
 
   const handleDeleteThread = useCallback(
@@ -634,9 +691,14 @@ function ChatContainerInner({ initialChatId }: ChatContainerInnerProps) {
         resetConversationState();
         activeThreadIdRef.current = null;
         setActiveThreadId(null);
+        try {
+          router.replace('/', { scroll: false });
+        } catch {
+          /* ignore router errors */
+        }
       }
     },
-    [resetConversationState],
+    [resetConversationState, router],
   );
 
   const handleToggleSidebar = useCallback((): void => {
