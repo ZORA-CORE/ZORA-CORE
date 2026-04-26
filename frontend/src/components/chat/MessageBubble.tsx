@@ -1,8 +1,11 @@
 'use client';
 
+import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { FeedbackControls } from './FeedbackControls';
 import { Markdown } from './Markdown';
+import { ThinkBlocksPanel } from './ThinkBlocksPanel';
+import { extractThink } from './thinkBlocks';
 import type { ChatMessage } from './types';
 
 interface MessageBubbleProps {
@@ -22,6 +25,14 @@ export function MessageBubble({
   const showFeedback =
     !isUser && !isStreaming && message.content.length > 0 && Boolean(onFeedback);
 
+  // Lift `<think>` blocks out of the assistant content so they
+  // render in a dedicated reasoning-trace panel instead of being
+  // dumped inline into the bubble.
+  const { visible, blocks } = useMemo(
+    () => (isUser ? { visible: message.content, blocks: [] } : extractThink(message.content, message.id)),
+    [isUser, message.content, message.id],
+  );
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -40,7 +51,8 @@ export function MessageBubble({
           <div className="whitespace-pre-wrap leading-7">{message.content}</div>
         ) : (
           <>
-            <Markdown content={message.content || (isStreaming ? '…' : '')} />
+            <ThinkBlocksPanel blocks={blocks} />
+            <Markdown content={visible || (isStreaming ? '…' : '')} />
             {isStreaming && (
               <span className="ml-0.5 inline-block h-4 w-[2px] translate-y-0.5 animate-pulse bg-[#00CCFF] align-middle" />
             )}
