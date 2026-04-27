@@ -30,7 +30,14 @@ import { Heimdall } from './heimdall';
 import { Loki } from './loki';
 import { Thor } from './thor';
 import { Freja } from './freja';
+import {
+  dispatchHugin,
+  dispatchMunin,
+  pickRavens,
+  type RavenResearch,
+} from './ravens';
 import type {
+  AgentName,
   AgentResponse,
   Flaw,
   SwarmEvent,
@@ -42,6 +49,56 @@ import {
   storeMemory,
   type MemoryRecord,
 } from '../memory/store';
+import { isMissingProviderKeyError } from '../providers/errors';
+
+/**
+ * Convert a thrown agent error into the right SSE event(s). If the
+ * error is a `MissingProviderKeyError` we emit a structured
+ * `provider_key_missing` event carrying the full onboarding payload
+ * (env var, dashboard URL, secrets API endpoint) per the Apex
+ * Directive's "Critical Security & Onboarding Requirement".
+ */
+function* errorEvents(
+  agent: AgentName | 'hugin' | 'munin',
+  err: unknown,
+): Generator<SwarmEvent, void, void> {
+  if (isMissingProviderKeyError(err)) {
+    yield {
+      type: 'provider_key_missing',
+      agent,
+      provider: err.provider,
+      envKey: err.provisioning.envKey,
+      displayName: err.provisioning.displayName,
+      dashboardUrl: err.provisioning.dashboardUrl,
+      instruction: err.provisioning.instruction,
+      secretApiEndpoint: err.provisioning.secretApiEndpoint,
+      at: Date.now(),
+    };
+  }
+  // Always emit `agent_error` too so existing UI surfaces the message
+  // (provider_key_missing is additive context for the onboarding card).
+  // Ravens are not in the AgentName union so we down-cast carefully.
+  if (agent === 'hugin' || agent === 'munin') {
+    // Ravens map onto EIVOR for the existing `agent_error` UI hook;
+    // the `provider_key_missing` event above carries the precise
+    // attribution.
+    yield {
+      type: 'agent_error',
+      agent: 'eivor',
+      message:
+        `${agent}: ` +
+        (err instanceof Error ? err.message : String(err)),
+      at: Date.now(),
+    };
+    return;
+  }
+  yield {
+    type: 'agent_error',
+    agent,
+    message: err instanceof Error ? err.message : String(err),
+    at: Date.now(),
+  };
+}
 
 /**
  * Max number of Plan→Critique→Counterexample cycles before forcing
@@ -106,9 +163,26 @@ async function loadRecalled(
 function composeBasePrompt(
   req: SwarmRunRequest,
   recalled: RecalledSection,
+  ravens: Array<{ raven: 'hugin' | 'munin'; r: RavenResearch }> = [],
 ): string {
   const lines: string[] = [];
   if (recalled.markdown) lines.push(recalled.markdown, '');
+  if (ravens.length > 0) {
+    lines.push('## Raven dispatches');
+    for (const { raven, r } of ravens) {
+      lines.push(`\n### ${raven.toUpperCase()} reports`);
+      lines.push(r.summary);
+      if (r.findings.length > 0) {
+        lines.push('\nFindings:');
+        for (const f of r.findings) lines.push(`- ${f}`);
+      }
+      if (r.citations.length > 0) {
+        lines.push('\nSources:');
+        r.citations.forEach((c, i) => lines.push(`[${i + 1}] ${c}`));
+      }
+    }
+    lines.push('');
+  }
   lines.push(`## User request\n${req.query}`);
   if (req.history.length > 0) {
     lines.push('\n## Conversation so far');
@@ -158,14 +232,49 @@ export async function* runSwarm(
     };
   }
 
-  const basePrompt = composeBasePrompt(req, recalled);
+  // ───── Step 1.5: Ravens prologue (PR 3 Infinity Loop) ──────────────
+  // Dispatch HUGIN/MUNIN if the query implies they would help. Their
+  // findings are inlined into the swarm prompt under `## Raven
+  // dispatches` so EIVOR (and the rest of the swarm) reasons against
+  // current world knowledge. Failures are non-fatal — the swarm runs
+  // with whatever Ravens succeeded, even none.
+  const ravenDispatches: Array<{ raven: 'hugin' | 'munin'; r: RavenResearch }> = [];
+  for (const which of pickRavens(req.query)) {
+    try {
+      const r =
+        which === 'hugin'
+          ? await dispatchHugin(req.query, { userId: req.userId, signal })
+          : await dispatchMunin(req.query, { userId: req.userId, signal });
+      const skipped =
+        r.findings.length === 0 &&
+        /no (current|historical) /i.test(r.summary);
+      if (!skipped) {
+        ravenDispatches.push({ raven: which, r });
+        yield {
+          type: 'raven_research',
+          raven: which,
+          query: req.query,
+          findings: r.summary,
+          citations: r.citations,
+          at: Date.now(),
+        };
+      }
+    } catch (err) {
+      for (const ev of errorEvents(which, err)) yield ev;
+    }
+  }
+
+  const basePrompt = composeBasePrompt(req, recalled, ravenDispatches);
   const priors: Array<{ agent: string; response: AgentResponse }> = [];
 
   // ───── Step 2: EIVOR ────────────────────────────────────────────────
   const eivor = new Eivor();
   yield { type: 'agent_start', agent: eivor.name, at: Date.now() };
   try {
-    const response = await eivor.run(basePrompt);
+    const response = await eivor.run(basePrompt, {
+      userId: req.userId,
+      signal,
+    });
     priors.push({ agent: eivor.name, response });
     yield {
       type: 'agent_response',
@@ -174,12 +283,7 @@ export async function* runSwarm(
       at: Date.now(),
     };
   } catch (err) {
-    yield {
-      type: 'agent_error',
-      agent: eivor.name,
-      message: err instanceof Error ? err.message : String(err),
-      at: Date.now(),
-    };
+    for (const ev of errorEvents(eivor.name, err)) yield ev;
     yield { type: 'swarm_done', at: Date.now() };
     return;
   }
@@ -217,7 +321,10 @@ export async function* runSwarm(
       yield { type: 'agent_start', agent: agent.name, at: Date.now() };
       try {
         const prompt = composeWithPriors(basePrompt, priors);
-        const response = await agent.run(prompt);
+        const response = await agent.run(prompt, {
+          userId: req.userId,
+          signal,
+        });
         priors.push({ agent: agent.name, response });
         yield {
           type: 'agent_response',
@@ -229,12 +336,7 @@ export async function* runSwarm(
           cycleHighFlaws.push(...highFlaws(response.flaws));
         }
       } catch (err) {
-        yield {
-          type: 'agent_error',
-          agent: agent.name,
-          message: err instanceof Error ? err.message : String(err),
-          at: Date.now(),
-        };
+        for (const ev of errorEvents(agent.name, err)) yield ev;
         cycleFailed = true;
         break;
       }
@@ -306,7 +408,7 @@ export async function* runSwarm(
   let thorResponse: AgentResponse | null = null;
   try {
     const prompt = composeWithPriors(basePrompt, priors);
-    thorResponse = await thor.run(prompt);
+    thorResponse = await thor.run(prompt, { userId: req.userId, signal });
     priors.push({ agent: thor.name, response: thorResponse });
     yield {
       type: 'agent_response',
@@ -315,12 +417,7 @@ export async function* runSwarm(
       at: Date.now(),
     };
   } catch (err) {
-    yield {
-      type: 'agent_error',
-      agent: thor.name,
-      message: err instanceof Error ? err.message : String(err),
-      at: Date.now(),
-    };
+    for (const ev of errorEvents(thor.name, err)) yield ev;
     yield { type: 'swarm_done', at: Date.now() };
     return;
   }
@@ -334,7 +431,10 @@ export async function* runSwarm(
   yield { type: 'agent_start', agent: freja.name, at: Date.now() };
   try {
     const prompt = composeWithPriors(basePrompt, priors);
-    const frejaResponse = await freja.run(prompt);
+    const frejaResponse = await freja.run(prompt, {
+      userId: req.userId,
+      signal,
+    });
     priors.push({ agent: freja.name, response: frejaResponse });
     yield {
       type: 'agent_response',
@@ -343,12 +443,7 @@ export async function* runSwarm(
       at: Date.now(),
     };
   } catch (err) {
-    yield {
-      type: 'agent_error',
-      agent: freja.name,
-      message: err instanceof Error ? err.message : String(err),
-      at: Date.now(),
-    };
+    for (const ev of errorEvents(freja.name, err)) yield ev;
   }
 
   // ───── Step 6: persist turn into episodic memory (best effort) ──────

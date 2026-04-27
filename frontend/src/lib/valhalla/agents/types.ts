@@ -136,6 +136,37 @@ export type SwarmEvent =
     }
   /** Emitted when an E2B sandbox is torn down. */
   | { type: 'sandbox_end'; agent: AgentName; sandboxId: string; at: number }
+  /**
+   * Emitted when one of the Ravens (HUGIN, MUNIN) returns from a
+   * Perplexity-backed live-research call. Findings are piped into
+   * EIVOR's prompt under `## Raven dispatches` so the swarm reasons
+   * with current world knowledge, not stale training data.
+   */
+  | {
+      type: 'raven_research';
+      raven: 'hugin' | 'munin';
+      query: string;
+      findings: string;
+      citations: string[];
+      at: number;
+    }
+  /**
+   * Emitted when an agent's resolved provider has no API key
+   * configured (env or `valhalla_user_secrets`). Carries the
+   * structured onboarding payload the chat surface needs to render a
+   * one-click "Provide your <Provider> key" prompt.
+   */
+  | {
+      type: 'provider_key_missing';
+      agent: AgentName | 'hugin' | 'munin' | 'brage' | 'saga';
+      provider: string;
+      envKey: string;
+      displayName: string;
+      dashboardUrl: string;
+      instruction: string;
+      secretApiEndpoint: string;
+      at: number;
+    }
   | { type: 'swarm_done'; at: number };
 
 /** Input to the orchestrator's `run()` method. */
