@@ -108,10 +108,11 @@ export const perplexityAdapter: ProviderAdapter = {
       body: JSON.stringify({
         model,
         max_tokens: args.maxTokens ?? 2048,
-        // JSON mode forces a syntactically-valid object (Perplexity
-        // doesn't yet enforce schema-level conformance the way OpenAI
-        // does, so we still validate shape after parsing).
-        response_format: { type: 'json_object' },
+        // Perplexity's response_format only accepts 'text' / 'json_schema'
+        // / 'regex' (json_object is rejected with HTTP 400). We rely on
+        // the system prompt + extractJsonObject() to obtain a JSON object
+        // from the text response — same pattern Anthropic uses for
+        // structured-output adapters.
         messages: [
           { role: 'system', content: composeJsonSystemPrompt(args) },
           { role: 'user', content: args.userPrompt },
