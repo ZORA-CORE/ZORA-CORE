@@ -35,6 +35,7 @@ import { Loki } from '../agents/loki';
 import { Thor } from '../agents/thor';
 import { Freja } from '../agents/freja';
 import { MAX_CYCLES } from '../agents/orchestrator';
+import { dispatchHugin, dispatchMunin, pickRavens } from '../agents/ravens';
 import type {
   AgentName,
   AgentResponse,
@@ -48,6 +49,7 @@ import type { SwarmJobRow } from './store';
 
 export type SwarmStage =
   | 'init'
+  | 'ravens_prologue'
   | 'eivor'
   | 'cycle1_odin'
   | 'cycle1_heimdall'
@@ -89,6 +91,29 @@ export function rebuildContext(ctx: StageContext): {
   };
   const lines: string[] = [];
   if (ctx.job.recalledMarkdown) lines.push(ctx.job.recalledMarkdown, '');
+
+  // Inline any Raven dispatches that landed during the
+  // ravens_prologue stage so EIVOR + downstream agents reason against
+  // current world knowledge instead of stale training data. The
+  // events were already streamed to the client; we just replay them
+  // here to rebuild the prompt deterministically across worker resumes.
+  const ravens = ctx.priorEvents.filter(
+    (e): e is Extract<SwarmEvent, { type: 'raven_research' }> =>
+      e.type === 'raven_research',
+  );
+  if (ravens.length > 0) {
+    lines.push('## Raven dispatches');
+    for (const r of ravens) {
+      lines.push(`\n### ${r.raven.toUpperCase()} reports`);
+      lines.push(r.findings);
+      if (r.citations.length > 0) {
+        lines.push('\nSources:');
+        r.citations.forEach((c, i) => lines.push(`[${i + 1}] ${c}`));
+      }
+    }
+    lines.push('');
+  }
+
   lines.push(`## User request\n${req.query}`);
   if (req.history.length > 0) {
     lines.push('\n## Conversation so far');
@@ -216,6 +241,70 @@ export async function runStage(
         summaries: [],
         at: now(),
       });
+    }
+    return { events, nextStage: 'ravens_prologue' };
+  }
+
+  if (stage === 'ravens_prologue') {
+    // Dispatch HUGIN (current-state research) and/or MUNIN (historical
+    // context) before EIVOR if the query implies they would help.
+    // Findings are streamed as `raven_research` events and replayed
+    // into the swarm prompt by `rebuildContext` for every subsequent
+    // stage. Failures are non-fatal — a Perplexity outage MUST NOT
+    // break the swarm; the orchestrator will continue without the
+    // raven's findings.
+    const events: SwarmEvent[] = [];
+    for (const which of pickRavens(ctx.job.query)) {
+      try {
+        const r =
+          which === 'hugin'
+            ? await dispatchHugin(ctx.job.query, {
+                userId: ctx.job.userId,
+                signal: ctx.signal,
+              })
+            : await dispatchMunin(ctx.job.query, {
+                userId: ctx.job.userId,
+                signal: ctx.signal,
+              });
+        const skipped =
+          r.findings.length === 0 &&
+          /no (current|historical) /i.test(r.summary);
+        if (!skipped) {
+          events.push({
+            type: 'raven_research',
+            raven: which,
+            query: ctx.job.query,
+            findings: r.summary,
+            citations: r.citations,
+            at: now(),
+          });
+        }
+      } catch (err) {
+        if (isMissingProviderKeyError(err)) {
+          events.push({
+            type: 'provider_key_missing',
+            agent: which,
+            provider: err.provider,
+            envKey: err.provisioning.envKey,
+            displayName: err.provisioning.displayName,
+            dashboardUrl: err.provisioning.dashboardUrl,
+            instruction: err.provisioning.instruction,
+            secretApiEndpoint: err.provisioning.secretApiEndpoint,
+            at: now(),
+          });
+        }
+        // Ravens map onto EIVOR for the existing `agent_error` UI hook;
+        // the `provider_key_missing` event above carries the precise
+        // attribution. Mirrors orchestrator.ts:errorEvents() behavior.
+        events.push({
+          type: 'agent_error',
+          agent: 'eivor',
+          message:
+            `${which}: ` +
+            (err instanceof Error ? err.message : String(err)),
+          at: now(),
+        });
+      }
     }
     return { events, nextStage: 'eivor' };
   }
