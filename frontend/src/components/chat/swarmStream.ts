@@ -340,6 +340,40 @@ async function pumpSseStream(
   return { done, counter, lastSeq };
 }
 
+/** Derive the job-status URL from a stream URL. */
+function jobStatusUrl(streamUrl: string): string {
+  // streamUrl looks like `/api/swarm/stream/<jobId>` (relative) or an
+  // absolute origin form. Replace the `/stream/` segment with `/jobs/`.
+  return streamUrl.replace('/api/swarm/stream/', '/api/swarm/jobs/');
+}
+
+/**
+ * Final-fallback: ask the server for the job status directly. Used
+ * when the SSE replay stream has been cut more than `MAX_RECONNECTS`
+ * times in a row without producing any new events — at that point
+ * the worker has either completed (browser missed the synthesized
+ * `swarm_done`) or is genuinely stalled. Returns true if terminal.
+ */
+async function jobIsTerminal(
+  streamUrl: string,
+  signal: AbortSignal,
+): Promise<boolean> {
+  try {
+    const res = await fetch(jobStatusUrl(streamUrl), {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+      signal,
+    });
+    if (!res.ok) return false;
+    const body = (await res.json().catch(() => null)) as
+      | { status?: string }
+      | null;
+    return body?.status === 'completed' || body?.status === 'failed';
+  } catch {
+    return false;
+  }
+}
+
 /** Auto-reconnecting SSE consumer for the durable replay endpoint. */
 async function consumeReplayStream(
   streamUrl: string,
@@ -348,12 +382,19 @@ async function consumeReplayStream(
   let counter = 0;
   let lastSeq = 0;
   // Vercel can close the SSE at the 300 s ceiling; the worker may
-  // still be running. Reconnect up to N times with `?afterId=` so
-  // the user perceives a continuous stream. Once the orchestrator
-  // emits `swarm_done` the loop breaks regardless of remaining
-  // attempts.
-  const MAX_RECONNECTS = 4;
-  for (let attempt = 0; attempt <= MAX_RECONNECTS; attempt++) {
+  // still be running. Reconnect with `?afterId=` so the user
+  // perceives a continuous stream. Once the orchestrator emits
+  // `swarm_done` the loop breaks regardless of remaining attempts.
+  //
+  // PR 1E: bumped from 4 to 8 and reset the counter when we observe
+  // any new events on a connection — a long job that needs N>4
+  // reconnects shouldn't bail just because each individual
+  // connection hits the timeout. Combined with the
+  // `jobIsTerminal()` fallback, the client now agrees with the
+  // server-side state instead of giving up.
+  const MAX_CONSECUTIVE_EMPTY_RECONNECTS = 8;
+  let consecutiveEmpty = 0;
+  while (consecutiveEmpty <= MAX_CONSECUTIVE_EMPTY_RECONNECTS) {
     const url = lastSeq > 0 ? `${streamUrl}?afterId=${lastSeq}` : streamUrl;
     let res: Response;
     try {
@@ -364,8 +405,10 @@ async function consumeReplayStream(
       });
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') throw err;
-      // Brief pause before retrying network errors.
-      await new Promise<void>((resolve) => setTimeout(resolve, 1500));
+      // Exponential backoff capped at 4 s.
+      const wait = Math.min(4000, 500 * 2 ** consecutiveEmpty);
+      await new Promise<void>((resolve) => setTimeout(resolve, wait));
+      consecutiveEmpty += 1;
       continue;
     }
 
@@ -378,16 +421,39 @@ async function consumeReplayStream(
       };
     }
 
+    const seqBefore = lastSeq;
     const result = await pumpSseStream(res, opts, counter);
     counter = result.counter;
     lastSeq = Math.max(lastSeq, result.lastSeq);
     if (result.done) return { ok: true };
+    if (lastSeq > seqBefore) {
+      // Made progress this connection — reset the empty counter so
+      // a long job that legitimately needs many reconnects can keep
+      // going.
+      consecutiveEmpty = 0;
+    } else {
+      consecutiveEmpty += 1;
+      const wait = Math.min(4000, 500 * 2 ** consecutiveEmpty);
+      await new Promise<void>((resolve) => setTimeout(resolve, wait));
+    }
     // Stream closed without `swarm_done` — likely Vercel hit its
     // 300 s ceiling on this connection. Reconnect with the cursor.
   }
-  // Exhausted reconnects without an explicit swarm_done. Treat as
-  // success so the bubble finalizes with whatever it already has.
-  return { ok: true };
+  // Exhausted consecutive-empty reconnects. Disambiguate: if the
+  // job is already terminal the worker has finished and we just
+  // missed the synthesized `swarm_done`; treat as success. If still
+  // running, surface the stall as an error so the user knows
+  // something went wrong instead of a silent empty bubble.
+  if (await jobIsTerminal(streamUrl, opts.signal)) {
+    return { ok: true };
+  }
+  return {
+    ok: false,
+    reason: 'error',
+    message:
+      'Swarm stream lost connection and the job is still running. ' +
+      'Refresh and try again.',
+  };
 }
 
 /**
