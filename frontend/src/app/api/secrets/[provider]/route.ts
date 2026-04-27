@@ -109,6 +109,9 @@ export async function DELETE(req: NextRequest, ctx: RouteContext): Promise<Respo
   } catch {
     return json({ error: 'Body must be JSON.' }, 400);
   }
+  if (typeof body !== 'object' || body === null) {
+    return json({ error: 'Body must be an object.' }, 400);
+  }
   const userId =
     typeof (body as { userId?: unknown }).userId === 'string'
       ? ((body as { userId: string }).userId.trim())

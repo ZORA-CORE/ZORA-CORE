@@ -35,7 +35,14 @@ export type FederationRole =
 
 export interface FederationEntry {
   provider: ProviderName;
-  model: string;
+  /**
+   * Federation-default model. May be `undefined` when only the
+   * provider was overridden via `VALHALLA_FORCE_PROVIDER_<ROLE>` —
+   * in that case the adapter falls back to its own `defaultModel`,
+   * since the matrix model is provider-specific (e.g. `gpt-4o` is
+   * not a valid Anthropic model).
+   */
+  model: string | undefined;
 }
 
 export const FEDERATION_MATRIX: Record<FederationRole, FederationEntry> = {
@@ -70,12 +77,21 @@ export function resolveFederation(role: FederationRole): FederationEntry {
   // Use `||` not `??` so that empty-string env vars (e.g. `VALHALLA_
   // FORCE_PROVIDER_THOR=` in a Docker env file) fall back to the
   // matrix default instead of being treated as a valid provider name.
-  const overrideProvider = process.env[`VALHALLA_FORCE_PROVIDER_${upper}`];
+  const overrideProviderRaw = process.env[`VALHALLA_FORCE_PROVIDER_${upper}`];
   const overrideModel = process.env[`VALHALLA_FORCE_MODEL_${upper}`];
   const base = FEDERATION_MATRIX[role];
+  const overrideProvider =
+    (overrideProviderRaw as ProviderName | undefined) || undefined;
+  // If only the provider was overridden, drop the matrix model — it
+  // is keyed to the original provider (e.g. `gpt-4o` for THOR), and
+  // sending it to a different provider would produce an invalid-model
+  // API error. The adapter's `defaultModel` will be used instead.
+  const model = overrideProvider
+    ? overrideModel || undefined
+    : overrideModel || base.model;
   return {
-    provider: ((overrideProvider as ProviderName) || base.provider),
-    model: overrideModel || base.model,
+    provider: overrideProvider || base.provider,
+    model,
   };
 }
 
