@@ -369,7 +369,12 @@ async function jobIsTerminal(
       | { status?: string }
       | null;
     return body?.status === 'completed' || body?.status === 'failed';
-  } catch {
+  } catch (err) {
+    // Re-throw AbortError so user-initiated cancellation flows through
+    // the caller's AbortError handler and renders "(Stopped.)" instead
+    // of being swallowed and surfaced as a red error banner. Mirrors
+    // the AbortError handling in `consumeReplayStream` (line ~407).
+    if (err instanceof DOMException && err.name === 'AbortError') throw err;
     return false;
   }
 }
