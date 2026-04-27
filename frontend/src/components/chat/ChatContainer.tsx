@@ -28,6 +28,33 @@ import {
 } from './threadStore';
 import type { AttachedFile, ChatMessage, ChatSubmission } from './types';
 
+/**
+ * Update the URL bar to `/chat/<threadId>` without triggering a Next.js
+ * route navigation.
+ *
+ * `/` and `/chat/<id>` are served by separate `page.tsx` files
+ * (`app/page.tsx` vs `app/chat/[chatId]/page.tsx`, the latter wrapped
+ * in `app/chat/layout.tsx`), so a real `router.replace` between them
+ * forces App Router to unmount + remount the entire `ChatContainer`
+ * subtree. That unmount kills the in-flight SSE `EventSource` on the
+ * very first message of a fresh session, leaving the assistant bubble
+ * empty even though every worker event is durably persisted. Using the
+ * native History API updates the URL bar in place so `ChatContainer`
+ * stays mounted and the SSE stream survives — and hard reloads still
+ * hydrate correctly via the dynamic route on `/chat/[chatId]/page.tsx`
+ * because the URL really did change.
+ */
+function bindThreadUrl(threadId: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const target = `/chat/${threadId}`;
+    if (window.location.pathname === target) return;
+    window.history.replaceState(window.history.state, '', target);
+  } catch {
+    /* ignore SSR / sandboxed-iframe cases */
+  }
+}
+
 function makeId(): string {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
     return crypto.randomUUID();
@@ -332,16 +359,7 @@ function ChatContainerInner({ initialChatId }: ChatContainerInnerProps) {
       // bound to it. This covers the case where the user lands on
       // `/` with a thread restored from localStorage but the
       // address bar wasn't updated by a previous render.
-      try {
-        if (
-          typeof window !== 'undefined' &&
-          window.location.pathname !== `/chat/${existing}`
-        ) {
-          router.replace(`/chat/${existing}`, { scroll: false });
-        }
-      } catch {
-        /* ignore router errors during SSR / first paint */
-      }
+      bindThreadUrl(existing);
       return existing;
     }
     const id = makeId();
@@ -361,15 +379,22 @@ function ChatContainerInner({ initialChatId }: ChatContainerInnerProps) {
       return next;
     });
     // Bind the URL to the new thread so a hard reload (or copy/paste)
-    // hydrates the same conversation. `replace` keeps the back-stack
-    // clean — sending a message on `/` should not push history.
-    try {
-      router.replace(`/chat/${id}`, { scroll: false });
-    } catch {
-      /* ignore router errors during SSR */
-    }
+    // hydrates the same conversation. We deliberately use the History
+    // API instead of `router.replace` here: `/` is served by
+    // `app/page.tsx` while `/chat/<id>` is served by
+    // `app/chat/[chatId]/page.tsx` (with an additional `chat/layout`
+    // wrapper). A real Next.js navigation between those two routes
+    // unmounts and remounts the entire `ChatContainer` tree, which
+    // aborts the in-flight SSE EventSource on the very first message
+    // of a fresh session and leaves the assistant bubble empty even
+    // though the worker writes every event durably (see PR 1F).
+    // `history.replaceState` updates the URL bar without telling
+    // Next.js to re-route, so this component stays mounted and the
+    // SSE stream survives. Hard reloads still hydrate via the dynamic
+    // route on `/chat/[chatId]/page.tsx` because the URL is real.
+    bindThreadUrl(id);
     return id;
-  }, [router]);
+  }, []);
 
   const sendMessage = useCallback(
     async ({ text, files }: ChatSubmission): Promise<void> => {
