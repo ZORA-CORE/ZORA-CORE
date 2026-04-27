@@ -11,7 +11,8 @@
  * to `AgentResponse` without each subclass rewriting the schema.
  */
 
-import { runClaudeTool } from './claude';
+import { runStructuredAgent } from '../providers/router';
+import type { FederationRole } from '../providers/federation';
 import type { AgentName, AgentResponse } from './types';
 
 /**
@@ -89,9 +90,25 @@ export abstract class BaseAgent {
   abstract readonly systemPrompt: string;
   abstract describe(): string;
 
-  /** Runs the agent and returns a validated `AgentResponse`. */
-  async run(userPrompt: string): Promise<AgentResponse> {
-    const { output } = await runClaudeTool<AgentResponse>({
+  /**
+   * Federation role used to look up the (provider, model) tuple in
+   * the Federation Matrix. Defaults to the agent's name; PR 5
+   * personas (BRAGE, SAGA) and the Ravens override this.
+   */
+  protected get federationRole(): FederationRole {
+    return this.name;
+  }
+
+  /**
+   * Runs the agent and returns a validated `AgentResponse`. The
+   * provider router routes the call through the (provider, model)
+   * pinned in the Federation Matrix; missing-key configuration
+   * surfaces as `MissingProviderKeyError` so the orchestrator can
+   * stream a structured onboarding event to the chat.
+   */
+  async run(userPrompt: string, opts: { userId?: string; signal?: AbortSignal } = {}): Promise<AgentResponse> {
+    const { output } = await runStructuredAgent<AgentResponse>({
+      role: this.federationRole,
       systemPrompt: this.systemPrompt,
       userPrompt,
       toolName: 'emit_structured_response',
@@ -99,9 +116,11 @@ export abstract class BaseAgent {
         'Emit your structured Valhalla-agent response. You MUST call this ' +
         'tool exactly once with all required fields.',
       inputSchema: STRUCTURED_RESPONSE_SCHEMA,
+      userId: opts.userId,
+      signal: opts.signal,
     });
     // Defensive: even though the tool forces `agent`, pin it to the
-    // class's canonical name so a renamed Claude response can't
+    // class's canonical name so a renamed model response can't
     // masquerade as a different agent.
     return { ...output, agent: this.name };
   }
