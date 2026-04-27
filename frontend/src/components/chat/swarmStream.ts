@@ -71,6 +71,25 @@ type SwarmEvent =
       at: number;
     }
   | { type: 'sandbox_end'; agent: AgentName; sandboxId: string; at: number }
+  | {
+      type: 'raven_research';
+      raven: 'hugin' | 'munin';
+      query: string;
+      findings: string;
+      citations: string[];
+      at: number;
+    }
+  | {
+      type: 'provider_key_missing';
+      agent: string;
+      provider: string;
+      envKey: string;
+      displayName: string;
+      dashboardUrl: string;
+      instruction: string;
+      secretApiEndpoint: string;
+      at: number;
+    }
   | { type: 'swarm_done'; at: number };
 
 const AGENT_LABEL: Record<AgentName, string> = {
@@ -236,6 +255,48 @@ function applyEvent(
       });
       // Don't throw — orchestrator may recover into the next cycle.
       // The error is surfaced in the thought stream so the user sees it.
+      return { done: false };
+
+    case 'raven_research': {
+      const ravenName = evt.raven === 'hugin' ? 'HUGIN' : 'MUNIN';
+      onThought({
+        id,
+        event: evt.type,
+        label: `${ravenName} research`,
+        detail:
+          evt.findings.length > 240
+            ? `${evt.findings.slice(0, 240)}…`
+            : evt.findings,
+        at,
+        payload: {
+          kind: 'raven_research',
+          raven: evt.raven,
+          query: evt.query,
+          findings: evt.findings,
+          citations: evt.citations,
+        },
+      });
+      return { done: false };
+    }
+
+    case 'provider_key_missing':
+      onThought({
+        id,
+        event: evt.type,
+        label: `${evt.displayName} key missing for ${evt.agent.toUpperCase()}`,
+        detail: `${evt.envKey} not configured · ${evt.instruction}`,
+        at,
+        payload: {
+          kind: 'provider_key_missing',
+          agent: evt.agent,
+          provider: evt.provider,
+          envKey: evt.envKey,
+          displayName: evt.displayName,
+          dashboardUrl: evt.dashboardUrl,
+          instruction: evt.instruction,
+          secretApiEndpoint: evt.secretApiEndpoint,
+        },
+      });
       return { done: false };
 
     case 'swarm_done':
