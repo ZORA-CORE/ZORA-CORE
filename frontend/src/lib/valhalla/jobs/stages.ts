@@ -43,6 +43,7 @@ import type {
   SwarmRunRequest,
 } from '../agents/types';
 import { isMemoryEnabled, storeMemory } from '../memory/store';
+import { isMissingProviderKeyError } from '../providers/errors';
 import type { SwarmJobRow } from './store';
 
 export type SwarmStage =
@@ -164,7 +165,16 @@ function composeWithPriors(
 /** Map a stage to the agent that runs in it, or null for non-agent stages. */
 function agentForStage(
   stage: SwarmStage,
-): { name: AgentName; ctor: () => { name: AgentName; run: (p: string) => Promise<AgentResponse> } } | null {
+): {
+  name: AgentName;
+  ctor: () => {
+    name: AgentName;
+    run: (
+      p: string,
+      opts?: { userId?: string; signal?: AbortSignal },
+    ) => Promise<AgentResponse>;
+  };
+} | null {
   switch (stage) {
     case 'eivor':
       return { name: 'eivor', ctor: () => new Eivor() };
@@ -310,7 +320,10 @@ export async function runStage(
   try {
     const agent = stageAgent.ctor();
     const prompt = composeWithPriors(basePrompt, priors);
-    response = await agent.run(prompt);
+    response = await agent.run(prompt, {
+      userId: ctx.job.userId,
+      signal: ctx.signal,
+    });
     events.push({
       type: 'agent_response',
       agent: stageAgent.name,
@@ -319,6 +332,23 @@ export async function runStage(
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    // Per Apex Directive: a missing provider key MUST surface as a
+    // structured onboarding event so the chat surface can render a
+    // one-click "Provide your <Provider> key" prompt — even on the
+    // background-job path.
+    if (isMissingProviderKeyError(err)) {
+      events.push({
+        type: 'provider_key_missing',
+        agent: stageAgent.name,
+        provider: err.provider,
+        envKey: err.provisioning.envKey,
+        displayName: err.provisioning.displayName,
+        dashboardUrl: err.provisioning.dashboardUrl,
+        instruction: err.provisioning.instruction,
+        secretApiEndpoint: err.provisioning.secretApiEndpoint,
+        at: now(),
+      });
+    }
     events.push({
       type: 'agent_error',
       agent: stageAgent.name,

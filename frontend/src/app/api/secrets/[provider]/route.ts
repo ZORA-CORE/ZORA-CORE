@@ -115,5 +115,15 @@ export async function DELETE(req: NextRequest, ctx: RouteContext): Promise<Respo
       : '';
   if (!userId) return json({ error: 'userId is required.' }, 400);
   const ok = await deleteProviderKey({ userId, provider });
-  return json({ ok, provider });
+  if (!ok) {
+    return json(
+      {
+        error:
+          'Vault is not configured (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY missing). ' +
+          'Set the env vars or add the key to .env.local.',
+      },
+      503,
+    );
+  }
+  return json({ ok: true, provider });
 }

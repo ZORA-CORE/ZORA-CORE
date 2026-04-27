@@ -67,12 +67,15 @@ export const FEDERATION_MATRIX: Record<FederationRole, FederationEntry> = {
  */
 export function resolveFederation(role: FederationRole): FederationEntry {
   const upper = role.toUpperCase();
+  // Use `||` not `??` so that empty-string env vars (e.g. `VALHALLA_
+  // FORCE_PROVIDER_THOR=` in a Docker env file) fall back to the
+  // matrix default instead of being treated as a valid provider name.
   const overrideProvider = process.env[`VALHALLA_FORCE_PROVIDER_${upper}`];
   const overrideModel = process.env[`VALHALLA_FORCE_MODEL_${upper}`];
   const base = FEDERATION_MATRIX[role];
   return {
-    provider: (overrideProvider as ProviderName) ?? base.provider,
-    model: overrideModel ?? base.model,
+    provider: ((overrideProvider as ProviderName) || base.provider),
+    model: overrideModel || base.model,
   };
 }
 
