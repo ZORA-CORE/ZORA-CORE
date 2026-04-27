@@ -13,6 +13,7 @@ import { EivorMemoryPanel } from './EivorMemoryPanel';
 import { EmptyState } from './EmptyState';
 import { ForgePanel } from './ForgePanel';
 import { MessageBubble } from './MessageBubble';
+import { StructuredCard } from './StructuredCards';
 import { ThemeProvider } from './ThemeProvider';
 import { extractArtifacts, type Artifact, type ThoughtEvent } from './artifacts';
 import { extractMemory } from './memory';
@@ -768,6 +769,14 @@ function ChatContainerInner({ initialChatId }: ChatContainerInnerProps) {
 
   const showForge = forgeOpen && (artifacts.length > 0 || thoughts.length > 0);
 
+  // PR 3a: pluck the structured-payload thoughts out of the rAF-batched
+  // log so we can render them as rich inline cards in the chat thread
+  // (in addition to the plain log-line surface in the Forge terminal).
+  const structuredEvents = useMemo(
+    () => thoughts.filter((t): t is ThoughtEvent & { payload: NonNullable<ThoughtEvent['payload']> } => Boolean(t.payload)),
+    [thoughts],
+  );
+
   return (
     <div className="flex h-[100dvh] w-full bg-white text-neutral-900 dark:bg-[#212121] dark:text-neutral-100">
       <ChatSidebar
@@ -871,6 +880,22 @@ function ChatContainerInner({ initialChatId }: ChatContainerInnerProps) {
                       userId={userId}
                       onFeedback={handleFeedback}
                     />
+                  ))}
+                  {/* PR 3a: structured-event cards from the live swarm
+                      stream (Raven research, missing-key onboarding).
+                      Rendered inline with the conversation so the user
+                      sees them next to the assistant bubble they
+                      contextualize. */}
+                  {structuredEvents.map((t) => (
+                    <div
+                      key={`structured-${t.id}`}
+                      data-testid="structured-event-card"
+                    >
+                      <StructuredCard
+                        payload={t.payload!}
+                        userId={userId}
+                      />
+                    </div>
                   ))}
                   <div ref={bottomRef} />
                 </div>
