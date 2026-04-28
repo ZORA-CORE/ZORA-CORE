@@ -1,3 +1,5 @@
+import type { MirrorEvent } from '../mirror/events';
+
 /**
  * Valhalla AI — Infinity Engine: native agent types.
  *
@@ -167,7 +169,8 @@ export type SwarmEvent =
       secretApiEndpoint: string;
       at: number;
     }
-  | { type: 'swarm_done'; at: number };
+  | { type: 'swarm_done'; at: number }
+  | MirrorEvent;
 
 /** Input to the orchestrator's `run()` method. */
 export interface SwarmRunRequest {
