@@ -15,6 +15,16 @@ interface SupabaseHeaders extends Record<string, string> {
   'Content-Type': string;
 }
 
+class SupabaseMirrorStoreError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+    this.name = 'SupabaseMirrorStoreError';
+  }
+}
+
 function supabaseConfig():
   | { url: string; key: string; headers: SupabaseHeaders }
   | null {
@@ -215,7 +225,10 @@ async function readRows<T>(path: string): Promise<T[]> {
   });
   if (!res.ok) {
     const body = await res.text().catch(() => '');
-    throw new Error(`Supabase mirror read failed ${res.status}: ${body.slice(0, 400)}`);
+    throw new SupabaseMirrorStoreError(
+      `Supabase mirror read failed ${res.status}: ${body.slice(0, 400)}`,
+      res.status,
+    );
   }
   return (await res.json()) as T[];
 }
@@ -230,7 +243,10 @@ async function writeRows<T>(path: string, body: unknown): Promise<T[]> {
   });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
-    throw new Error(`Supabase mirror write failed ${res.status}: ${text.slice(0, 400)}`);
+    throw new SupabaseMirrorStoreError(
+      `Supabase mirror write failed ${res.status}: ${text.slice(0, 400)}`,
+      res.status,
+    );
   }
   return (await res.json()) as T[];
 }
@@ -245,7 +261,10 @@ async function patchRows<T>(path: string, body: unknown): Promise<T[]> {
   });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
-    throw new Error(`Supabase mirror patch failed ${res.status}: ${text.slice(0, 400)}`);
+    throw new SupabaseMirrorStoreError(
+      `Supabase mirror patch failed ${res.status}: ${text.slice(0, 400)}`,
+      res.status,
+    );
   }
   return (await res.json()) as T[];
 }
@@ -308,36 +327,54 @@ export async function appendMirrorEvents(params: {
 }): Promise<MirrorToolEventRow[]> {
   if (!isMirrorStoreEnabled() || params.events.length === 0) return [];
 
-  const lastRows = await readRows<{ seq: number }>(
-    `valhalla_tool_events?agent_session_id=eq.${encodeURIComponent(
-      params.agentSessionId,
-    )}&select=seq&order=seq.desc&limit=1`,
-  );
-  const startSeq = (lastRows[0]?.seq ?? 0) + 1;
-  const rows = await writeRows<SupabaseToolEventShape>(
-    'valhalla_tool_events',
-    params.events.map((event, index) => ({
-      agent_session_id: params.agentSessionId,
-      swarm_job_id: params.swarmJobId ?? null,
-      agent: event.agent,
-      event_type: event.type,
-      tool_name: eventToolName(event),
-      seq: startSeq + index,
-      event,
-    })),
-  );
-  const last = rows[rows.length - 1];
-  if (last) {
-    await patchRows(
-      `valhalla_agent_sessions?id=eq.${encodeURIComponent(params.agentSessionId)}`,
-      {
-        last_event_id: last.id,
-        last_heartbeat_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      },
-    );
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const lastRows = await readRows<{ seq: number }>(
+        `valhalla_tool_events?agent_session_id=eq.${encodeURIComponent(
+          params.agentSessionId,
+        )}&select=seq&order=seq.desc&limit=1`,
+      );
+      const startSeq = (lastRows[0]?.seq ?? 0) + 1;
+      const rows = await writeRows<SupabaseToolEventShape>(
+        'valhalla_tool_events',
+        params.events.map((event, index) => ({
+          agent_session_id: params.agentSessionId,
+          swarm_job_id: params.swarmJobId ?? null,
+          agent: event.agent,
+          event_type: event.type,
+          tool_name: eventToolName(event),
+          seq: startSeq + index,
+          event,
+        })),
+      );
+      const last = rows[rows.length - 1];
+      if (last) {
+        await patchRows(
+          `valhalla_agent_sessions?id=eq.${encodeURIComponent(params.agentSessionId)}`,
+          {
+            last_event_id: last.id,
+            last_heartbeat_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          },
+        );
+      }
+      return rows.map(toolEventFromSupabase);
+    } catch (err) {
+      if (
+        err instanceof SupabaseMirrorStoreError &&
+        err.status === 409 &&
+        attempt < 2
+      ) {
+        continue;
+      }
+      throw err;
+    }
   }
-  return rows.map(toolEventFromSupabase);
+
+  throw new SupabaseMirrorStoreError(
+    'Supabase mirror write failed after sequence conflict retries.',
+    409,
+  );
 }
 
 export async function getMirrorWorkspaceSnapshot(params: {
