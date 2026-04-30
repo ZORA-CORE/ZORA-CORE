@@ -93,7 +93,9 @@ function terminalEvent(params: {
 
 export class E2BMirrorRuntimeGateway implements MirrorRuntimeGateway {
   private readonly sessions = new Map<string, MirrorRuntimeSession>();
+  private readonly pendingSessions = new Map<string, Promise<MirrorRuntimeSession>>();
   private readonly sandboxes = new Map<string, SandboxHandle>();
+  private readonly sessionKeys = new Map<string, string>();
 
   async ensureSession(params: {
     agent: MirrorAgentName;
@@ -104,22 +106,33 @@ export class E2BMirrorRuntimeGateway implements MirrorRuntimeGateway {
     const key = `${params.userId}:${params.chatSessionId ?? 'standalone'}:${params.agent}`;
     const existing = this.sessions.get(key);
     if (existing) return existing;
+    const pending = this.pendingSessions.get(key);
+    if (pending) return pending;
     if (!isSandboxEnabled()) {
       throw new MirrorRuntimeUnavailableError('E2B_API_KEY is not configured.');
     }
 
-    const sandbox = await createSandbox({ agent: params.agent });
-    const session: MirrorRuntimeSession = {
-      sessionId: `mirror-${params.agent}-${sandbox.id}`,
-      agent: params.agent,
-      provider: 'e2b',
-      runtimeId: sandbox.id,
-      sandboxId: sandbox.id,
-      workdir: sandbox.workdir,
-    };
-    this.sessions.set(key, session);
-    this.sandboxes.set(session.sessionId, sandbox);
-    return session;
+    const promise = createSandbox({ agent: params.agent })
+      .then((sandbox) => {
+        const session: MirrorRuntimeSession = {
+          sessionId: `mirror-${params.agent}-${sandbox.id}`,
+          agent: params.agent,
+          provider: 'e2b',
+          runtimeId: sandbox.id,
+          sandboxId: sandbox.id,
+          workdir: sandbox.workdir,
+        };
+        this.sessions.set(key, session);
+        this.sandboxes.set(session.sessionId, sandbox);
+        this.sessionKeys.set(session.sessionId, key);
+        return session;
+      })
+      .finally(() => {
+        this.pendingSessions.delete(key);
+      });
+
+    this.pendingSessions.set(key, promise);
+    return promise;
   }
 
   async invoke(
@@ -342,6 +355,12 @@ export class E2BMirrorRuntimeGateway implements MirrorRuntimeGateway {
   async stop(session: MirrorRuntimeSession): Promise<void> {
     const sandbox = this.sandboxes.get(session.sessionId);
     if (sandbox) await sandbox.kill();
+    const sessionKey = this.sessionKeys.get(session.sessionId);
+    if (sessionKey) {
+      this.sessions.delete(sessionKey);
+      this.pendingSessions.delete(sessionKey);
+    }
+    this.sessionKeys.delete(session.sessionId);
     this.sandboxes.delete(session.sessionId);
   }
 }
