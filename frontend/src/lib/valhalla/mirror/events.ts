@@ -33,6 +33,24 @@ export type RuntimeResourceStatus =
   | 'stopped'
   | 'failed';
 
+export type AutonomyLoopStatus =
+  | 'queued'
+  | 'thinking'
+  | 'acting'
+  | 'observing'
+  | 'recovering'
+  | 'blocked'
+  | 'completed'
+  | 'failed';
+
+export type AutonomyObservationKind =
+  | 'tool_result'
+  | 'terminal_output'
+  | 'browser_state'
+  | 'workspace_diff'
+  | 'ci_result'
+  | 'approval';
+
 export interface MirrorAgentSession {
   id: string;
   userId: string;
@@ -263,6 +281,25 @@ export type MirrorEvent =
       sessionId: string;
       url: string;
       provider?: string;
+      at: number;
+    }
+  | {
+      type: 'autonomy_loop_status';
+      agent: MirrorAgentName;
+      sessionId: string;
+      step: number;
+      status: AutonomyLoopStatus;
+      summary: string;
+      at: number;
+    }
+  | {
+      type: 'autonomy_observation';
+      agent: MirrorAgentName;
+      sessionId: string;
+      step: number;
+      kind: AutonomyObservationKind;
+      summary: string;
+      recoverable: boolean;
       at: number;
     };
 
