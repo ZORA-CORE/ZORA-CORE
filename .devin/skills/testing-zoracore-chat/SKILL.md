@@ -8,6 +8,7 @@ The app was renamed from **Zoracore** → **Valhalla AI** in PR #105. All user-f
 
 - `DIFY_API_KEY_ZORACORE_CHAT` — repo-scoped. The Dify App API key (starts with `app-`) the proxy forwards to. Written to `frontend/.env.local` as `DIFY_API_KEY` for local `next dev`, and set on the `zora-core` + `ai` Vercel projects (Prod/Preview/Dev). **Precondition:** the Dify app behind this key must have an LLM model bound; otherwise every request returns `400 {"message":"Model is not configured"}`.
 - `VERCEL_TOKEN` — org-scoped. Used for `vercel inspect <url> --logs` on failed builds, and for the T8 "ship bundle to Vercel" assertion.
+- Cognition Mirror `/chat/mirror` UI-shell tests do **not** require Dify or Supabase secrets unless the test explicitly covers chat streaming, migrations, or runtime persistence.
 
 ## Where to run the tests
 
@@ -28,6 +29,8 @@ npm run dev -- -p 3000
 
 Then test at `http://localhost:3000/`.
 
+For Cognition Mirror UI-shell-only testing, Dify is not needed; `npm run dev -- -p 3000` is enough and the route is `http://localhost:3000/chat/mirror`.
+
 ## Pre-test sanity check (1 minute, no GUI)
 
 ```bash
@@ -46,7 +49,25 @@ curl -sS -N --max-time 15 -X POST http://localhost:3000/api/chat \
   -H "Content-Type: application/json" \
   -d '{"query":"hi","user":"probe","inputs":{}}' -D -
 # Expect: content-type: text/event-stream, chunked body with event: / data: frames.
+
+# 3. Cognition Mirror route (if testing /chat/mirror)
+curl -sS -I --max-time 20 http://localhost:3000/chat/mirror
+# Expect: HTTP/1.1 200 OK.
 ```
+
+## Cognition Mirror `/chat/mirror` UI-shell smoke test
+
+Use this when touching `frontend/src/app/chat/mirror/**`, `frontend/src/components/valhalla-mirror/**`, `frontend/src/lib/valhalla/mirror/**`, or the Mirror nav entry in `AppShell.tsx`.
+
+One focused recording is enough for the shell. Open `http://localhost:3000/chat/mirror`, then verify:
+
+| # | Name | Action | Pass criteria |
+|---|---|---|---|
+| M1 | Hydration-safe render | Load `/chat/mirror`; read browser console after first paint | Header shows `Cognition Mirror` and `Swarm of Devins Workspace`; status chips show `Schema ready`, `Event bus typed`, `UI shell live`; event replay shows stable labels like `T-02:00`, `T-01:15`, `T-00:30`; console has no `Hydration failed` or `server rendered text didn't match the client`. |
+| M2 | Agent switching | Click `THOR`, then `FREJA` in the agent rail | THOR changes planner/workspace to `THOR · Terminal` and shows `thor@valhalla:~/repo$ npm run build`; FREJA changes planner/workspace to `FREJA · Terminal` and shows `Render Devin-like workspace shell` as `in progress`. |
+| M3 | Workspace tabs | With FREJA selected, click `Editor`, `Browser`, `PR / CI` | Editor shows `frontend/src/components/valhalla-mirror/CognitionMirrorWorkspace.tsx` and `DevinCloneWorkspace`; Browser shows `Live Browser Feed`, `https://zoracore.dk/chat/mirror`, and `Quad-Pane UI inspection`; PR/CI shows `devin/cognition-mirror`, `Pending implementation PR`, and `Awaiting checks`. |
+
+Known limitation: Mirror runtime execution, live xterm stdin/stdout, Monaco editing, and Chromium frame streaming may still be placeholders until the persistent runtime gateway lands. Do not fail UI-shell tests just because those future integrations are not live yet.
 
 ## Adversarial test plan — eight tests, one recording
 
@@ -71,6 +92,7 @@ Reserve the real Dify upstream for the recording — responses can be long and c
 - **Headless VM has no microphone.** T7 mic click surfaces `Voice: not-allowed` — the app's graceful permission-denied branch. That IS the pass state on a VM.
 - **`zora-core` Vercel team has SSO protection on all preview URLs** (`ssoProtection: all_except_custom_domains`). Any `*.vercel.app` URL returns HTTP 401 when fetched headless. Custom domain (`zoracore.dk`) is exempt. For T8 bundle deploys, the CLI exiting 0 + printing the URL is the real pass signal.
 - **Dify can return Cloudflare 504.** Upstream outage. Retry after ~2 min. If persistent, test against prod (cached sessions often still work) and degrade T2/T3 streaming assertions as `untested` rather than failing the whole recording.
+- **Cognition Mirror currently has placeholder runtime panes.** If `/chat/mirror` shows seeded terminal/editor/browser/PR-CI content but not a real E2B shell or live Chromium stream, that can be expected until the runtime gateway PRs land.
 
 ## Reporting
 
@@ -103,7 +125,9 @@ Reserve the real Dify upstream for the recording — responses can be long and c
 - `SwarmVisualizer.tsx` — 6-node hex graph with cyan-glow active state.
 - `EivorMemoryPanel.tsx` + `memory.ts` — transcript → tech/design/error chip extraction (regex heuristic).
 - `ForgePanel.tsx` + `artifacts.ts` — right-pane multi-tab (Code / Architecture / Execution Log). Auto-opens on first code artifact.
-- `ForgeMermaid.tsx` — renders \`\`\`mermaid blocks in Architecture tab.
-- `bundle.ts` — JSZip generation for Download button (README / TRANSCRIPT / DEPLOY / vercel.json / code/).
-- `CodeBlock.tsx` — dark-themed block + Copy.
-- `AgentStatusPulse.tsx` — legacy single-line pulse, superseded by SwarmVisualizer but kept as a fallback.
+- `ForgeMermaid.tsx` — renders ```mermaid blocks in Architecture tab.
+
+### Cognition Mirror UI (`frontend/src/components/valhalla-mirror/`)
+- `CognitionMirrorWorkspace.tsx` — `/chat/mirror` workspace shell: agent rail, planner, event replay, and Terminal/Editor/Browser/PR-CI tabs.
+- `frontend/src/app/chat/mirror/page.tsx` — route entrypoint for the Mirror workspace.
+- `frontend/src/lib/valhalla/mirror/events.ts` — typed Mirror event contract used by the UI and persistence layer.
