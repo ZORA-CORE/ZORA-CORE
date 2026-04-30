@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Bot,
   CheckCircle2,
@@ -19,10 +19,18 @@ import type {
   MirrorEvent,
   PlannerItemStatus,
 } from '@/lib/valhalla/mirror/events';
+import {
+  MIRROR_EVENT_TIME_LABELS,
+  MIRROR_SAMPLE_EVENTS,
+  eventLabel,
+  reduceMirrorAgents,
+  type MirrorAgentWorkspace,
+  type MirrorReplaySource,
+} from '@/lib/valhalla/mirror/session-state';
 
 type WorkspaceTab = 'terminal' | 'editor' | 'browser' | 'git';
 
-interface MirrorAgentModel {
+interface MirrorAgentModel extends MirrorAgentWorkspace {
   id: MirrorAgentName;
   label: string;
   role: string;
@@ -303,59 +311,6 @@ const TAB_META: Record<WorkspaceTab, { label: string; Icon: typeof Terminal }> =
   git: { label: 'PR / CI', Icon: GitPullRequest },
 };
 
-const SAMPLE_EVENTS: MirrorEvent[] = [
-  {
-    type: 'planner_item_created',
-    agent: 'odin',
-    sessionId: 'mirror-odin',
-    item: {
-      id: 'schema',
-      title: 'Create durable mirror schema',
-      status: 'completed',
-      position: 1,
-    },
-    at: 120_000,
-  },
-  {
-    type: 'terminal_chunk',
-    agent: 'thor',
-    sessionId: 'mirror-thor',
-    terminalId: 'thor-shell',
-    stream: 'stdout',
-    chunk: 'npm run build -> waiting for persistent gateway',
-    at: 75_000,
-  },
-  {
-    type: 'browser_frame',
-    agent: 'freja',
-    sessionId: 'mirror-freja',
-    browserId: 'freja-chrome',
-    url: 'https://zoracore.dk/chat/mirror',
-    title: 'Cognition Mirror',
-    at: 30_000,
-  },
-];
-
-const EVENT_TIME_LABELS: Record<MirrorEvent['type'], string> = {
-  mirror_session_started: 'T-02:30',
-  mirror_session_status: 'T-02:15',
-  planner_item_created: 'T-02:00',
-  planner_item_updated: 'T-01:45',
-  workspace_file_opened: 'T-01:30',
-  workspace_file_changed: 'T-01:25',
-  terminal_chunk: 'T-01:15',
-  terminal_exit: 'T-01:05',
-  browser_frame: 'T-00:30',
-  browser_dom: 'T-00:25',
-  mirror_tool_call: 'T-00:20',
-  mirror_tool_result: 'T-00:15',
-  approval_required: 'T-00:10',
-  git_status: 'T-00:08',
-  pull_request_opened: 'T-00:06',
-  ci_status: 'T-00:05',
-  preview_url: 'T-00:01',
-};
-
 function statusIcon(status: PlannerItemStatus) {
   if (status === 'completed') return <CheckCircle2 className="h-4 w-4 text-emerald-400" />;
   if (status === 'in_progress') return <Clock3 className="h-4 w-4 animate-pulse text-cyan-300" />;
@@ -363,26 +318,40 @@ function statusIcon(status: PlannerItemStatus) {
   return <Circle className="h-4 w-4 text-neutral-500" />;
 }
 
-function eventLabel(event: MirrorEvent): string {
-  switch (event.type) {
-    case 'planner_item_created':
-      return `${event.agent.toUpperCase()} created planner item: ${event.item.title}`;
-    case 'terminal_chunk':
-      return `${event.agent.toUpperCase()} terminal ${event.stream}: ${event.chunk}`;
-    case 'browser_frame':
-      return `${event.agent.toUpperCase()} browser frame: ${event.title ?? event.url}`;
-    default:
-      return `${event.agent.toUpperCase()} emitted ${event.type}`;
-  }
-}
-
 export function CognitionMirrorWorkspace() {
   const [activeAgentId, setActiveAgentId] = useState<MirrorAgentName>('odin');
   const [activeTab, setActiveTab] = useState<WorkspaceTab>('terminal');
+  const [mirrorEvents, setMirrorEvents] = useState<MirrorEvent[]>(MIRROR_SAMPLE_EVENTS);
+  const [replaySource, setReplaySource] = useState<MirrorReplaySource>('seed');
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadSnapshot() {
+      const res = await fetch('/api/mirror/snapshot?userId=founder', { cache: 'no-store' });
+      if (!res.ok) return;
+      const snapshot = (await res.json()) as {
+        source: MirrorReplaySource;
+        events?: Array<{ event: MirrorEvent }>;
+      };
+      if (cancelled) return;
+      const events = snapshot.events?.map((row) => row.event) ?? [];
+      setReplaySource(snapshot.source);
+      setMirrorEvents(events.length > 0 ? events : MIRROR_SAMPLE_EVENTS);
+    }
+    loadSnapshot().catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const replayedAgents = useMemo(
+    () => reduceMirrorAgents(AGENTS, mirrorEvents),
+    [mirrorEvents],
+  );
 
   const activeAgent = useMemo(
-    () => AGENTS.find((agent) => agent.id === activeAgentId) ?? AGENTS[0],
-    [activeAgentId],
+    () => replayedAgents.find((agent) => agent.id === activeAgentId) ?? replayedAgents[0],
+    [activeAgentId, replayedAgents],
   );
 
   return (
@@ -410,7 +379,7 @@ export function CognitionMirrorWorkspace() {
               Event bus typed
             </div>
             <div className="rounded-xl bg-fuchsia-500/10 px-3 py-2 text-fuchsia-200">
-              UI shell live
+              {replaySource === 'database' ? 'Replay live' : 'Seed replay'}
             </div>
           </div>
         </div>
@@ -423,7 +392,7 @@ export function CognitionMirrorWorkspace() {
             Agents
           </div>
           <div className="space-y-2">
-            {AGENTS.map((agent) => {
+            {replayedAgents.map((agent) => {
               const active = agent.id === activeAgent.id;
               return (
                 <button
@@ -467,11 +436,11 @@ export function CognitionMirrorWorkspace() {
               Event replay
             </div>
             <div className="mt-3 space-y-3">
-              {SAMPLE_EVENTS.map((event) => (
+              {mirrorEvents.map((event) => (
                 <div key={`${event.type}-${event.at}`} className="text-xs text-neutral-400">
                   <div className="text-neutral-200">{eventLabel(event)}</div>
                   <div className="mt-1 text-[10px] uppercase tracking-wider text-neutral-600">
-                    {EVENT_TIME_LABELS[event.type]}
+                    {MIRROR_EVENT_TIME_LABELS[event.type]}
                   </div>
                 </div>
               ))}
