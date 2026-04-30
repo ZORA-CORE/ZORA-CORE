@@ -188,7 +188,7 @@ const SAMPLE_EVENTS: MirrorEvent[] = [
       status: 'completed',
       position: 1,
     },
-    at: Date.now() - 120_000,
+    at: 120_000,
   },
   {
     type: 'terminal_chunk',
@@ -197,7 +197,7 @@ const SAMPLE_EVENTS: MirrorEvent[] = [
     terminalId: 'thor-shell',
     stream: 'stdout',
     chunk: 'npm run build -> waiting for persistent gateway',
-    at: Date.now() - 75_000,
+    at: 75_000,
   },
   {
     type: 'browser_frame',
@@ -206,9 +206,29 @@ const SAMPLE_EVENTS: MirrorEvent[] = [
     browserId: 'freja-chrome',
     url: 'https://zoracore.dk/chat/mirror',
     title: 'Cognition Mirror',
-    at: Date.now() - 30_000,
+    at: 30_000,
   },
 ];
+
+const EVENT_TIME_LABELS: Record<MirrorEvent['type'], string> = {
+  mirror_session_started: 'T-02:30',
+  mirror_session_status: 'T-02:15',
+  planner_item_created: 'T-02:00',
+  planner_item_updated: 'T-01:45',
+  workspace_file_opened: 'T-01:30',
+  workspace_file_changed: 'T-01:25',
+  terminal_chunk: 'T-01:15',
+  terminal_exit: 'T-01:05',
+  browser_frame: 'T-00:30',
+  browser_dom: 'T-00:25',
+  mirror_tool_call: 'T-00:20',
+  mirror_tool_result: 'T-00:15',
+  approval_required: 'T-00:10',
+  git_status: 'T-00:08',
+  pull_request_opened: 'T-00:06',
+  ci_status: 'T-00:05',
+  preview_url: 'T-00:01',
+};
 
 function statusIcon(status: PlannerItemStatus) {
   if (status === 'completed') return <CheckCircle2 className="h-4 w-4 text-emerald-400" />;
@@ -325,7 +345,7 @@ export function CognitionMirrorWorkspace() {
                 <div key={`${event.type}-${event.at}`} className="text-xs text-neutral-400">
                   <div className="text-neutral-200">{eventLabel(event)}</div>
                   <div className="mt-1 text-[10px] uppercase tracking-wider text-neutral-600">
-                    {new Date(event.at).toLocaleTimeString()}
+                    {EVENT_TIME_LABELS[event.type]}
                   </div>
                 </div>
               ))}
