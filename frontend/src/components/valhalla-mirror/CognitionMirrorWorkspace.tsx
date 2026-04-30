@@ -436,8 +436,8 @@ export function CognitionMirrorWorkspace() {
               Event replay
             </div>
             <div className="mt-3 space-y-3">
-              {mirrorEvents.map((event) => (
-                <div key={`${event.type}-${event.at}`} className="text-xs text-neutral-400">
+              {mirrorEvents.map((event, index) => (
+                <div key={`${event.type}-${event.at}-${index}`} className="text-xs text-neutral-400">
                   <div className="text-neutral-200">{eventLabel(event)}</div>
                   <div className="mt-1 text-[10px] uppercase tracking-wider text-neutral-600">
                     {MIRROR_EVENT_TIME_LABELS[event.type]}

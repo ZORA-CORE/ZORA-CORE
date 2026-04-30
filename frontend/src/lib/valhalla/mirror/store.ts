@@ -1,4 +1,5 @@
 import type {
+  MirrorAgentName,
   MirrorAgentSession,
   MirrorEvent,
   MirrorRuntimeResource,
@@ -217,6 +218,126 @@ async function readRows<T>(path: string): Promise<T[]> {
     throw new Error(`Supabase mirror read failed ${res.status}: ${body.slice(0, 400)}`);
   }
   return (await res.json()) as T[];
+}
+
+async function writeRows<T>(path: string, body: unknown): Promise<T[]> {
+  const cfg = supabaseConfig();
+  if (!cfg) return [];
+  const res = await fetch(`${cfg.url}/rest/v1/${path}`, {
+    method: 'POST',
+    headers: { ...cfg.headers, Prefer: 'return=representation' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`Supabase mirror write failed ${res.status}: ${text.slice(0, 400)}`);
+  }
+  return (await res.json()) as T[];
+}
+
+async function patchRows<T>(path: string, body: unknown): Promise<T[]> {
+  const cfg = supabaseConfig();
+  if (!cfg) return [];
+  const res = await fetch(`${cfg.url}/rest/v1/${path}`, {
+    method: 'PATCH',
+    headers: { ...cfg.headers, Prefer: 'return=representation' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`Supabase mirror patch failed ${res.status}: ${text.slice(0, 400)}`);
+  }
+  return (await res.json()) as T[];
+}
+
+function eventToolName(event: MirrorEvent): string | null {
+  if (event.type === 'mirror_tool_call') return event.call.tool;
+  if (event.type === 'mirror_tool_result') return event.result.tool;
+  if (event.type === 'terminal_chunk' || event.type === 'terminal_exit') return 'terminal';
+  if (event.type === 'workspace_file_opened' || event.type === 'workspace_file_changed') {
+    return 'editor';
+  }
+  if (event.type === 'browser_frame' || event.type === 'browser_dom') return 'browser';
+  if (
+    event.type === 'git_status' ||
+    event.type === 'pull_request_opened' ||
+    event.type === 'ci_status' ||
+    event.type === 'preview_url'
+  ) {
+    return 'git';
+  }
+  if (event.type === 'autonomy_loop_status' || event.type === 'autonomy_observation') {
+    return 'autonomy_kernel';
+  }
+  return null;
+}
+
+export async function createMirrorAgentSession(params: {
+  userId: string;
+  agent: MirrorAgentName;
+  title?: string;
+  chatSessionId?: string | null;
+  swarmJobId?: string | null;
+  runtimeProvider?: string;
+  runtimeId?: string | null;
+  sandboxId?: string | null;
+  workdir?: string;
+}): Promise<MirrorAgentSession | null> {
+  if (!isMirrorStoreEnabled()) return null;
+  const rows = await writeRows<SupabaseAgentSessionShape>('valhalla_agent_sessions', {
+    user_id: params.userId,
+    chat_session_id: params.chatSessionId ?? null,
+    swarm_job_id: params.swarmJobId ?? null,
+    agent: params.agent,
+    title: params.title ?? `${params.agent.toUpperCase()} Mirror session`,
+    status: 'running',
+    runtime_provider: params.runtimeProvider ?? 'e2b',
+    runtime_id: params.runtimeId ?? null,
+    sandbox_id: params.sandboxId ?? null,
+    workdir: params.workdir ?? '/home/user/valhalla',
+    started_at: new Date().toISOString(),
+  });
+  const row = rows[0];
+  return row ? sessionFromSupabase(row) : null;
+}
+
+export async function appendMirrorEvents(params: {
+  agentSessionId: string;
+  swarmJobId?: string | null;
+  events: MirrorEvent[];
+}): Promise<MirrorToolEventRow[]> {
+  if (!isMirrorStoreEnabled() || params.events.length === 0) return [];
+
+  const lastRows = await readRows<{ seq: number }>(
+    `valhalla_tool_events?agent_session_id=eq.${encodeURIComponent(
+      params.agentSessionId,
+    )}&select=seq&order=seq.desc&limit=1`,
+  );
+  const startSeq = (lastRows[0]?.seq ?? 0) + 1;
+  const rows = await writeRows<SupabaseToolEventShape>(
+    'valhalla_tool_events',
+    params.events.map((event, index) => ({
+      agent_session_id: params.agentSessionId,
+      swarm_job_id: params.swarmJobId ?? null,
+      agent: event.agent,
+      event_type: event.type,
+      tool_name: eventToolName(event),
+      seq: startSeq + index,
+      event,
+    })),
+  );
+  const last = rows[rows.length - 1];
+  if (last) {
+    await patchRows(
+      `valhalla_agent_sessions?id=eq.${encodeURIComponent(params.agentSessionId)}`,
+      {
+        last_event_id: last.id,
+        last_heartbeat_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+    );
+  }
+  return rows.map(toolEventFromSupabase);
 }
 
 export async function getMirrorWorkspaceSnapshot(params: {
