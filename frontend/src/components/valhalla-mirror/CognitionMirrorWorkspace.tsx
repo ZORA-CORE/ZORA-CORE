@@ -42,6 +42,48 @@ interface MirrorAgentModel {
 
 const AGENTS: MirrorAgentModel[] = [
   {
+    id: 'eivor',
+    label: 'EIVOR',
+    role: 'Memory keeper · context · soul retrieval',
+    status: 'ready',
+    accent: 'from-violet-400 to-indigo-500',
+    runtime: 'Episodic memory runtime',
+    planner: [
+      {
+        id: 'eivor-1',
+        title: 'Hydrate Founder context',
+        detail: 'Load chat history, long-term memories, and session decisions before work starts.',
+        status: 'completed',
+      },
+      {
+        id: 'eivor-2',
+        title: 'Index Mirror session events',
+        detail: 'Make planner, terminal, browser, editor, and PR events searchable for replay.',
+        status: 'in_progress',
+      },
+      {
+        id: 'eivor-3',
+        title: 'Persist agent soul retrieval',
+        detail: 'Attach memory summaries to each autonomous loop checkpoint.',
+        status: 'pending',
+      },
+    ],
+    terminal: [
+      'eivor@valhalla:~/memory$ retrieve session-context',
+      'loaded: Founder directives + Valhalla swarm history',
+      'indexing: mirror events -> episodic memory timeline',
+    ],
+    files: [
+      { path: 'frontend/src/lib/valhalla/memory.ts', language: 'ts', lines: 240, status: 'candidate' },
+      { path: 'supabase/migrations/006_memory.sql', language: 'sql', lines: 132, status: 'candidate' },
+    ],
+    browser: {
+      url: 'https://zoracore.dk/chat/mirror',
+      title: 'EIVOR Memory Replay',
+      summary: 'EIVOR keeps the Founder context and session memory available inside the Mirror.',
+    },
+  },
+  {
     id: 'odin',
     label: 'ODIN',
     role: 'Lead architect · planner · reviewer',
@@ -72,7 +114,7 @@ const AGENTS: MirrorAgentModel[] = [
       'odin@valhalla:~$ inspect architecture',
       'schema: valhalla_agent_sessions + planner + workspace + runtime + tool_events',
       'event bus: planner_item_updated -> terminal_chunk -> browser_frame -> ci_status',
-      'status: coordinating THOR and FREJA mirror runtimes',
+      'status: coordinating EIVOR, HEIMDALL, LOKI, THOR, and FREJA mirror runtimes',
     ],
     files: [
       { path: 'supabase/migrations/008_valhalla_cognition_mirror.sql', language: 'sql', lines: 188, status: 'created' },
@@ -82,6 +124,90 @@ const AGENTS: MirrorAgentModel[] = [
       url: 'https://zoracore.dk/chat/mirror',
       title: 'Cognition Mirror Workspace',
       summary: 'ODIN watches the full session replay surface and validates event reconstruction.',
+    },
+  },
+  {
+    id: 'heimdall',
+    label: 'HEIMDALL',
+    role: 'Security sentinel · invariants · policy gates',
+    status: 'ready',
+    accent: 'from-amber-300 to-yellow-600',
+    runtime: 'Guardrail audit runtime',
+    planner: [
+      {
+        id: 'heimdall-1',
+        title: 'Audit tool permission gates',
+        detail: 'Block destructive git, production deploy, and secret-touching actions behind approvals.',
+        status: 'pending',
+      },
+      {
+        id: 'heimdall-2',
+        title: 'Validate RLS and schema invariants',
+        detail: 'Review Mirror tables, indexes, policies, and recovery-token boundaries.',
+        status: 'pending',
+      },
+      {
+        id: 'heimdall-3',
+        title: 'Surface risk cards in workspace',
+        detail: 'Stream approval_required events into a Founder-visible guardrail lane.',
+        status: 'pending',
+      },
+    ],
+    terminal: [
+      'heimdall@valhalla:~/audit$ scan mirror-contract',
+      'policy: approval_required events pending TYR integration',
+      'status: watching runtime permissions and RLS boundaries',
+    ],
+    files: [
+      { path: 'supabase/migrations/008_valhalla_cognition_mirror.sql', language: 'sql', lines: 188, status: 'audit' },
+      { path: 'frontend/src/lib/valhalla/agents/types.ts', language: 'ts', lines: 220, status: 'audit' },
+    ],
+    browser: {
+      url: 'https://zoracore.dk/admin/agents/insights',
+      title: 'HEIMDALL Guardrail Console',
+      summary: 'HEIMDALL audits Mirror invariants, policies, and privileged tool boundaries.',
+    },
+  },
+  {
+    id: 'loki',
+    label: 'LOKI',
+    role: 'Adversarial critic · counterexamples · chaos tests',
+    status: 'ready',
+    accent: 'from-lime-400 to-emerald-600',
+    runtime: 'Counterexample runtime',
+    planner: [
+      {
+        id: 'loki-1',
+        title: 'Break the autonomy assumptions',
+        detail: 'Generate counterexamples for stalled loops, stale browsers, and misleading CI states.',
+        status: 'pending',
+      },
+      {
+        id: 'loki-2',
+        title: 'Probe hydration and replay drift',
+        detail: 'Find nondeterministic render paths before they reach production.',
+        status: 'in_progress',
+      },
+      {
+        id: 'loki-3',
+        title: 'Stress planner recovery states',
+        detail: 'Force blocked, retrying, and cancelled planner paths through visible UI assertions.',
+        status: 'pending',
+      },
+    ],
+    terminal: [
+      'loki@valhalla:~/chaos$ falsify mirror-ui',
+      'probe: hydration drift, stale event replay, stuck planner states',
+      'status: counterexamples streaming to ODIN review',
+    ],
+    files: [
+      { path: 'frontend/src/components/valhalla-mirror/CognitionMirrorWorkspace.tsx', language: 'tsx', lines: 420, status: 'probe' },
+      { path: 'frontend/src/lib/valhalla/jobs/stages.ts', language: 'ts', lines: 180, status: 'probe' },
+    ],
+    browser: {
+      url: 'https://zoracore.dk/chat/mirror',
+      title: 'LOKI Counterexample Lab',
+      summary: 'LOKI attacks the Mirror UI and autonomy loop assumptions before users see them.',
     },
   },
   {
@@ -188,7 +314,7 @@ const SAMPLE_EVENTS: MirrorEvent[] = [
       status: 'completed',
       position: 1,
     },
-    at: Date.now() - 120_000,
+    at: 120_000,
   },
   {
     type: 'terminal_chunk',
@@ -197,7 +323,7 @@ const SAMPLE_EVENTS: MirrorEvent[] = [
     terminalId: 'thor-shell',
     stream: 'stdout',
     chunk: 'npm run build -> waiting for persistent gateway',
-    at: Date.now() - 75_000,
+    at: 75_000,
   },
   {
     type: 'browser_frame',
@@ -206,9 +332,29 @@ const SAMPLE_EVENTS: MirrorEvent[] = [
     browserId: 'freja-chrome',
     url: 'https://zoracore.dk/chat/mirror',
     title: 'Cognition Mirror',
-    at: Date.now() - 30_000,
+    at: 30_000,
   },
 ];
+
+const EVENT_TIME_LABELS: Record<MirrorEvent['type'], string> = {
+  mirror_session_started: 'T-02:30',
+  mirror_session_status: 'T-02:15',
+  planner_item_created: 'T-02:00',
+  planner_item_updated: 'T-01:45',
+  workspace_file_opened: 'T-01:30',
+  workspace_file_changed: 'T-01:25',
+  terminal_chunk: 'T-01:15',
+  terminal_exit: 'T-01:05',
+  browser_frame: 'T-00:30',
+  browser_dom: 'T-00:25',
+  mirror_tool_call: 'T-00:20',
+  mirror_tool_result: 'T-00:15',
+  approval_required: 'T-00:10',
+  git_status: 'T-00:08',
+  pull_request_opened: 'T-00:06',
+  ci_status: 'T-00:05',
+  preview_url: 'T-00:01',
+};
 
 function statusIcon(status: PlannerItemStatus) {
   if (status === 'completed') return <CheckCircle2 className="h-4 w-4 text-emerald-400" />;
@@ -325,7 +471,7 @@ export function CognitionMirrorWorkspace() {
                 <div key={`${event.type}-${event.at}`} className="text-xs text-neutral-400">
                   <div className="text-neutral-200">{eventLabel(event)}</div>
                   <div className="mt-1 text-[10px] uppercase tracking-wider text-neutral-600">
-                    {new Date(event.at).toLocaleTimeString()}
+                    {EVENT_TIME_LABELS[event.type]}
                   </div>
                 </div>
               ))}
