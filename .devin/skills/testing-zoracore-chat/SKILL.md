@@ -69,6 +69,33 @@ One focused recording is enough for the shell. Open `http://localhost:3000/chat/
 
 Known limitation: Mirror runtime execution, live xterm stdin/stdout, Monaco editing, and Chromium frame streaming may still be placeholders until the persistent runtime gateway lands. Do not fail UI-shell tests just because those future integrations are not live yet.
 
+## Cognition Mirror autonomy API runtime test
+
+Use this when touching `frontend/src/app/api/mirror/autonomy/**`, `frontend/src/lib/valhalla/mirror/autonomy-kernel.ts`, `frontend/src/lib/valhalla/mirror/runtime-gateway.ts`, or `frontend/src/lib/valhalla/mirror/store.ts`. This is shell/API testing, not GUI testing, so do not record the desktop unless a UI route is also part of the change.
+
+Devin Secrets Needed:
+- `E2B_API_KEY` — required for real `E2BMirrorRuntimeGateway` execution.
+- `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` — required only when testing DB-backed Mirror persistence/replay; unset them for deterministic seed-mode endpoint tests.
+
+Local seed-mode autonomy check:
+
+```bash
+cd /home/ubuntu/repos/ZORA-CORE/frontend
+env -u SUPABASE_URL -u SUPABASE_SERVICE_ROLE_KEY npm run dev -- -p 3000
+curl -sS -X POST http://localhost:3000/api/mirror/autonomy/run \
+  -H 'Content-Type: application/json' \
+  -d '{"userId":"founder-smoke","agent":"thor","prompt":"mirror-proof","maxSteps":1}'
+```
+
+Expected seed-mode signals:
+- HTTP `200`.
+- top-level `source: "seed"` and `status: "completed"`.
+- `runtimeSession.provider: "e2b"` and `sessionId` starts with `mirror-thor-`.
+- Events include planner create/update, `terminal_chunk` stdout containing `mirror-autonomy:thor:mirror-proof`, `terminal_exit` with `exitCode: 0`, and final `mirror_session_status.message: "AutonomyKernel completed 1 tool observation(s)."` for `maxSteps: 1`.
+
+For DB error-path testing, prefer a local mock Supabase REST server instead of damaging the real Supabase project. Mock `POST /rest/v1/valhalla_agent_sessions` to return a session row, then force `POST /rest/v1/valhalla_tool_events` to return `500`; with `E2B_API_KEY` omitted, `/api/mirror/autonomy/run` should still return structured JSON with HTTP `503`, `source: "database"`, `status: "failed"`, and `error: "E2B_API_KEY is not configured."`.
+
+
 ## Adversarial test plan — eight tests, one recording
 
 One browser session, one conversation, recorded with `computer.record_start` and annotated via `record_annotate` for each assertion. Every test is designed so a broken implementation fails visibly.
