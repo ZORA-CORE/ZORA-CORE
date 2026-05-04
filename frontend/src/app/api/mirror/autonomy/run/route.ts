@@ -135,8 +135,8 @@ export async function POST(req: NextRequest): Promise<Response> {
   const prompt = stringValue(body.prompt) ?? 'Cognition Mirror autonomy probe';
   const chatSessionId = stringValue(body.chatSessionId);
   const swarmJobId = stringValue(body.swarmJobId);
-  const maxSteps = Math.min(numberValue(body.maxSteps) ?? 3, 8);
-  const maxActions = Math.max(1, maxSteps - 1);
+  const maxSteps = Math.max(2, Math.min(numberValue(body.maxSteps) ?? 3, 8));
+  const maxActions = maxSteps - 1;
   const persistedEvents: MirrorEvent[] = [];
   const persistedSession = isMirrorStoreEnabled()
     ? await createMirrorAgentSession({
@@ -201,11 +201,15 @@ export async function POST(req: NextRequest): Promise<Response> {
     };
 
     if (persistedSession) {
-      await appendMirrorEvents({
-        agentSessionId: persistedSession.id,
-        swarmJobId,
-        events: [event],
-      });
+      try {
+        await appendMirrorEvents({
+          agentSessionId: persistedSession.id,
+          swarmJobId,
+          events: [event],
+        });
+      } catch {
+        // The structured runtime error response is more important than best-effort replay.
+      }
     }
 
     return NextResponse.json(
