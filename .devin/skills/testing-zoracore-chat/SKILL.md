@@ -9,6 +9,8 @@ The app was renamed from **Zoracore** → **Valhalla AI** in PR #105. All user-f
 - `DIFY_API_KEY_ZORACORE_CHAT` — repo-scoped. The Dify App API key (starts with `app-`) the proxy forwards to. Written to `frontend/.env.local` as `DIFY_API_KEY` for local `next dev`, and set on the `zora-core` + `ai` Vercel projects (Prod/Preview/Dev). **Precondition:** the Dify app behind this key must have an LLM model bound; otherwise every request returns `400 {"message":"Model is not configured"}`.
 - `VERCEL_TOKEN` — org-scoped. Used for `vercel inspect <url> --logs` on failed builds, and for the T8 "ship bundle to Vercel" assertion.
 - Cognition Mirror `/chat/mirror` UI-shell tests do **not** require Dify or Supabase secrets unless the test explicitly covers chat streaming, migrations, or runtime persistence.
+- `E2B_API_KEY` — required for Cognition Mirror runtime-gateway tests that execute real `terminal_send`, `editor_write`, browser screenshot, or gateway lifecycle calls.
+- `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` — required only for DB-backed Mirror session/event persistence and replay tests. If these are present but `/api/mirror/sessions` returns Supabase `PGRST205` for `public.valhalla_agent_sessions`, the target database likely has not applied `supabase/migrations/008_valhalla_cognition_mirror.sql`; mark DB persistence as blocked rather than claiming replay passed.
 
 ## Where to run the tests
 
@@ -69,6 +71,23 @@ One focused recording is enough for the shell. Open `http://localhost:3000/chat/
 
 Known limitation: Mirror runtime execution, live xterm stdin/stdout, Monaco editing, and Chromium frame streaming may still be placeholders until the persistent runtime gateway lands. Do not fail UI-shell tests just because those future integrations are not live yet.
 
+
+## Cognition Mirror runtime API / E2B tests
+
+Use this when touching `frontend/src/lib/valhalla/mirror/runtime-gateway.ts`, `frontend/src/app/api/mirror/sessions/**`, or Mirror persistence/replay code.
+
+Do not record the desktop for shell/API-only runtime tests. Capture command output as text evidence instead.
+
+Recommended checks:
+
+| # | Name | Action | Pass criteria |
+|---|---|---|---|
+| R1 | Gateway concurrency guard | From `frontend`, run a temporary `tsx` harness that imports `E2BMirrorRuntimeGateway` and calls `Promise.all([gateway.ensureSession(params), gateway.ensureSession(params), gateway.ensureSession(params)])` with identical `agent`, `userId`, and `chatSessionId`. | All returned `sessionId` values are identical; all returned `sandboxId` values are identical; invoking `terminal_send` returns `summary: "terminal_send exit=0"` and expected stdout. |
+| R2 | Gateway stop cleanup | In the same harness, call `gateway.stop(session)`, then try `gateway.invoke(stoppedSession, ...)`, then call `gateway.ensureSession(params)` again. | Invoking the stopped session throws `No sandbox for mirror-...`; the recreated session id differs from the stopped session id; the recreated session can run `terminal_send exit=0`. |
+| R3 | Command route E2B execution | Run `npm run dev -- -p 3000` with `E2B_API_KEY` set. If Supabase Mirror tables are not applied, unset `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` for this seed-mode check. POST to `/api/mirror/sessions/<id>/commands` with `execute: true`, `agent: "thor"`, and `command.tool: "terminal_send"`. | HTTP 200; `observation.ok: true`; `observation.summary: "terminal_send exit=0"`; returned events include stdout and `terminal_exit.exitCode: 0`. With Supabase disabled, `source` should be `seed`; with Supabase enabled and migrated, `source` should be `database`. |
+| R4 | DB-backed persistence precondition | If testing replay/persistence, first POST to `/api/mirror/sessions` to create a real UUID session and then post commands to that UUID. | Do not use arbitrary strings as DB-backed `sessionId`; `valhalla_tool_events.agent_session_id` is a UUID foreign key. If Supabase returns `PGRST205` for `valhalla_agent_sessions`, migrations are missing in that environment and replay should be reported as blocked. |
+
+
 ## Adversarial test plan — eight tests, one recording
 
 One browser session, one conversation, recorded with `computer.record_start` and annotated via `record_annotate` for each assertion. Every test is designed so a broken implementation fails visibly.
@@ -92,7 +111,8 @@ Reserve the real Dify upstream for the recording — responses can be long and c
 - **Headless VM has no microphone.** T7 mic click surfaces `Voice: not-allowed` — the app's graceful permission-denied branch. That IS the pass state on a VM.
 - **`zora-core` Vercel team has SSO protection on all preview URLs** (`ssoProtection: all_except_custom_domains`). Any `*.vercel.app` URL returns HTTP 401 when fetched headless. Custom domain (`zoracore.dk`) is exempt. For T8 bundle deploys, the CLI exiting 0 + printing the URL is the real pass signal.
 - **Dify can return Cloudflare 504.** Upstream outage. Retry after ~2 min. If persistent, test against prod (cached sessions often still work) and degrade T2/T3 streaming assertions as `untested` rather than failing the whole recording.
-- **Cognition Mirror currently has placeholder runtime panes.** If `/chat/mirror` shows seeded terminal/editor/browser/PR-CI content but not a real E2B shell or live Chromium stream, that can be expected until the runtime gateway PRs land.
+- **Cognition Mirror UI panes may still be placeholders even when the runtime API works.** If `/chat/mirror` shows seeded terminal/editor/browser/PR-CI content but not a real interactive xterm or live Chromium stream, test the backend runtime gateway through the API/harness section above.
+- **Supabase `PGRST205` for `valhalla_agent_sessions` blocks DB-backed Mirror persistence tests.** This means the target DB schema cache does not know the Mirror migration tables. Use seed-mode E2B route testing to verify runtime execution, and mark DB replay/persistence as blocked.
 - **`wmctrl` may be unavailable on the VM.** If the browser is already full-width, continue recording; otherwise maximize through the desktop/window manager manually before recording.
 
 ## Reporting
@@ -132,3 +152,6 @@ Reserve the real Dify upstream for the recording — responses can be long and c
 - `CognitionMirrorWorkspace.tsx` — `/chat/mirror` workspace shell: agent rail, planner, event replay, and Terminal/Editor/Browser/PR-CI tabs.
 - `frontend/src/app/chat/mirror/page.tsx` — route entrypoint for the Mirror workspace.
 - `frontend/src/lib/valhalla/mirror/events.ts` — typed Mirror event contract used by the UI and persistence layer.
+- `frontend/src/lib/valhalla/mirror/runtime-gateway.ts` — E2B-backed Mirror runtime gateway. `ensureSession()` should dedupe pending sessions; `stop()` should clear cached sessions and sandbox handles.
+- `frontend/src/app/api/mirror/sessions/[sessionId]/commands/route.ts` — public Mirror command route. `execute: true` triggers E2B runtime execution before seed/database persistence response handling.
+- `frontend/src/app/api/mirror/sessions/route.ts` — creates real DB-backed Mirror agent session UUIDs for persistence tests.
