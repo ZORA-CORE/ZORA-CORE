@@ -10,15 +10,27 @@ export type AutonomyDecision =
   | { kind: 'finish'; summary: string }
   | { kind: 'block'; summary: string; reason: string };
 
+export interface AutonomyRuntimeObservation {
+  ok: boolean;
+  summary: string;
+  output?: string;
+  events: MirrorEvent[];
+}
+
 export interface AutonomyKernelState {
   agent: MirrorAgentName;
   sessionId: string;
   step: number;
-  observations: string[];
+  prompt: string;
+  observations: AutonomyRuntimeObservation[];
 }
 
 export interface AutonomyPolicy {
   decide(state: AutonomyKernelState): Promise<AutonomyDecision>;
+}
+
+export interface AutonomyKernelEventSink {
+  append(events: MirrorEvent[]): Promise<void>;
 }
 
 export interface AutonomyKernelOptions {
@@ -26,9 +38,11 @@ export interface AutonomyKernelOptions {
   userId: string;
   chatSessionId?: string | null;
   swarmJobId?: string | null;
+  prompt?: string;
   maxSteps?: number;
   gateway: MirrorRuntimeGateway;
   policy: AutonomyPolicy;
+  eventSink?: AutonomyKernelEventSink;
 }
 
 export interface AutonomyKernelResult {
@@ -55,6 +69,50 @@ function statusEvent(params: {
   };
 }
 
+function plannerItemId(step: number, suffix: string): string {
+  return `autonomy-step-${step}-${suffix}`;
+}
+
+function plannerCreatedEvent(params: {
+  agent: MirrorAgentName;
+  sessionId: string;
+  step: number;
+  title: string;
+}): MirrorEvent {
+  return {
+    type: 'planner_item_created',
+    agent: params.agent,
+    sessionId: params.sessionId,
+    item: {
+      id: plannerItemId(params.step, 'action'),
+      title: params.title,
+      status: 'in_progress',
+      position: params.step,
+    },
+    at: Date.now(),
+  };
+}
+
+function plannerUpdatedEvent(params: {
+  agent: MirrorAgentName;
+  sessionId: string;
+  step: number;
+  status: 'completed' | 'blocked';
+  detail: string;
+}): MirrorEvent {
+  return {
+    type: 'planner_item_updated',
+    agent: params.agent,
+    sessionId: params.sessionId,
+    itemId: plannerItemId(params.step, 'action'),
+    patch: {
+      status: params.status,
+      detail: params.detail,
+    },
+    at: Date.now(),
+  };
+}
+
 export class AutonomyKernel {
   async run(options: AutonomyKernelOptions): Promise<AutonomyKernelResult> {
     const maxSteps = options.maxSteps ?? 16;
@@ -77,17 +135,19 @@ export class AutonomyKernel {
         at: Date.now(),
       },
     ];
+    await options.eventSink?.append(events);
 
     const state: AutonomyKernelState = {
       agent: session.agent,
       sessionId: session.sessionId,
       step: 0,
+      prompt: options.prompt ?? '',
       observations: [],
     };
 
     for (let step = 1; step <= maxSteps; step++) {
       state.step = step;
-      events.push(
+      const thinkingEvents = [
         statusEvent({
           agent: session.agent,
           sessionId: session.sessionId,
@@ -95,11 +155,13 @@ export class AutonomyKernel {
           status: 'thinking',
           summary: 'Choosing next tool action from planner and observations',
         }),
-      );
+      ];
+      events.push(...thinkingEvents);
+      await options.eventSink?.append(thinkingEvents);
 
       const decision = await options.policy.decide(state);
       if (decision.kind === 'finish') {
-        events.push(
+        const completedEvents = [
           statusEvent({
             agent: session.agent,
             sessionId: session.sessionId,
@@ -107,12 +169,22 @@ export class AutonomyKernel {
             status: 'completed',
             summary: decision.summary,
           }),
-        );
+          {
+            type: 'mirror_session_status',
+            agent: session.agent,
+            sessionId: session.sessionId,
+            status: 'completed',
+            message: decision.summary,
+            at: Date.now(),
+          } satisfies MirrorEvent,
+        ];
+        events.push(...completedEvents);
+        await options.eventSink?.append(completedEvents);
         return { session, status: 'completed', events };
       }
 
       if (decision.kind === 'block') {
-        events.push(
+        const blockedEvents = [
           statusEvent({
             agent: session.agent,
             sessionId: session.sessionId,
@@ -120,11 +192,27 @@ export class AutonomyKernel {
             status: 'blocked',
             summary: decision.reason,
           }),
-        );
+          {
+            type: 'mirror_session_status',
+            agent: session.agent,
+            sessionId: session.sessionId,
+            status: 'blocked',
+            message: decision.reason,
+            at: Date.now(),
+          } satisfies MirrorEvent,
+        ];
+        events.push(...blockedEvents);
+        await options.eventSink?.append(blockedEvents);
         return { session, status: 'blocked', events };
       }
 
-      events.push(
+      const actionEvents = [
+        plannerCreatedEvent({
+          agent: session.agent,
+          sessionId: session.sessionId,
+          step,
+          title: decision.summary,
+        }),
         statusEvent({
           agent: session.agent,
           sessionId: session.sessionId,
@@ -132,13 +220,26 @@ export class AutonomyKernel {
           status: 'acting',
           summary: decision.summary,
         }),
-      );
+      ];
+      events.push(...actionEvents);
+      await options.eventSink?.append(actionEvents);
 
       const observation = await options.gateway.invoke(session, decision.command);
-      events.push(...observation.events);
-      state.observations.push(observation.summary);
+      const observedEvents: MirrorEvent[] = [
+        ...observation.events,
+        plannerUpdatedEvent({
+          agent: session.agent,
+          sessionId: session.sessionId,
+          step,
+          status: observation.ok ? 'completed' : 'blocked',
+          detail: observation.summary,
+        }),
+      ];
+      events.push(...observedEvents);
+      state.observations.push(observation);
+      await options.eventSink?.append(observedEvents);
 
-      events.push(
+      const recoveryEvents = [
         statusEvent({
           agent: session.agent,
           sessionId: session.sessionId,
@@ -146,10 +247,12 @@ export class AutonomyKernel {
           status: observation.ok ? 'observing' : 'recovering',
           summary: observation.summary,
         }),
-      );
+      ];
+      events.push(...recoveryEvents);
+      await options.eventSink?.append(recoveryEvents);
     }
 
-    events.push(
+    const failedEvents = [
       statusEvent({
         agent: session.agent,
         sessionId: session.sessionId,
@@ -157,7 +260,17 @@ export class AutonomyKernel {
         status: 'failed',
         summary: `AutonomyKernel exhausted ${maxSteps} steps without finishing`,
       }),
-    );
+      {
+        type: 'mirror_session_status',
+        agent: session.agent,
+        sessionId: session.sessionId,
+        status: 'failed',
+        message: `AutonomyKernel exhausted ${maxSteps} steps without finishing`,
+        at: Date.now(),
+      } satisfies MirrorEvent,
+    ];
+    events.push(...failedEvents);
+    await options.eventSink?.append(failedEvents);
     return { session, status: 'failed', events };
   }
 }
